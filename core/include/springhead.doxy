@@ -1,0 +1,27 @@
+# Doxyfile 1.4.6-NO
+
+@INCLUDE = ./common.doxy
+
+INPUT      = ./ \
+				../src/Framework/FWOldSpringheadNodeHandler.h \
+				../src/Samples/doc.h ../src/Samples
+FILE_PATTERNS          = *.h *.dox main.cpp
+
+EXCLUDE    = ./Scilab ./GL ./html
+
+EXAMPLE_PATH           = ./ ../src/Samples/
+EXAMPLE_PATTERNS       = *.cpp
+EXAMPLE_RECURSIVE      = YES
+
+
+GENERATE_TAGFILE       = ./html/springhead.tag
+TAGFILES               =
+#TAGFILES               = ../src/Samples/html/SamplesDoc.tag
+
+IMAGE_PATH  = 
+
+CHM_FILE               = ..\Springhead.chm
+GENERATE_HTMLHELP      = NO
+
+ALLEXTERNALS = YES
+EXTERNAL_GROUPS = YES

@@ -1,0 +1,116 @@
+#  Makefile.Install
+# ------------------------------------------------------------------------------
+#  Arguments:
+#	PROJECTDIR=dir		  Project directory
+#	VERS={ 14.0 | ... }	  Visual Studio version
+#	PLAT={ x86 | x64 }	  build platform
+#	CONF={ Debug | Release }  build configuration
+#	UNITYPLUGINS=dir	  Unity plugins directory
+#
+#  Version:
+#	Ver1.0  2016/02/02	F.Kanehori  初版
+#	Ver1.1  2016/12/05	F.Kanehori  PROJDIR -> PROJECTDIR
+#	Ver1.2  2017/08/02	F.Kanehori  引数 UNITYPLUGINS 追加
+#	Ver1.3  2017/08/09	F.Kanehori  コピー処理をバッチファイル化
+#	Ver2.0  2017/11/08	F.Kanehori  インストールディレクトリ変更
+# ------------------------------------------------------------------------------
+DEBUG = 1
+COPYCONTROL = do_not_copy
+
+SPRINGHEAD=..\..\..\..
+INSTALLDIR=$(SPRINGHEAD)\generated\bin
+
+!IF "$(VERS)" == ""
+VERS = 14.0
+!ENDIF
+!IF "$(PLAT)" == ""
+PLAT = x64
+!ENDIF
+!IF "$(CONF)" == ""
+CONF = Release
+!ENDIF
+!IF "$(UNITYPLUGINS)" == ""
+UNITYPLUGINS=$(SPRINGHEAD)\..\SprUnity\Assets\Springhead\Plugins
+!ENDIF
+
+!IF "$(PLAT)" == "x86"
+BINCONF	= win32
+!ELSE
+BINCONF	= win64
+!ENDIF
+
+BLDDIR	= ..\$(VERS)\bin\$(PLAT)\$(CONF)
+INSDIR	= $(INSTALLDIR)\$(BINCONF)
+PINDIR	= $(UNITYPLUGINS)
+
+!MESSAGE Makefile.Install
+!MESSAGE Using parameters ...
+!MESSAGE    VERS: [$(VERS)]
+!MESSAGE    PLAT: [$(PLAT)]
+!MESSAGE    CONF: [$(CONF)]
+!MESSAGE    PRJDIR: [$(PROJECTDIR)]
+!MESSAGE    BLDDIR: [$(BLDDIR)]
+!MESSAGE    INSDIR: [$(INSDIR)]
+
+BLDEXPd	= $(BLDDIR)\SprExport.dll
+BLDIMPd	= $(BLDDIR)\SprImport.dll
+BLDCSPd	= $(BLDDIR)\SprCSharp.dll
+#BLDEXPp	= $(BLDDIR)\SprExport.pdb
+#BLDIMPp	= $(BLDDIR)\SprImport.pdb
+#BLDCSPp	= $(BLDDIR)\SprCSharp.pdb
+
+INSEXPd	= $(INSDIR)\SprExport.dll
+INSIMPd	= $(INSDIR)\SprImport.dll
+INSCSPd	= $(INSDIR)\SprCSharp.dll
+#INSEXPp	= $(INSDIR)\SprExport.pdb
+#INSIMPp	= $(INSDIR)\SprImport.pdb
+#INSCSPp	= $(INSDIR)\SprCSharp.pdb
+
+PINEXPd	= $(PINDIR)\SprExport.dll
+PINIMPd	= $(PINDIR)\SprImport.dll
+PINCSPd	= $(PINDIR)\SprCSharp.dll
+#PINEXPp	= $(PINDIR)\SprExport.pdb
+#PINIMPp	= $(PINDIR)\SprImport.pdb
+#PINCSPp	= $(PINDIR)\SprCSharp.pdb
+
+all:	$(INSEXPd) $(INSIMPd) $(INSCSPd)\
+	$(PINEXPd) $(PINIMPd) $(PINCSPd)
+#all:	$(INSEXPd) $(INSEXPp) $(INSIMPd) $(INSIMPp) $(INSCSPd) $(INSCSPp)\
+#	$(PINEXPd) $(PINEXPp) $(PINIMPd) $(PINIMPp) $(PINCSPd) $(PINCSPp)
+
+$(INSEXPd):	$(BLDEXPd)
+		@Install.bat $** $@
+
+$(INSIMPd):	$(BLDIMPd)
+		@Install.bat $** $@
+
+$(INSCSPd):	$(BLDCSPd)
+		@Install.bat $** $@
+
+#$(INSEXPp):	$(BLDEXPp)
+#		@Install.bat $** $@
+
+#$(INSIMPp):	$(BLDIMPp)
+#		@Install.bat $** $@
+
+#$(INSCSPp):	$(BLDCSPp)
+#		@Install.bat $** $@
+
+$(PINEXPd):	$(BLDEXPd)
+		@Install.bat $** $@ $(COPYCONTROL)
+
+$(PINIMPd):	$(BLDIMPd)
+		@Install.bat $** $@ $(COPYCONTROL)
+
+$(PINCSPd):	$(BLDCSPd)
+		@Install.bat $** $@ $(COPYCONTROL)
+
+#$(PINEXPp):	$(BLDEXPp)
+#		@Install.bat $** $@
+
+#$(PINIMPp):	$(BLDIMPp)
+#		@Install.bat $** $@
+
+#$(PINCSPp):	$(BLDCSPp)
+#		@Install.bat $** $@
+

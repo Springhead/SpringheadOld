@@ -1,0 +1,89 @@
+#	Do not edit. RunSwig.bat will update this file.
+%ignore Spr::GRDeviceIf::Print;
+%ignore Spr::GRFrameIf::CalcBBox;
+%ignore Spr::GRFrameIf::GetTransform;
+%ignore Spr::GRFrameIf::GetWorldTransform;
+%ignore Spr::GRFrameIf::SetTransform;
+%ignore Spr::GRRenderBaseIf::GetModelMatrix;
+%ignore Spr::GRRenderBaseIf::GetViewMatrix;
+%ignore Spr::GRRenderBaseIf::GetProjectionMatrix;
+%ignore Spr::GRRenderBaseIf::MultModelMatrix;
+%ignore Spr::GRRenderBaseIf::SetBlendMatrix;
+%ignore Spr::GRRenderBaseIf::SetModelMatrix;
+%ignore Spr::GRRenderBaseIf::SetViewMatrix;
+%ignore Spr::GRRenderBaseIf::SetProjectionMatrix;
+%ignore Spr::GRSceneIf::CreateVisual;
+%ignore Spr::GRFrameTransformMatrix::transform;
+//%ignore Spr::GRFrameDesc::transform;
+//%ignore Spr::GRSkinWeightDesc::offset;
+
+// %feature ‚Í %include ‚æ‚è‚à‘O‚ÉŽw’è‚·‚é‚±‚Æ.
+//
+%feature("returns_array") Spr::GRMeshIf::GetFaceNormals;
+%feature("returns_array") Spr::GRMeshIf::GetFaces;
+%feature("returns_array") Spr::GRMeshIf::GetTexCoords;
+%feature("returns_array") Spr::GRMeshIf::GetNormals;
+%feature("returns_array") Spr::GRMeshIf::GetVertices;
+%feature("returns_array") Spr::GRMeshIf::GetColors;
+
+%module Graphics
+%include "../../include/SprBase.h"
+%include "../../include/Base/Env.h"
+%include "../../include/Base/Affine.h"
+%include "../../include/Foundation/SprObject.h"
+%include "../../include/Foundation/SprScene.h"
+%include "../../include/Collision/SprCDShape.h"
+%include "../../include/Graphics/SprGRFrame.h"
+%include "../../include/Graphics/SprGRBlendMesh.h"
+%include "../../include/Graphics/SprGRMesh.h"
+%include "../../include/Graphics/SprGRRender.h"
+%include "../../include/Graphics/SprGRScene.h"
+%include "../../include/Graphics/SprGRSdk.h"
+%include "../../include/Graphics/SprGRShader.h"
+%include "../../include/Graphics/SprGRSphere.h"
+%include "../../include/Graphics/SprGRVertex.h"
+/*
+#define DOUBLECOLON :: 
+%include "../../include/Springhead.h"
+%include "../../include/base/Env.h"
+%include "../../include/Foundation/SprObject.h"
+%include "../../include/Foundation/SprScene.h"
+%include "../../include/Foundation/SprUTTimer.h"
+%include "../../include/Graphics/SprGRBlendMesh.h"
+%include "../../include/Graphics/SprGRFrame.h"
+%include "../../include/Graphics/SprGRMesh.h"
+%include "../../include/Graphics/SprGRRender.h"
+%include "../../include/Graphics/SprGRScene.h"
+%include "../../include/Graphics/SprGRSdk.h"
+%include "../../include/Graphics/SprGRShader.h"
+%include "../../include/Graphics/SprGRSphere.h"
+%include "../../include/Graphics/SprGRVertex.h"
+%include "../../include/Base/BaseDebug.h"
+%include "../../src/Foundation/UTTypeDesc.h"
+%include "../Foundation/Foundation.h"
+%include "../Foundation/Object.h"
+%include "../Foundation/Scene.h"
+%include "../Foundation/UTBaseType.h"
+%include "../Foundation/UTClapack.h"
+%include "../Foundation/UTDllLoader.h"
+%include "../Foundation/UTDllLoaderImpl.h"
+%include "../Foundation/UTLoadContext.h"
+%include "../Foundation/UTLoadHandler.h"
+%include "../Foundation/UTMMTimer.h"
+%include "../Foundation/UTPath.h"
+%include "../Foundation/UTPreciseTimer.h"
+%include "../Foundation/UTQPTimer.h"
+%include "../Foundation/UTSocket.h"
+%include "../Foundation/UTTimer.h"
+%include "../Foundation/UTTypeDesc.h"
+%include "../Graphics/Graphics.h"
+%include "../Graphics/GRBlendMesh.h"
+%include "../Graphics/GRDeviceGL.h"
+%include "../Graphics/GRFrame.h"
+%include "../Graphics/GRLoadBmp.h"
+%include "../Graphics/GRMesh.h"
+%include "../Graphics/GRRender.h"
+%include "../Graphics/GRScene.h"
+%include "../Graphics/GRSdk.h"
+%include "../Graphics/GRSphere.h"
+*/

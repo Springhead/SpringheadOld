@@ -1,0 +1,190 @@
+
+剛体の接触問題のLCPへの定式化
+
+tazz
+
+参照：
+http://www.diku.dk/undervisning/2005f/101/											
+
+
+1. LCP (Linear Complimentarity Program)の定式化
+
+記号リスト：
+
+u		: 各剛体の速度を並べたベクトル
+udot	: uの時間微分
+w		: 接触点での速度
+J		: uからwを与えるヤコビ行列. w = J u
+M		: 慣性行列
+dt		: オイラー積分の時間ステップ
+λ		: 接触力 * dt
+Fext	: 外力およびコリオリ項
+
+
+運動方程式は
+	M udot = J' λ/dt + Fext
+オイラー積分により
+	u(t+1) = u(t) + M^-1 J' λ + dt M^-1 Fext
+左からJをかけて
+	w = J M^-1 J' λ + J (u(t) + dt M^-1 Fext)
+A = J M^-1 J'
+b = J (u(t) + dt M^-1 Fext)
+とおくと
+	w = A λ + b
+
+さらに，垂直抗力，静止摩擦，動摩擦などを考慮することにより
+以下の制約条件を得る
+	λ_i = λ_lo_i				==> w_i >= 0
+	λ_i = λ_hi_i				==> w_i <= 0
+	λ_lo_i < λ_i < λ_hi_i	==> w_i = 0
+これの解λをLCP(A, b, λ_hi, λ_lo)と書く
+
+反復解法:
+A = D - Nとしたとき，適当なλ[0]を初期値として，漸化式
+	λ[k+1] = LCP(D, -N λ[k] + b, λ_hi, λ_lo)
+によりλ[k]を更新していく．このとき
+	λ[k+1] = λ[k]
+が成り立つならば
+	λ[k] = LCP(A, b, λ_hi, λ_lo)
+となり元の問題が解けたことになる
+さて，Dが対角行列ならば，LCP(D, -N λ[k] + b, λ_hi, λ_lo)の解は
+	λ[k+1] = min(max(λ_lo, D^-1(N λ[k] - b)), λ_hi)
+で得られる．要するにこの式を繰り返し計算すればよい．
+
+以下は詳細な式展開
+N : 剛体の数
+K : 接触の数
+lhs(i) : i番目の接触の「左側」の剛体の番号
+rhs(i) : i番目の接触の「右側」の剛体の番号
+	lhs(i) < rhs(i)
+
+[予備知識]
+行列の積C = A Bについて
+C(i,j) = Arow(i)' Bcol(j) = ∑_k=1^n A(i,k) B(k,j)		(n = Aの列数 = Bの行数)
+
+[各行列の3x3ブロックの内容]
+ある行列Aの(i,j)番目の3x3部分行列をA(i,j)と書く．
+
+size(M) = (6N, 6N)
+M(i,j) =
+	O		(i != j)
+	m_k * 1	(i = 2k)	m_kはk番目の剛体の質量, 1は3x3単位行列
+	I_k		(i = 2k+1)	I_kはk番目の剛体の慣性テンソル
+
+size(J) = (3K, 6N)
+J(i,j) =
+	J_lin(i,lhs(i))		(j == 2lhs(i))
+	J_ang(i,lhs(i))		(j == 2lhs(i)+1)
+	J_lin(i,rhs(i))		(j == 2rhs(i))
+	J_ang(i,rhs(i))		(j == 2rhs(i)+1)
+	O					otherwise
+ここでJlinは(i, j)は剛体jのvelocity (剛体jのローカル座標)から接触点iの速度（接触点座標）へのヤコビ行列，
+Jangは(i, j)は剛体jのangular velocity (剛体jのローカル座標)から接触点iの速度（接触点座標）へのヤコビ行列．
+つまりu = Jlin * v + Jang * w (u:接触点速度，v:剛体速度，w:剛体角速度)
+
+T := M^-1 J'
+T(i,j)
+	= ∑_k=1^2N M^-1(i,k) J'(k,j)
+	= M(i,i)^-1 J(j,i)'
+	=	1/m_lhs(j)  J_lin(j,lhs(j))'	:= T_lin(j,lhs(j))	(i == 2lhs(j))
+		I_lhs(j)^-1 J_ang(j,lhs(j))'	:= T_ang(j,lhs(j))	(i == 2lhs(j)+1)
+		1/m_rhs(j)  J_lin(j,rhs(j))'	:= T_lin(j,rhs(j))	(i == 2rhs(j))
+		I_rhs(j)^-1 J_ang(j,rhs(j))'	:= T_ang(j,rhs(j))	(i == 2rhs(j)+1)
+		O							otherwise
+
+A = J M^-1 J' = J T
+size(A) = (3K, 3K)
+A(i,j) = ∑_k=1^2N J(i,k) T(k,j) =
+	δ(lhs(i),lhs(j)) * J_lin(i,lhs(i)) T_lin(j,lhs(j)) + J_ang(i,lhs(i)) T_ang(j,lhs(j))) +
+	δ(lhs(i),rhs(j)) * J_lin(i,lhs(i)) T_lin(j,rhs(j)) + J_ang(i,lhs(i)) T_ang(j,rhs(j))) +
+	δ(rhs(i),lhs(j)) * J_lin(i,rhs(i)) T_lin(j,lhs(j)) + J_ang(i,rhs(i)) T_ang(j,lhs(j))) +
+	δ(rhs(i),rhs(j)) * J_lin(i,rhs(i)) T_lin(j,rhs(j)) + J_ang(i,rhs(i)) T_ang(j,rhs(j)))
+	=
+	δ(lhs(i),lhs(j)) * (1/m_lhs(i) J_lin(i,lhs(i)) J_lin(j,lhs(j))' + J_ang(i,lhs(i)) I_lhs(i)^-1 J_ang(j,lhs(j))') +
+	δ(lhs(i),rhs(j)) * (1/m_lhs(i) J_lin(i,lhs(i)) J_lin(j,rhs(j))' + J_ang(i,lhs(i)) I_lhs(i)^-1 J_ang(j,rhs(j))') +
+	δ(rhs(i),lhs(j)) * (1/m_rhs(i) J_lin(i,rhs(i)) J_lin(j,lhs(j))' + J_ang(i,rhs(i)) I_rhs(i)^-1 J_ang(j,lhs(j))') +
+	δ(rhs(i),rhs(j)) * (1/m_rhs(i) J_lin(i,rhs(i)) J_lin(j,rhs(j))' + J_ang(i,rhs(i)) I_rhs(i)^-1 J_ang(j,rhs(j))')
+特に対角ブロックのみに注目すると
+A(i,i) =
+	J_lin(i,lhs(i)) T_lin(i,lhs(i)) + J_ang(i,lhs(i)) T_ang(i,lhs(i)) +
+	J_lin(i,rhs(i)) T_lin(i,rhs(i)) + J_ang(i,rhs(i)) T_ang(i,rhs(i))
+	=
+	1/m_lhs(i) J_lin(i,lhs(i)) J_lin(i,lhs(i))' + J_ang(i,lhs(i)) I_lhs(i)^-1 J_ang(i,lhs(i))' +
+	1/m_rhs(i) J_lin(i,rhs(i)) J_lin(i,rhs(i))' + J_ang(i,rhs(i)) I_rhs(i)^-1 J_ang(i,rhs(i))'	
+
+ただしδはクロネッカーデルタ(δ(i,j) == 1 if i == j or 0 otherwise)
+
+b = J Vnc		(Vnc = u(t) + dt M^-1 Fext)
+size(b) = 3K
+b(i) = ∑_k=1^2N J(i,k) Vnc(k) =
+	J_lin(i,lhs(i)) Vnc(2lhs(i)) + J_ang(i,lhs(i)) Vnc(2lhs(i)+1) +
+	J_lin(i,rhs(i)) Vnc(2rhs(i)) + J_ang(i,rhs(i)) Vnc(2rhs(i)+1)
+
+以下は反復計算の詳細
+A行列の対角要素を抜き出した対角行列をDとおくと，射影を除いた一度の反復は
+	λ[k+1] = D^-1((D - A)λ[k] - b) = λ[k] - D^-1 A λ[k] - D^-1 b
+となる．各成分に注目すると
+	λ[k+1][i] = λ[k][i] - (b[i] + Arow[i] λ[k]) / D[i,i]
+Arow[i]はAのi番目の行．A = J M^-1 J'よりArow[i] = Jrow[i] M^-1 J'．
+よって上式は
+	λ[k+1][i] = λ[k][i] - _b[i] - _Jrow[i] dV[k]
+ここで_b[i] = b[i]/D[i,i]，_Jrow[i] = Jrow[i]/D[i,i], dV[k] = M^-1 J' λ[k].
+＊結局A行列はその対角要素のみ計算すればよいことになる．
+
+/////////////////////////////////////////////////////////////////////////////////////////
+Iterative LCP の収束性に関して：
+＊理論的に厳密には書いてませんので悪しからず。
+
+まず，問題
+	find z s.t. z >= 0, (Az + b) >= 0, (Az + b)'z = 0
+の解集合をLCP(A, b)と書く．
+＊解集合と書いたのはzが一意とは限らないから．
+
+LCPの反復解法とは，A = B + C なる(B, C)を考え，適当な初期値z[0]について反復操作
+	z[k+1] = LCP(B, b + C z[k])
+を繰り返す方法である．ここで
+	z[k+1] >= 0, B z[k+1] + C z[k] + b >= 0, (B z[k+1] + C z[k] + b)'z[k+1] = 0
+なので，z[k+1] = z[k]ならばz[k+1]はLCP(A, b)に含まれ，問題が解けたことになる．
+
+BをAの対角要素を持つ対角行列とする分割を用いるとき，これを射影ヤコビ法と呼ぶ．
+	B = D, C = U + L
+BをAの対角要素および下三角要素を持つ行列をするとき，これを射影ガウスザイデル法と呼ぶ．
+	B = L + D, C = U
+ある定数ωについて，
+	B = L + ω^-1 D, C = (1 - ω^-1)D + U
+と分割するとき，これをSOR法と呼ぶ．
+
+要素レベルではなく，ブロックレベルで同様に分割するときは手法の頭にブロック～が付く．
+
+さて，問題は上の反復操作が収束するかである．
+
+********************************************************************************
+Aが正定行列のとき反復が収束する条件はB - Cが正定行列であることである．
+********************************************************************************
+Aは正定行列とする．
+SOR法において，ωが
+	0 < ω < 2
+を満たすとき，SOR法の反復により生成される系列は解に収束する．
+********************************************************************************
+
+
+/////////////////////////////////////////////////////////////////////////////////////////
+関節の導入
+
+設定：
+接触に関与する剛体の内，いくつかは関節でつながれている．
+関節系を
+	J[0], J[1], ..., J[M-1]
+とし，関節J[i]につながっている剛体を
+	S[i][0], S[i][1], ..., S[i][N[i]]
+とかく．
+また，どの関節系にもつながっていない剛体を
+	S[M][0], ..., S[M][N[M]]
+とする．
+各関節系の一般化座標q[i] (i = 0,1,...,M-1)と，
+関節系につながっていない各剛体の座標q[M]をつなげたベクトルを
+	q = [q[0]; q[1]; ...; q[M]]
+とおく．
+関節系J[i]の運動方程式を
+	M(q[i]) q''[i] = h(q[i], q'[i]) + τ[i]
+と書く．

@@ -1,0 +1,124 @@
+#  Makefile.RunSwig_CSharp
+# ------------------------------------------------------------------------------
+#  Arguments:
+#	TARGET={ ALL | Physics }  Target link modules
+#	PROJECTDIR=dir		  Project directory
+#	PLAT={ x86 | x64 }	  build platform
+#
+#  Version:
+#	Ver1.0  2015/07/23	F.Kanehori  初版
+#	Ver2.0  2016/12/07	F.Kanehori  ターゲット指定実装
+#	Ver3.0  2017/04/27	F.Kanehori  NameManager対応
+#					    Python executable directory moved
+#	Ver3.1  2017/08/28	F.Kanehori  Bug fixed.
+# ------------------------------------------------------------------------------
+DEBUG = 1
+
+!IF "$(PLAT)" == "x86"
+PLATFORM = win32
+!ELSE
+PLATFORM = win64
+!ENDIF
+!IF "$(TARGET)" == ""
+TARGET	= ALL
+!ENDIF
+
+SPRTOP	= ..\..\..\..
+COREDIR	= $(SPRTOP)\core
+BINDIR	= $(COREDIR)\bin\swig
+DLLDIR	= $(COREDIR)\bin\$(PLATFORM)
+TOPDIR	= $(COREDIR)\src\SprCSharp
+MAKEDIR	= $(PROJECTDIR)
+EXPSRCDIR	= $(TOPDIR)\SprExport
+IMPSRCDIR	= $(TOPDIR)\SprImport
+CSSRCDIR	= $(TOPDIR)\SprCSharp
+IFILEDIR	= $(TOPDIR)
+
+PYTHONADAPTER	= $(COREDIR)\src\RunSwig\python_adapter.bat
+PYTHON		= $(PYTHONADAPTER) -SprTop $(SPRTOP)
+NAMEMGRDIR	= $(COREDIR)\src\SprCSharp\NameManager
+NAMEMGR		= $(NAMEMGRDIR)\NameManager.bat
+
+!MESSAGE Makefile.RunSwig_CSharp
+!MESSAGE Using parameters ...
+!MESSAGE    TARGET:     [$(TARGET)]
+!MESSAGE    PLATFORM:   [$(PLATFORM)]
+!MESSAGE    PRJDIR:     [$(PROJECTDIR)]
+!MESSAGE    TOPDIR:     [$(TOPDIR)]
+!MESSAGE    MAKEDIR:    [$(MAKEDIR)]
+!MESSAGE    DLLDIR:     [$(DLLDIR)]
+!MESSAGE    EXPSRCDIR:  [$(EXPSRCDIR)]
+!MESSAGE    IMPSRCDIR:  [$(IMPSRCDIR)]
+!MESSAGE    CSSRCDIR:   [$(CSSRCDIR)]
+!MESSAGE    IFILEDIR:   [$(IFILEDIR)]
+!MESSAGE    NAMEMGR:    [$(NAMEMGR)]
+!MESSAGE    PYTHON:     [$(PYTHON)]
+
+RUNSWIG 	= $(MAKEDIR)\RunSwig_CSharp.bat
+NAMEMGR_SCRIPT	= $(PYTHON) $(NAMEMGRDIR)\NameManager.py
+NAMEMGR_INI	= $(NAMEMGRDIR)\NameManager.ini
+
+
+EXPSRCS	= $(EXPSRCDIR)\CSBase.cpp		\
+	  $(EXPSRCDIR)\CSCollision.cpp		\
+	  $(EXPSRCDIR)\CSCreature.cpp		\
+	  $(EXPSRCDIR)\CSFileIO.cpp		\
+	  $(EXPSRCDIR)\CSFoundation.cpp		\
+	  $(EXPSRCDIR)\CSFramework.cpp		\
+	  $(EXPSRCDIR)\CSGraphics.cpp		\
+	  $(EXPSRCDIR)\CSHumanInterface.cpp	\
+	  $(EXPSRCDIR)\CSPhysics.cpp
+
+IMPSRCS	= $(IMPSRCDIR)\CSBase.cs		\
+	  $(IMPSRCDIR)\CSCollision.cs		\
+	  $(IMPSRCDIR)\CSCreature.cs		\
+	  $(IMPSRCDIR)\CSFileIO.cs		\
+	  $(IMPSRCDIR)\CSFoundation.cs		\
+	  $(IMPSRCDIR)\CSFramework.cs		\
+	  $(IMPSRCDIR)\CSGraphics.cs		\
+	  $(IMPSRCDIR)\CSHumanInterface.cs	\
+	  $(IMPSRCDIR)\CSPhysics.cs
+
+CSSRCS	= $(CSSRCDIR)\CSBase.cs			\
+	  $(CSSRCDIR)\CSCollision.cs		\
+	  $(CSSRCDIR)\CSCreature.cs		\
+	  $(CSSRCDIR)\CSFileIO.cs		\
+	  $(CSSRCDIR)\CSFoundation.cs		\
+	  $(CSSRCDIR)\CSFramework.cs		\
+	  $(CSSRCDIR)\CSGraphics.cs		\
+	  $(CSSRCDIR)\CSHumanInterface.cs	\
+	  $(CSSRCDIR)\CSPhysics.cs
+
+IFILES	= $(IFILEDIR)\Base.i			\
+	  $(IFILEDIR)\Collision.i		\
+	  $(IFILEDIR)\Creature.i		\
+	  $(IFILEDIR)\FileIO.i			\
+	  $(IFILEDIR)\Foundation.i		\
+	  $(IFILEDIR)\Framework.i		\
+	  $(IFILEDIR)\Graphics.i		\
+	  $(IFILEDIR)\HumanInterface.i		\
+	  $(IFILEDIR)\Physics.i
+
+all:	$(NAMEMGR) dlls
+	call $(RUNSWIG) $(TARGET)
+
+$(NAMEMGR):	
+	$(NAMEMGR_SCRIPT) -i $(NAMEMGR_INI) -o $(NAMEMGR)
+
+dlls:	$(DLLDIR)\SprExport.dll	\
+	$(DLLDIR)\SprImport.dll	\
+	$(DLLDIR)\SprCSharp.dll
+
+$(DLLDIR)\SprExport.dll:	$(EXPSRCS)
+
+$(DLLDIR)\SprImport.dll:	$(IMPSRCS)
+
+$(DLLDIR)\SprCSharp.dll:	$(CSSRCS)
+
+$(EXPSRCS):	$(IFILES)
+
+$(IMPSRCS):	$(IFILES)
+
+$(CSSRCS):	$(IFILES)
+
+# end: Makefile.RunSwig_CSharp

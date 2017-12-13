@@ -1,0 +1,9 @@
+@INCLUDE = ../include/common.doxy
+
+INPUT                  = ./docsrc/
+RECURSIVE              = YES
+CHM_FILE      = ..\temp.chm
+HTML_OUTPUT   = ./temp
+
+#GENERATE_HTMLHELP      = YES
+#	YESÇ…Ç∑ÇÈÇ∆ÅAïÅí ÇÃHTMLÇ©ÇÁÉcÉäÅ[Ç™è¡Ç¶ÇÈ

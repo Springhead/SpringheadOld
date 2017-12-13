@@ -1,0 +1,65 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ImportGroup Label="PropertySheets" />
+  <PropertyGroup Label="UserMacros">
+    <LibConfDebug>D</LibConfDebug>
+    <LibConfRelease />
+    <LibConfTrace>T</LibConfTrace>
+    <Springhead>..\..\..</Springhead>
+    <Dependency>$(Springhead)\dependency</Dependency>
+    <DependencySrc>$(Dependency)\src</DependencySrc>
+    <DependencyLib>$(Dependency)\lib</DependencyLib>
+    <Closed>$(Springhead)\closed</Closed>
+    <ClosedSrc>$(Closed)\include</ClosedSrc>
+    <Generated>$(Springhead)\generated</Generated>
+    <GeneratedBin>$(Generated)\bin</GeneratedBin>
+  </PropertyGroup>
+  <PropertyGroup />
+  <ItemDefinitionGroup />
+  <ItemGroup>
+    <BuildMacro Include="LibConfDebug">
+      <Value>$(LibConfDebug)</Value>
+      <EnvironmentVariable>true</EnvironmentVariable>
+    </BuildMacro>
+    <BuildMacro Include="LibConfRelease">
+      <Value>$(LibConfRelease)</Value>
+      <EnvironmentVariable>true</EnvironmentVariable>
+    </BuildMacro>
+    <BuildMacro Include="LibConfTrace">
+      <Value>$(LibConfTrace)</Value>
+      <EnvironmentVariable>true</EnvironmentVariable>
+    </BuildMacro>
+    <BuildMacro Include="Springhead">
+      <Value>$(Springhead)</Value>
+      <EnvironmentVariable>true</EnvironmentVariable>
+    </BuildMacro>
+    <BuildMacro Include="Dependency">
+      <Value>$(Dependency)</Value>
+      <EnvironmentVariable>true</EnvironmentVariable>
+    </BuildMacro>
+    <BuildMacro Include="DependencySrc">
+      <Value>$(DependencySrc)</Value>
+      <EnvironmentVariable>true</EnvironmentVariable>
+    </BuildMacro>
+    <BuildMacro Include="DependencyLib">
+      <Value>$(DependencyLib)</Value>
+      <EnvironmentVariable>true</EnvironmentVariable>
+    </BuildMacro>
+    <BuildMacro Include="Closed">
+      <Value>$(Closed)</Value>
+      <EnvironmentVariable>true</EnvironmentVariable>
+    </BuildMacro>
+    <BuildMacro Include="ClosedSrc">
+      <Value>$(ClosedSrc)</Value>
+      <EnvironmentVariable>true</EnvironmentVariable>
+    </BuildMacro>
+    <BuildMacro Include="Generated">
+      <Value>$(Generated)</Value>
+      <EnvironmentVariable>true</EnvironmentVariable>
+    </BuildMacro>
+    <BuildMacro Include="GeneratedBin">
+      <Value>$(GeneratedBin)</Value>
+      <EnvironmentVariable>true</EnvironmentVariable>
+    </BuildMacro>
+  </ItemGroup>
+</Project>

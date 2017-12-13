@@ -1,0 +1,55 @@
+#ifdef ENABLE_TEXTURE_2D
+uniform sampler2D tex2D;
+uniform float enableTex2D;
+#endif
+
+#ifdef ENABLE_TEXTURE_3D
+uniform sampler3D tex3D;
+uniform float enableTex3D;
+#endif
+
+#ifdef ENABLE_LIGHTING
+varying vec4 ambient;
+#endif
+
+#ifdef SHADOW_RENDER
+uniform sampler2DShadow shadowTex;
+uniform vec4 shadowColor;
+
+varying vec4 shadowCoord;
+#endif
+
+void main()
+{
+	vec4 color;
+
+	color = gl_Color;
+	
+	vec4 white = vec4(1.0, 1.0, 1.0, 1.0);
+
+	#ifdef ENABLE_TEXTURE_2D
+    vec4 texColor2D;
+	texColor2D = texture2D(tex2D, gl_TexCoord[0].xy);
+	texColor2D = mix(white, texColor2D, enableTex2D);
+	// modulate mode only
+	color *= texColor2D;
+	#endif
+
+	#ifdef ENABLE_TEXTURE_3D
+	vec4 texColor3D;	
+	texColor3D = texture3D(tex3D, gl_TexCoord[0].xyz);
+	texColor3D = mix(white, texColor3D, enableTex3D);
+	color *= texColor3D;
+	#endif
+
+	#ifdef SHADOW_RENDER
+	float notInShadow = textureProj(shadowTex, shadowCoord);
+	vec4 mixedColor = vec4(mix(color.rgb, shadowColor.rgb, shadowColor.a), 1.0);
+	color = mix(mixedColor, color, notInShadow);
+	#endif
+
+	// no need to set color when creating shadow
+	#ifndef SHADOW_CREATE
+	gl_FragColor = color;
+	#endif
+}

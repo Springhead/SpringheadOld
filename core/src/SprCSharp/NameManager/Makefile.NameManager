@@ -1,0 +1,19 @@
+#  File: Makefile.NameManager
+			
+INIFILE	= NameManager.ini
+SCRIPT	= NameManager.py
+TARGET	= NameManager.bat
+PYTHON	= ..\..\RunSwig\python_adapter.bat
+
+all:	$(TARGET)
+
+$(TARGET):	$(INIFILE) $(SCRIPT)
+		$(PYTHON) -SprTop ..\..\..\.. $(SCRIPT)
+
+clean:		
+		del $(TARGET) >NUL 2>&1
+
+$(INIFILE):			
+
+$(SCRIPT):			
+

@@ -1,0 +1,22 @@
+# Doxyfile 1.4.6-NO
+
+@INCLUDE = ../include/common.doxy
+
+INPUT      	= . \
+				../include
+RECURSIVE  	= YES
+EXCLUDE		= ../include/docsrc/00Index.h ../include/Base
+
+GENERATE_TAGFILE       = ./html/springhead.tag
+TAGFILES=
+
+CHM_FILE               = ..\springheadImp.chm
+GENERATE_HTMLHELP      = YES
+
+ALLEXTERNALS = YES
+EXTERNAL_GROUPS = YES
+
+EXAMPLE_PATH = .
+EXAMPLE_RECURSIVE = NO
+
+IMAGE_PATH = ./docsrc/02Tutorial/ ./docsrc/02Tutorial/04AipBasic/

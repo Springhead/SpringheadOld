@@ -1,0 +1,11 @@
+# Doxyfile 1.4.6-NO
+
+@INCLUDE = ./common.doxy
+RECURSIVE              = NO
+
+INPUT         = ../src/Framework/FWOldSpringheadNodeHandler.h ./docsrc/
+CHM_FILE      = ..\temp.chm
+HTML_OUTPUT   = ./temp
+
+#GENERATE_HTMLHELP      = YES
+#	YESÇ…Ç∑ÇÈÇ∆ÅAïÅí ÇÃHTMLÇ©ÇÁÉcÉäÅ[Ç™è¡Ç¶ÇÈ
