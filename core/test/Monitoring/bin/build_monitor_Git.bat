@@ -17,6 +17,8 @@ setlocal enabledelayedexpansion
 ::  VERSION
 ::	Ver 1.0  2013/01/16 F.Kanehori	Unix 版より移植
 ::	Ver 2.0  2017/12/20 F.Kanehori	GitHub 版に改造
+::	Ver 2.1  2017/12/27 F.Kanehori	レポートファイル名を変更
+::	Ver 2.2  2018/01/02 F.Kanehori	NEWREV ログはテスト結果から直接得る
 :: ============================================================================
 set PROG=%~n0
 
@@ -74,14 +76,15 @@ rem if %OPT_M% == 1 ( set REPORTBYMAIL=1 )
 ::----------------------------------------------
 ::  現在の日付と時刻
 ::
-set DATESTR=%date:~0,4%-%date:~5,2%%date:~8,2% %time:~0,8%
+set DATESTR=%date:~0,4%-%date:~5,2%%date:~8,2%
+set TIMESTR=%time:~0,8%
 
 ::----------------------------------------------
 ::  結果を報告するメールに関して
 ::	  REPORTBYMAIL	1 (引数 -m を指定) なら結果をメールで知らせる
 ::
 set REPORTBYMAIL=0
-set MAILSUBJECT=Daily-build Report on %DATESTR%
+set MAILSUBJECT=Daily-build Report on %DATESTR% %TIMESTR%
 set MAILTOADDR=
 set MAILFMADDR=
 
@@ -244,25 +247,25 @@ set TMPNEWBLDERRF=%TMPDIR%\r%NEWREV%.blderrlog.new
 set TMPNEWRUNERRF=%TMPDIR%\r%NEWREV%.runerrlog.new
 set TMPNEWSPLERRF=%TMPDIR%\r%NEWREV%.splerrlog.new
 ::     REPROTFILE	レポートファイル
-set REPORTFILE=%REPDIR%\%NEWDATE%.report
+set REPORTFILE=%REPDIR%\%DATESTR%.report
 ::     参考情報ファイル
-set STBLOGDIFFFILE=%REPDIR%\%NEWDATE%.stblog.diff
-set BLDLOGDIFFFILE=%REPDIR%\%NEWDATE%.bldlog.diff
-set RUNLOGDIFFFILE=%REPDIR%\%NEWDATE%.runlog.diff
-set SPLLOGDIFFFILE=%REPDIR%\%NEWDATE%.spllog.diff
+set STBLOGDIFFFILE=%REPDIR%\%DATESTR%.stblog.diff
+set BLDLOGDIFFFILE=%REPDIR%\%DATESTR%.bldlog.diff
+set RUNLOGDIFFFILE=%REPDIR%\%DATESTR%.runlog.diff
+set SPLLOGDIFFFILE=%REPDIR%\%DATESTR%.spllog.diff
 ::     TMPFILE		作業ファイル
 set TMPFILE=%TMPDIR%\build_monitor.tmp
-set TMPSTBLOGDIFFFILE=%TMPDIR%\%NEWDATE%.stblog.diff
-set TMPBLDLOGDIFFFILE=%TMPDIR%\%NEWDATE%.bldlog.diff
-set TMPRUNLOGDIFFFILE=%TMPDIR%\%NEWDATE%.runlog.diff
-set TMPSPLLOGDIFFFILE=%TMPDIR%\%NEWDATE%.spllog.diff
-set TMPSTBERRDIFFFILE=%TMPDIR%\%NEWDATE%.stberrlog.diff
-set TMPBLDERRDIFFFILE=%TMPDIR%\%NEWDATE%.blderrlog.diff
-set TMPRUNERRDIFFFILE=%TMPDIR%\%NEWDATE%.runerrlog.diff
-set TMPSPLERRDIFFFILE=%TMPDIR%\%NEWDATE%.splerrlog.diff
+set TMPSTBLOGDIFFFILE=%TMPDIR%\%DATESTR%.stblog.diff
+set TMPBLDLOGDIFFFILE=%TMPDIR%\%DATESTR%.bldlog.diff
+set TMPRUNLOGDIFFFILE=%TMPDIR%\%DATESTR%.runlog.diff
+set TMPSPLLOGDIFFFILE=%TMPDIR%\%DATESTR%.spllog.diff
+set TMPSTBERRDIFFFILE=%TMPDIR%\%DATESTR%.stberrlog.diff
+set TMPBLDERRDIFFFILE=%TMPDIR%\%DATESTR%.blderrlog.diff
+set TMPRUNERRDIFFFILE=%TMPDIR%\%DATESTR%.runerrlog.diff
+set TMPSPLERRDIFFFILE=%TMPDIR%\%DATESTR%.splerrlog.diff
 
 if %OPT_V% == 1 (
-    echo outout to:
+    echo output to:
     echo   %REPORTFILE%
 )
 
@@ -270,6 +273,7 @@ if %OPT_V% == 1 (
 ::  OLDREV と NEWREV のログファイルを取り出す
 ::
 if %OPT_V% == 1 ( set /p=extracting log info ... < NUL )
+::  OLDREV のログは GitHub から取り出す.
 git show %OLDREV%:%STBLOGURL% | %ORDER% > %TMPOLDSTBFILE%
 git show %OLDREV%:%BLDLOGURL% | %ORDER% > %TMPOLDBLDFILE%
 git show %OLDREV%:%RUNLOGURL% | %ORDER% > %TMPOLDRUNFILE%
@@ -279,14 +283,24 @@ git show %OLDREV%:%BLDERRURL% | %ORDER% > %TMPOLDBLDERRF%
 git show %OLDREV%:%RUNERRURL% | %ORDER% > %TMPOLDRUNERRF%
 git show %OLDREV%:%SPLERRURL% | %ORDER% > %TMPOLDSPLERRF%
 
-git show %NEWREV%:%STBLOGURL% | %ORDER% > %TMPNEWSTBFILE%
-git show %NEWREV%:%BLDLOGURL% | %ORDER% > %TMPNEWBLDFILE%
-git show %NEWREV%:%RUNLOGURL% | %ORDER% > %TMPNEWRUNFILE%
-git show %NEWREV%:%SPLLOGURL% | %ORDER% > %TMPNEWSPLFILE%
-git show %NEWREV%:%STBERRURL% | %ORDER% > %TMPNEWSTBERRF%
-git show %NEWREV%:%BLDERRURL% | %ORDER% > %TMPNEWBLDERRF%
-git show %NEWREV%:%RUNERRURL% | %ORDER% > %TMPNEWRUNERRF%
-git show %NEWREV%:%SPLERRURL% | %ORDER% > %TMPNEWSPLERRF%
+::  NEWREV のログは DailyBuild の結果から直接取り出す.
+set TOPDIR=..\..\..
+rem git show %NEWREV%:%STBLOGURL% | %ORDER% > %TMPNEWSTBFILE%
+rem git show %NEWREV%:%BLDLOGURL% | %ORDER% > %TMPNEWBLDFILE%
+rem git show %NEWREV%:%RUNLOGURL% | %ORDER% > %TMPNEWRUNFILE%
+rem git show %NEWREV%:%SPLLOGURL% | %ORDER% > %TMPNEWSPLFILE%
+rem git show %NEWREV%:%STBERRURL% | %ORDER% > %TMPNEWSTBERRF%
+rem git show %NEWREV%:%BLDERRURL% | %ORDER% > %TMPNEWBLDERRF%
+rem git show %NEWREV%:%RUNERRURL% | %ORDER% > %TMPNEWRUNERRF%
+rem git show %NEWREV%:%SPLERRURL% | %ORDER% > %TMPNEWSPLERRF%
+type %TOPDIR%\%STBLOGURL:/=\% | %ORDER% > %TMPNEWSTBFILE%
+type %TOPDIR%\%BLDLOGURL:/=\% | %ORDER% > %TMPNEWBLDFILE%
+type %TOPDIR%\%RUNLOGURL:/=\% | %ORDER% > %TMPNEWRUNFILE%
+type %TOPDIR%\%SPLLOGURL:/=\% | %ORDER% > %TMPNEWSPLFILE%
+type %TOPDIR%\%STBERRURL:/=\% | %ORDER% > %TMPNEWSTBERRF%
+type %TOPDIR%\%BLDERRURL:/=\% | %ORDER% > %TMPNEWBLDERRF%
+type %TOPDIR%\%RUNERRURL:/=\% | %ORDER% > %TMPNEWRUNERRF%
+type %TOPDIR%\%SPLERRURL:/=\% | %ORDER% > %TMPNEWSPLERRF%
 if %OPT_V% == 1 ( echo done )
 
 ::----------------------------------------------
@@ -320,7 +334,7 @@ if %OPT_V% == 1 ( echo done )
 ::     ただし日付行は除く(pattern is /日付 : [0-9]{2}\.[0-9]{2}\.[0-9]{2}/)
 ::
 if %OPT_V% == 1 ( set /p=making report file ... < NUL )
-echo Report on %DATESTR%				>  %REPORTFILE%
+echo Report on %DATESTR% %TIMESTR%			>  %REPORTFILE%
 echo old revision: %OLDREV% (%OLDDATE% %OLDTIME%)	>> %REPORTFILE%
 echo new revision: %NEWREV% (%NEWDATE% %NEWTIME%)	>> %REPORTFILE%
 
