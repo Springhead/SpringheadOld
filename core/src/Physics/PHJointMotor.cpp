@@ -192,8 +192,8 @@ bool PHNDJointMotor<NDOF>::Iterate(){
 		int i = axes[n];
 		int j = joint->movableAxes[i];
 
-		joint->dv[j] = joint->J[0].row(j) * (joint->solid[0]->dv /*+ joint->solid[0]->ddv*/)
-			         + joint->J[1].row(j) * (joint->solid[1]->dv /*+ joint->solid[1]->ddv*/);
+		joint->dv[j] = joint->J[0].row(j) * joint->solid[0]->dv
+			         + joint->J[1].row(j) * joint->solid[1]->dv;
 		dv  [i] = joint->dv[j];
 		res [i] = b[i] + db[i] + dA[i]*f[i] + dv[i];
 		fnew[i] = f[i] - joint->engine->accelSOR * Ainv[i] * res[i];
