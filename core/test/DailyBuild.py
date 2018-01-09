@@ -12,14 +12,16 @@
 #
 #  VERSION:
 #	Ver 1.0  2017/12/03 F.Kanehori	アダプタとして新規作成.
+#	Ver 1.1  2017/12/25 F.Kanehori	TestMainGit.bat は無条件に実行.
 # ======================================================================
-version = '1.0'
+version = '1.1'
 
 import sys
 import os
 from optparse import OptionParser
 import stat
 from time import sleep
+from datetime import *
 
 # ----------------------------------------------------------------------
 #  Constants
@@ -210,14 +212,13 @@ os.chdir('%s/%s' % (prep_dir, repository))
 # ----------------------------------------------------------------------
 #  4th step: Execute DailyBuild test.
 #
-if check_exec('DAILYBUILD_EXECUTE_TESTALL'):
-	os.chdir('core/test')
-	pwd()
-	print('Test start:')
-	args = '/r %s /t %s /c %s /p %s' % (repository, tool, conf, plat)
-	cmnd = 'TestMainGit.bat %s' % args
-	rc = proc.exec(cmnd, shell=True).wait()
-	Print('rc: %s' % rc)
+os.chdir('core/test')
+pwd()
+print('Test start:')
+args = '/r %s /t %s /c %s /p %s' % (repository, tool, conf, plat)
+cmnd = 'TestMainGit.bat %s' % args
+rc = proc.exec(cmnd, shell=True).wait()
+Print('rc: %s' % rc)
 
 sys.exit(0)
 # ----------------------------------------------------------------------
