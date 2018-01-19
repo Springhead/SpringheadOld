@@ -26,6 +26,7 @@ setlocal enabledelayedexpansion
 ::	Ver 4.0  2017/12/13 F.Kanehori	GitHub 対応
 ::	Ver 4.1  2017/12/21 F.Kanehori	Log directory on web server changed.
 ::	Ver 4.2  2017/12/25 F.Kanehori	日付情報ファイルを作成
+::	Ver 4.3  2018/01/18 F.Kanehori	result.log 履歴ファイルを作成
 :: ============================================================================
 set PROG=%~n0
 set CWD=%cd%
@@ -300,7 +301,8 @@ call :check_condition DAILYBUILD_GEN_HISTORY
 if %$status% == 0 (
 	rem ** 履歴情報を出力 **
 	cd bin
-	python VersionControlSystem.py -g all > ..\%HISTORY_LOG%
+	set FNAME=core/test/log/result.log
+	python VersionControlSystem.py -g -f !FNAME! all > ..\%HISTORY_LOG%
 	cd ..
 )
 
