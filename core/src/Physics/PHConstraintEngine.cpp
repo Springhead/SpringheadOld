@@ -235,6 +235,7 @@ PHConstraintEngine::~PHConstraintEngine(){
 void PHConstraintEngine::EnableReport(bool on){
 	if(!on && reportFile){
 		fclose(reportFile);
+		reportFile = nullptr;
 	}
 	if(on && !reportFile){
 		reportFile = fopen(reportFilename, "w");
@@ -798,7 +799,7 @@ void PHConstraintEngine::Step(){
 	}
 
 	if(bReport && reportFile){
-		fprintf(reportFile, "%d, %d, %d\n", timeCollision, timeSetup, timeIterate);
+		fprintf(reportFile, "%d, %d, %d, %d\n", timeCollision, timeSetup, timeIterate,coltimePhase1);
 	}
 }
 

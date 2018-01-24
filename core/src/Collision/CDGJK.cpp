@@ -852,15 +852,20 @@ coltimePhase2 += frameTime2;
 			if (bGJKDebug) DSTR << "TRI ";
 			//	三角形になる場合
 			notuse = -1;
-			//法線だと遅い?
+			lastTriV = s.unit();
+			
+			if (cbiasParam >= 0) {
+				cbiasParam = lastTriV.z * 0.9;
+			}
+			
 			if (cbiasParam > 0) {
 #define NORM_BIAS 1 //バイアスflag
 #if NORM_BIAS == 1
-				lastTriV = s.unit();
+				
 				//二次元上での原点と三角形頂点の距離でバイアスを掛ける 3点のサポートベクトル比版
 				Vec3d tridec = TriDecompose(w[ids[0]].XY(), w[ids[1]].XY(), w[ids[2]].XY());
 				Vec3d newSup = v[ids[0]] * tridec[0] + v[ids[1]] * tridec[1] + v[ids[2]] * tridec[2];
-				newSup = newSup*cbiasParam + lastTriV*(1 - cbiasParam);
+				newSup = newSup*cbiasParam + lastTriV;
 				newSup.unitize();
 				//newSup.z = lastTriV.z;
 				v[ids[3]] = newSup;
@@ -880,7 +885,6 @@ coltimePhase2 += frameTime2;
 					}
 					vCheck++;
 				}
-				if (cbiasParam <= 0) cbiasParam = 0;
 				double bias;
 				bias = ((1 - (minLen / all)) - 0.66666) * 3;
 				if (bias > 0) {
@@ -896,10 +900,9 @@ coltimePhase2 += frameTime2;
 					//newSup.z = lastTriV.z;
 				//}
 				v[ids[3]] = newSup.unit();
-				//cbiasParam -= 0.25;
 
 #elif NORM_BIAS == 3
-				//二次元上での原点と三角形頂点の距離でバイアスを掛ける 最短距離頂点とノーマル比版
+				//二次元上での原点と三角形頂点の距離でバイアスを掛ける 最短距離頂点と原点を結ぶベクトル方向の長さを使う
 				double length[3];
 				double longLen = 0;
 				int vCheck = 0;
@@ -917,7 +920,6 @@ coltimePhase2 += frameTime2;
 				Vec2d minV = w[ids[minId]].XY().unit();
 				longLen = abs((w[ids[(minId + 1) % 3]].XY()*-minV + w[ids[(minId + 2) % 3]].XY()*-minV) / 2.0) + minLen;
 
-				if (cbiasParam <= 0) cbiasParam = 0;
 				double bias;
 				bias = (minLen / longLen);
 				if (cbiasParam > 0) {
@@ -934,15 +936,16 @@ coltimePhase2 += frameTime2;
 					//newSup = lastTriV;
 				}
 				v[ids[3]] = newSup.unit();
-				//cbiasParam -= 0.25;
+
 #elif NORM_BIAS ==4
+				//頂点のサポートベクトルに直交平面の交点を使う　⇒　交点が三角形外に存在する場合が多いので厳しい
 				bool skip = false;
 
 
 				Vec3d supV[3];
-				supV[0] = (v[ids[0]] + v[ids[1]]) / 2;
-				supV[1] = (v[ids[1]] + v[ids[2]]) / 2;
-				supV[2] = (v[ids[2]] + v[ids[0]]) / 2;
+				supV[0] = v[ids[0]];
+				supV[1] = v[ids[1]];
+				supV[2] = v[ids[2]];
 				Vec3d sup[3];
 				sup[0] = w[ids[0]];
 				sup[1] = w[ids[1]];
@@ -977,6 +980,7 @@ coltimePhase2 += frameTime2;
 				}
 				else {
 					estSup = estSup / waru;
+					/*
 					for (int i = 0; i < 3; i++)
 					{
 						if (((w[ids[i]] - estSup).XY() ^ (w[ids[(i + 1) % 3]] - w[ids[i]]).XY()) < epsilon)
@@ -984,6 +988,7 @@ coltimePhase2 += frameTime2;
 							//	skip = true;
 						}
 					}
+					*/
 				}
 				if (!skip) {
 
@@ -1005,9 +1010,6 @@ coltimePhase2 += frameTime2;
 					else {
 						Vec3d newSup = triNorm * estTriDec[0] + v[ids[useIdx]] * estTriDec[1] + v[ids[(useIdx + 1) % 3]] * estTriDec[2];
 						//Vec3d newSup = triNorm * (1-estTriDec[0]) + v[ids[useIdx]] * (1 - estTriDec[1]) + v[ids[(useIdx + 1) % 3]] * (1 - estTriDec[2]);
-						//Vec3d thisDec = TriDecompose(w[ids[0]].XY(), w[ids[1]].XY(), w[ids[2]].XY());
-						//Vec3d newSup = v[ids[0]] * thisDec[0] + v[ids[1]] * thisDec[1] + v[ids[2]] * thisDec[2];
-						//Vec3d newSup = v[ids[0]] *(1- thisDec[0]) + v[ids[1]] * (1 - thisDec[1]) + v[ids[2]] * (1 - thisDec[2]);
 						newSup = newSup*cbiasParam + triNorm;
 						v[ids[3]] = newSup.unit();
 					}
@@ -1017,12 +1019,53 @@ coltimePhase2 += frameTime2;
 				}
 				lastTriV = triNorm;
 
+#elif NORM_BIAS == 5
+//辺の平面とレイの交点でどうよ
+			bool skip = false;
+			Vec3d triNorm = s.unit();
+
+				Vec3d supV[3];
+				supV[0] = (v[ids[0]] + v[ids[1]]) / 2;
+				supV[1] = (v[ids[1]] + v[ids[2]]) / 2;
+				supV[2] = (v[ids[2]] + v[ids[0]]) / 2;
+				//supV[0] = v[ids[0]];
+				//supV[1] = v[ids[1]];
+				//supV[2] = v[ids[2]];
+				Vec3d sup[3];
+				sup[0] = w[ids[0]];
+				sup[1] = w[ids[1]];
+				sup[2] = w[ids[2]];
+
+				Vec3d rayV = Vec3d(0, 0, 1);
+				Vec3d inter[3];
+				int hitInt = -1;
+				inter[0] = (supV[0] * sup[0]) / (supV[0] * rayV) * rayV;
+				inter[1] = (supV[1] * sup[1]) / (supV[1] * rayV) * rayV;
+				inter[2] = (supV[2] * sup[2]) / (supV[2] * rayV) * rayV;
+				Vec3d estSup = Vec3d::Zero();
+				if (abs(inter[0].z) < 100000) estSup = inter[0];
+				if (estSup.z < inter[1].z && abs(inter[1].z) < 100000) { estSup = inter[1]; hitInt = 1; }
+				if (estSup.z < inter[2].z && abs(inter[2].z) < 100000) { estSup = inter[2]; hitInt = 2; }
+				if (hitInt < 0) skip = true;
+				if (!skip) 
+				{
+					//Vec3d newSup = (estSup - (a2z.Pos() - b2z.Pos())).unit(); //予想地点へのベクトル
+					float estDist = abs((estSup - sup[hitInt]) * triNorm);
+					Vec3d estOnTri = estSup - triNorm * estDist;
+					Vec3d newDec = TriDecompose(estOnTri.XY(), sup[hitInt ].XY(), sup[(hitInt + 1) % 3].XY());
+					Vec3d newSup = (triNorm*newDec[0] + v[hitInt] * newDec[1] + v[(hitInt + 1) % 3] * newDec[2])*cbiasParam + triNorm*(1-cbiasParam);
+					v[ids[3]] = newSup;
+				}
+				else {
+					v[ids[3]] = triNorm;
+				}
+				lastTriV = triNorm;
 #else
 				lastTriV = v[ids[3]] = s.unit();
 #endif
 			}
 			else {
-				lastTriV = v[ids[3]] = s.unit();
+				v[ids[3]] = lastTriV;
 			}
 			//	新しい w w[3] を求める
 			CalcSupport(ids[3]);
@@ -1049,7 +1092,7 @@ coltimePhase2 += frameTime2;
 			else {
 				//	初めて線分になる場合。
 
-#if NORM_BIAS >= 1 //バイアス失敗なので前のノーマルに戻す
+#if NORM_BIAS >= 10 //バイアス
 				if (lastTriV.square() > 0) {
 					v[ids[3]] = lastTriV;
 					CalcSupport(ids[3]);
@@ -1093,9 +1136,9 @@ coltimePhase2 += frameTime2;
 			}
 			else {
 				//	初めてならば、2頂点の法線の平均の線分に垂直な成分をつかう。
-				Vec3d ave = v[ids[id0]] + v[ids[id1]];
+				Vec3d ave = (v[ids[id0]] + v[ids[id1]])/2.0;
 				Vec3d line = (w[ids[id1]] - w[ids[id0]]);
-				double len = line.norm();
+				double len = line.XY().norm();
 				if (len == 0) {
 					DSTR << "id0:" << id0 << " id1:" << id1 << std::endl;
 					DSTR << "ids:"; for (int i = 0; i < 4; ++i) DSTR << ids[i]; DSTR << std::endl;
@@ -1104,8 +1147,19 @@ coltimePhase2 += frameTime2;
 					__debugbreak();
 				}
 				else {
+#if NORM_BIAS >= 1
+					double p = ave.z;
+					double w0len = w[ids[id0]].XY().norm();
+					//double w1len = w[ids[id1]].XY().norm();
+					double rate = 1-(w0len / len);
+					Vec3d acc = (v[ids[id0]] * rate + v[ids[id1]] * (1 - rate));
+					//line /= len;
+					//ave = ave - (ave * line) * line;
+					ave = ave * (1 - p) + acc * p;
+#else
 					line /= len;
 					ave = ave - (ave * line) * line;
+#endif
 				}
 				v[ids[3]] = ave.unit();
 #endif
@@ -1142,7 +1196,10 @@ coltimePhase2 += frameTime2;
 			if (bGJKDebug) {
 				DSTR << " newZ:" << newZ << "  dec:" << dec << std::endl;
 			}
-			if (newZ + epsilon >= lastZ) goto final2;
+			if (newZ + epsilon >= lastZ) {
+				notuse = -1;
+				goto final2;
+			}
 			lastZ = newZ;
 			std::swap(ids[notuse], ids[3]);
 		}
@@ -1187,7 +1244,7 @@ coltimePhase2 += frameTime2;
 
 					goto final2;
 				}
-				lastZ = newZ;
+				//lastZ = newZ;
 				//v[amariID] = lastTriV;
 				//CalcSupport(amariID);
 				//Vec3d newSup = w[amariID];
@@ -1209,23 +1266,24 @@ coltimePhase2 += frameTime2;
 			}
 			lastZ = newZ;
 			std::swap(ids[(i + 2) % 3], ids[3]);
+			
 			if (cbiasParam >= 0)
 			{
 				cbiasParam += biasParam*0.4;
 				//cbiasParam = biasParam;
 				if (cbiasParam > biasParam) cbiasParam = biasParam;
 			}
+			
 		}
 	}
 	//	無事停止
 	final2:
-	//uint32_t frameTime3 = p_timer->CountUS();
-	//coltimePhase3 += frameTime3;
 	if (notuse >= 0) {
 		int id0 = ids[(notuse + 1) % 3];	
 		int id1 = ids[(notuse + 2) % 3];
-		double a = w[id0].norm();		
-		double b = w[id1].norm();
+		double a = w[id0].XY().norm();		
+		double b = w[id1].XY().norm();
+		Vec3d dec;
 		if (a + b > 1e-10) {
 			dec[0] = b / (a + b); dec[1] = a / (a + b);
 			}
@@ -1252,7 +1310,7 @@ coltimePhase2 += frameTime2;
 		normal = w2z.Conjugated() * lastTriV;
 	}
 	else {
-		normal = w2z.Conjugated() * lastTriV;
+		normal = w2z.Conjugated() * v[ids[3]];
 	}
 #else
 	normal = w2z.Conjugated() * v[ids[3]];
@@ -1649,7 +1707,7 @@ inline Vec3d TriNaibun(Vec3d p1, Vec3d p2, Vec3d p3,Vec3d sep) {
 }
 
 const int EPAsize = 10;
-void FASTCALL CalcEPA(Vec3d &v, CDConvex* a, CDConvex* b, const Posed &a2w, const Posed &b2w, Vec3d& pa, Vec3d& pb) {
+void FASTCALL CalcEPA(Vec3d &v,const CDConvex* a,const CDConvex* b, const Posed &a2w, const Posed &b2w, Vec3d& pa, Vec3d& pb) {
 	v.clear();
 	int counter = 0;
 	Vec3d origin;
@@ -1815,10 +1873,10 @@ int FASTCALL ContFindCommonPointGino(const CDConvex* a, const CDConvex* b,
 	Posed a2l = a2w;
 	Posed b2l = b2w;
 	dist = 0;
-	if (start < -epsilon) start = -epsilon;
+	if (start < -10e+3) start = -10e+3;
 	double cdist = end - start;
-	bool rangeSw = abs(end - start) > 1e+300 ;
 	Vec3d r = dir*(end-start);
+	a2l.Pos() += r;
 	Vec3d tmpV;
 	//近づくまで繰り返し
 	int count = 0;
@@ -1829,15 +1887,9 @@ int FASTCALL ContFindCommonPointGino(const CDConvex* a, const CDConvex* b,
 		if (count > 100) break;
 		//GJKの計算
 		
-		if (cdist < 0.001) {
-			//uint32_t frameTime1 = p_timer->CountUS();
-			//coltimePhase1 += frameTime1;
-			//ここでめり込み量を計算できるか?
-			//calcEPAのイテレーションが問題っぽい．最後の単体ののーまるだとそこそこうまくいく
-			//ただ接触点はやはり重要っぽい
-			//CalcEPA(tmpV, a, b, a2l, b2l,pa,pb);
-			//if (tmpV.square() > 0) {
-				//normal = tmpV.unit();
+		tmpV.clear();
+		cdist = FindClosestPoints(a, b, a2l, b2l, tmpV, pa, pb);
+		if (cdist < 0.0001) {
 				if (start < 0) {
 					dist += -tmpV.norm();
 				}
@@ -1848,11 +1900,8 @@ int FASTCALL ContFindCommonPointGino(const CDConvex* a, const CDConvex* b,
 			ret = 1;
 			break;
 		}
-		tmpV.clear();
-		cdist = FindClosestPoints(a, b, a2l, b2l, tmpV, pa, pb);
-		//if (rangeSw) {
-			
-		//}
+		
+		
 
 		CalcNormal(normal,a2l.Pos()-b2l.Pos());
 		//ramuda
@@ -1867,8 +1916,8 @@ int FASTCALL ContFindCommonPointGino(const CDConvex* a, const CDConvex* b,
 		double lambda = vw/vr;
 		cdist = (r*lambda).norm();
 		r -= dir*cdist;	
-		dist += cdist;//めり込み量(-)が出せない
-		if (dist > end + epsilon) { ret = -1; break; }
+		dist += cdist;
+		if (dist > end + (end - start) + epsilon) { ret = -1; break; }
 		if (dist < start) { ret = -2; break; }
 		//if (cdist < 0.00001) cdist += 0.0001;
 
@@ -1877,6 +1926,7 @@ int FASTCALL ContFindCommonPointGino(const CDConvex* a, const CDConvex* b,
 		b2l.Pos() +=   dir * cdist*0.5f;
 	}
 	//CalcContactPoint(pa, pb);
+	dist -= (end - start);
 	uint32_t frameTime1 = p_timer->CountUS();
 	coltimePhase1 += frameTime1;
 	if (normal.square() < epsilon2) return 0;
