@@ -3,17 +3,17 @@
 #SprTop		# Set automatically.
 #SprTest	# Set automatically [$(SptTop)/core/test].
 
-Exclude		False
+Exclude		True
 Descend		False
-SolutionAlias	Springhead
+#SolutionAlias	# Ailas name for solution file
 
-Build		True
-UseClosedSrc	False
+#Build		True
+#UseClosedSrc	True
 #CppMacro	DAILYBUILD
 #BuildLog	# Build log file path
 #BuildErrLog	# Build error log file path
 
-Run		False
+#Run		True
 #OutputDir	#$TOOLSET/$PLATFORM/$CONFIGURATION
 #BinaryOut	# output binary name if diffrent from "<solution-name>.exe"
 #Timeout	# time out value in sec
@@ -25,14 +25,10 @@ Run		False
 #RunErrLog	# Run error log file path
 #Intervention	False
 
-[Windows]
-BuildLog	$(SprTest)/log/StubBuild.log
-BuildErrLog	$(SprTest)/log/StubBuildError.log
+#[Windows]
 
-[unix]
-SolutionAlias	Makefile
-BuildLog	$(SprTest)/log/springhead.lib.log
-BuildErrLog	$(SprTest)/log/springhead.lib.error.log
+#[unix]
+#SolutionAlias	Makefile
 #OutputDir	.
 #BinaryOutName	a.out
 
