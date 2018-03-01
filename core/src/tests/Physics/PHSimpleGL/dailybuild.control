@@ -1,38 +1,35 @@
 # dailybuild.control
+#	Set "** DO NOT INHERIT **" to prevent upper inheritance
 
 #SprTop		# Set automatically.
 #SprTest	# Set automatically [$(SptTop)/core/test].
 
-Exclude		False
-Descend		False
-SolutionAlias	Springhead
+#Exclude	False
+#Descend	True
+#SolutionAlias	# Ailas name for solution file
 
-Build		True
-UseClosedSrc	False
+#Build		True
+#UseClosedSrc	True
 #CppMacro	DAILYBUILD
 #BuildLog	# Build log file path
 #BuildErrLog	# Build error log file path
 
-Run		False
+#Run		True
 #OutputDir	#$TOOLSET/$PLATFORM/$CONFIGURATION
 #BinaryOut	# output binary name if diffrent from "<solution-name>.exe"
 #Timeout	# time out value in sec
-#Expected	0
+Expected	1
 #AddPath
 #PipeProcess	#GenKbEvent seq [sleep=.] [space=s] [escape=e] [htab=t] [enter=n]
-#KillProcess
+#KillProcess	# Use to kill process invoked as pipe process (if needed).
 #RunLog		# Run log file path
 #RunErrLog	# Run error log file path
 #Intervention	False
 
-[Windows]
-BuildLog	$(SprTest)/log/StubBuild.log
-BuildErrLog	$(SprTest)/log/StubBuildError.log
+#[Windows]
 
-[unix]
-SolutionAlias	Makefile
-BuildLog	$(SprTest)/log/springhead.lib.log
-BuildErrLog	$(SprTest)/log/springhead.lib.error.log
+#[unix]
+#SolutionAlias	Makefile
 #OutputDir	.
 #BinaryOutName	a.out
 
