@@ -24,7 +24,7 @@
 #	Ver 1.13 2018/01/11 F.Kanehori	wait(): Enable dry_run.
 #	Ver 1.14 2018/02/21 F.Kanehori	Set dummy object to Proc.proc
 #					when dry_run flag specified.
-#	Ver 1.15 2018/03/07 F.Kanehori	Now OK for doxygen.
+#	Ver 1.15 2018/03/12 F.Kanehori	Now OK for doxygen.
 # ======================================================================
 import sys
 import os
@@ -34,9 +34,11 @@ import copy
 sys.path.append('/usr/local/lib')
 from Util import *
 
-##  Process handling class (Wrapper class for subprocess module).
+##  Process handling class (Wrapper class for 'subprocess' module).
 #
 class Proc:
+	#  Class constants
+	#
 	STDOUT	  = subprocess.STDOUT
 	PIPE	  = subprocess.PIPE
 	NULL	  = subprocess.DEVNULL
@@ -80,8 +82,9 @@ class Proc:
 	#			or pipe is used for process input/output (bool).
 	#   @param env		Environment for new process (dict).
 	#   @param addpath	Additional path to prepend env['PATH'] (str).
-	#   @param append	Set output redirect file open mode to 'append' (bool).
-	#   @returns		Self (Proc obj).
+	#   @param append	Set output redirect file open mode to 'append'
+	#			(bool).
+	#   @returns		Self object.
 	#
 	def exec(self, args,
 		       stdin=None, stdout=None, stderr=None,
@@ -147,7 +150,7 @@ class Proc:
 			print('  (pid: %d)' % self.pid)
 		return self
 
-	##  Wait for process termination then return status code.
+	##  Wait for process termination then return termination code.
 	#   @param timeout	Time out value in seconds (int).
 	#   @returns		Process termination code (int).
 	#
@@ -201,10 +204,12 @@ class Proc:
 	##  Kill specified process.
 	#   @param pid		Process-ID to kill (int).
 	#   @param image	Process image name to kill (str).
-	#   @brief
-	#	    CAUTION: It's extreamly dangerous to kill by 'image'
-	#	    because there may be the process(es) having the same
-	#	    process image name which you never want to kill.
+	#   @param verbose	Verbose level (0: silent) (int).
+	#
+	#   CAUTION:
+	#   @n	It's extreamly dangerous to kill by 'image'
+	#	because there may be the process(es) having the same
+	#	process image name which you never want to kill.
 	#
 	def kill(self, pid=None, image=None, verbose=0):
 		if pid is None and image is None:
@@ -241,8 +246,10 @@ class Proc:
 					print('  %s' % e)
 
 	##  Get both stdout and stderr output from the process.
-	#   @retval out		Output string got from stdout stream (str).
-	#   @retval err		Output string got from stderr stream (str).
+	#   @returns		out, err
+	#   @n out:		Output string got from stdout stream (str).
+	#   @n err:		Output string got from stderr stream (str).
+	#
 	def output(self):
 		if self.dry_run:
 			return None, None
@@ -268,9 +275,9 @@ class Proc:
 	# --------------------------------------------------------------
 
 	##  Convert zero-extended-16bit-signed-int into 32bit-signed-int.
-	#   @param s16_value	32-bit-unsigend-int value (int).
-	#			upper 16 bits:  all zeors
-	#			lower 16 bits:  16-bit-signed-int value
+	#   @param value	32-bit-unsigend-int value (int).
+	#   @n			upper 16 bits:  all zeors
+	#   @n			lower 16 bits:  16-bit-signed-int value
 	#   @returns		32-bit-signed-int value (int).
 	#
 	def __s16(self, value):
@@ -301,11 +308,12 @@ class Proc:
 		#print(tasks)
 		return tasks
 
-	##  Set enviroment variable.
+	##  Set new enviroment variables.
 	#   @param env		Enviroment to set (dict).
 	#   @param addpath	Path to prepend env['PATH'] (str).
-	#   @retval new_env	New environment (dict).
-	#   @retval org_env	Old environment (dict).
+	#   @returns		new_env, org_env
+	#   @n new_env:		New environment (dict).
+	#   @n org_env:		Old environment (dict).
 	#
 	def __set_environment(self, env, addpath):
 		if self.dry_run:
@@ -318,7 +326,7 @@ class Proc:
 			new_env['PATH'] = addpath + ';' + new_env['PATH']
 		return new_env, org_env
 
-	##  Set enviroment variable.
+	##  Revive old enviroment variables set by self.__set_environment().
 	#   @param org_env	Environment to revive (dict).
 	#
 	def __revive_envirnment(self, org_env):
@@ -328,7 +336,9 @@ class Proc:
 	##  Get file object.
 	#   @param file		File name string or file object.
 	#   @param mode		File open mode (str).
-	#   @returns		File object.
+	#   @param dry_run	Show command but do not execute it (bool).
+	#   @retval obj		File object if dry_run is False.
+	#   @retval None	If dry_run is True.
 	#
 	def __open(self, file, mode, dry_run):
 		if self.dry_run:
@@ -342,8 +352,8 @@ class Proc:
 		return f
 
 	##  Release file object.
-	#   @param object	File object returned by __open().
-	#   @param file		The same argument passed to __open().
+	#   @param object	File object returned by self.__open().
+	#   @param file		The same argument passed to self.__open().
 	#
 	def __close(self, object, file):
 		if isinstance(file, str):
