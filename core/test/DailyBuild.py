@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+Ôªø#!/usr/local/bin/python
 # -*- coding: utf-8 -*-
 # ======================================================================
 #  SYNOPSIS:
@@ -11,11 +11,13 @@
 #  DESCRIPTION:
 #
 #  VERSION:
-#	Ver 1.0  2017/12/03 F.Kanehori	ÉAÉ_ÉvÉ^Ç∆ÇµÇƒêVãKçÏê¨.
-#	Ver 1.1  2017/12/25 F.Kanehori	TestMainGit.bat ÇÕñ≥èåèÇ…é¿çs.
-#	Ver 1.2  2018/03/05 F.Kanehori	TestMainGit.py Ç…à⁄çs.
+#	Ver 1.0  2017/12/03 F.Kanehori	„Ç¢„ÉÄ„Éó„Çø„Å®„Åó„Å¶Êñ∞Ë¶è‰ΩúÊàê.
+#	Ver 1.1  2017/12/25 F.Kanehori	TestMainGit.bat „ÅØÁÑ°Êù°‰ª∂„Å´ÂÆüË°å.
+#	Ver 1.2  2018/03/05 F.Kanehori	TestMainGit.py „Å´ÁßªË°å.
+#	Ver 1.21 2018/03/14 F.Kanehori	Dealt with new Error/Proc class.
+#	Ver 1.22 2018/03/15 F.Kanehori	Add: -A (as is flag).
 # ======================================================================
-version = '1.2'
+version = 1.21
 
 import sys
 import os
@@ -62,9 +64,15 @@ if Util.is_windows():
 parser.add_option('-v', '--verbose',
 			dest='verbose', action='count', default=0,
 			help='set verbose mode')
+parser.add_option('-D', '--dry-run', dest='dry_run',
+			action='store_true', default=False,
+			help='set dry-run mode')
 parser.add_option('-V', '--version',
 			dest='version', action='store_true', default=False,
 			help='show version')
+parser.add_option('-A', '--as-is',
+			dest='as_is', action='count', default=0,
+			help='do not update nor clear test repository')
 
 # ----------------------------------------------------------------------
 #  Process for command line
@@ -74,17 +82,18 @@ if options.version:
 	print('%s: Version %s' % (prog, version))
 	sys.exit(0)
 if len(args) != 1:
-	Error(prog).print('incorrect number of arguments\n', alive=True)
-	Proc().exec('python %s.py -h' % prog).wait()
+	Error(prog).error('incorrect number of arguments\n')
+	Proc().execute('python %s.py -h' % prog).wait()
 	sys.exit(-1)
 
 # get test repository name
 repository = Util.upath(args[0])
 conf = options.conf
 plat = options.plat
-if Util.is_windows():
-	tool = options.tool
+tool = options.tool if Util().is_windows() else None
 verbose = options.verbose
+dry_run = options.dry_run
+as_is = options.as_is
 
 if repository == 'Springhead':
 	msg = 'Are you sure to test on "Springhead" directory? [y/n] '
@@ -99,7 +108,7 @@ if repository == 'Springhead':
 spr_topdir = spr_path.abspath()
 start_dir = spr_path.abspath('test')
 prep_dir = os.path.abspath('%s/..' % spr_topdir)
-proc = Proc(verbose=verbose)
+proc = Proc(verbose=verbose, dry_run=dry_run)
 
 # ----------------------------------------------------------------------
 #  Local methods.
@@ -109,6 +118,8 @@ def check_exec(name):
 	# and its value is 'skip'.  Return True otherwise.
 	val = os.getenv(name)
 	judge = True if val is None or val != 'skip' else False
+	if as_is:
+		judge = False
 	if not judge:
 		print('skip ..%s..' % name)
 	return judge
@@ -146,7 +157,7 @@ if check_exec('DAILYBUILD_UPDATE_SPRINGHEAD'):
 	flush()
 	os.chdir(spr_topdir)
 	cmnd = 'git pull --all'
-	proc.exec(cmnd, stdout=Proc.PIPE, stderr=Proc.STDOUT)
+	proc.execute(cmnd, stdout=Proc.PIPE, stderr=Proc.STDOUT, shell=True)
 	rc = proc.wait()
 	outstr, errstr = proc.output()
 	Print(outstr.split('\n'))
@@ -154,7 +165,7 @@ if check_exec('DAILYBUILD_UPDATE_SPRINGHEAD'):
 		Print('-- error --')
 		Print(errstr.split('\n'))
 	if rc != 0:
-		Error(prog).print('updating failed: status %d' % rc)
+		Error(prog).abort('updating failed: status %d' % rc)
 	os.chdir(start_dir)
 
 # ----------------------------------------------------------------------
@@ -185,17 +196,17 @@ if check_exec('DAILYBUILD_CLEANUP_WORKSPACE'):
 	print('cloning test repository')
 	flush()
 	cmnd = 'git clone %s %s' % (url_git, repository)
-	rc = proc.exec(cmnd).wait()
+	rc = proc.execute(cmnd, shell=True).wait()
 	if rc != 0:
-		Error(prog).print('cloning failed: status %d' % rc)
+		Error(prog).abort('cloning failed: status %d' % rc)
 
 	os.chdir(repository)
 	pwd()
 	print('updating submodules')
 	cmnd = 'git submodule update --init'
-	rc = proc.exec(cmnd).wait()
+	rc = proc.execute(cmnd, shell=True).wait()
 	if rc != 0:
-		Error(prog).print('cloning failed: status %d' % rc)
+		Error(prog).abort('cloning failed: status %d' % rc)
 	os.chdir(prep_dir)
 
 # ----------------------------------------------------------------------
@@ -212,9 +223,10 @@ Print()
 os.chdir('core/test')
 pwd()
 Print('Test start:')
+vflag = ' -v' if verbose else ''
 cmnd = 'python TestMainGit.py'
-args = '-p %s -c %s -t %s %s' % (plat, conf, tool, repository)
-rc = proc.exec([cmnd, args], shell=True).wait()
+args = '-p %s -c %s -t %s%s %s' % (plat, conf, tool, vflag, repository)
+rc = proc.execute([cmnd, args], shell=True).wait()
 Print('rc: %s' % rc)
 
 # ----------------------------------------------------------------------

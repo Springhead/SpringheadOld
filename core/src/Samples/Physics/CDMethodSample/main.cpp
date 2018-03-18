@@ -27,16 +27,6 @@ Springhead2/src/Samples/BoxStack
 using namespace Spr;
 using namespace std;
 
-/*int frame=0,timepassed=0,timebase=0;
-void fps(){
-	frame++; 
-	timepassed = glutGet(GLUT_ELAPSED_TIME); 
-	if (1000 < timepassed - timebase) {
-		std::cout << "   FPS:" << frame*1000.0/(timepassed - timebase);
-		timebase = timepassed;		
-		frame = 0;
-	}
-}*/
 
 namespace Spr {
 	extern int s_methodSW;
@@ -56,7 +46,6 @@ public:
 		ID_SPHERE,
 		ID_ROCK,
 		ID_BLOCK,
-		//ID_TOWER,
 		ID_SHAKE,
 		ID_METHOD,
 		ID_CCD,
@@ -67,12 +56,16 @@ public:
 	std::vector<PHSolidIf*> soBox;
 
 	bool showColtime;
+	int aveCounter;
+	int avePool;
 	double					floorShakeAmplitude;
 
 public:
 	MyApp(){
 		appName = "BoxStack";
 		floorShakeAmplitude = 0.0;
+		aveCounter = 0;
+		avePool = 0;
 
 		AddAction(MENU_MAIN, ID_BOX, "drop box");
 		AddHotKey(MENU_MAIN, ID_BOX, 'b');
@@ -86,8 +79,6 @@ public:
 		AddHotKey(MENU_MAIN, ID_ROCK, 'd');
 		AddAction(MENU_MAIN, ID_BLOCK, "drop block");
 		AddHotKey(MENU_MAIN, ID_BLOCK, 'e');
-		//AddAction(MENU_MAIN, ID_TOWER, "drop tower");
-		//AddHotKey(MENU_MAIN, ID_TOWER, 't');
 		AddAction(MENU_MAIN, ID_SHAKE, "shake floor");
 		AddHotKey(MENU_MAIN, ID_SHAKE, 'f');
 		AddAction(MENU_MAIN, ID_METHOD, "switch method");
@@ -102,15 +93,15 @@ public:
 
 	virtual void BuildScene(){
 		soFloor = CreateFloor();
-		GetPHScene()->SetGravity(Vec3d(0, -2, 0));
+		GetPHScene()->SetGravity(Vec3d(0, -30, 0));
+		FWWinIf* win = GetCurrentWin();
+		win->GetTrackball()->SetPosition(Vec3f(30, 50, 100)); //注視点設定
 	}
 
 	// タイマコールバック関数．タイマ周期で呼ばれる
 	virtual void OnStep() {
-		// GetSdk()->SaveScene("test.spr", NULL, FIFileSprIf::GetIfInfoStatic());
 
 		SampleApp::OnStep();
-
 		// 床を揺らす
 		if (soFloor){
 			double time = GetFWScene()->GetPHScene()->GetCount() * GetFWScene()->GetPHScene()->GetTimeStep();
@@ -121,8 +112,20 @@ public:
 
 		if (showColtime)
 		{
-			int time = GetPHScene()->GetConstraintEngine()->GetCollisionTime();
-			message = "Collision Time : " + to_string(time);
+			
+			if (aveCounter < 100)
+			{
+				avePool += GetPHScene()->GetConstraintEngine()->GetCollisionTime();
+				aveCounter++;
+			}
+			else {
+				int time = avePool/100;
+				message = "Collision Time : " + to_string(time);
+				aveCounter = 0;
+				avePool = 0;
+				message = "Collision Time : " + to_string(time);
+			}
+			
 		}
 	}
 
@@ -164,20 +167,6 @@ public:
 				Drop(SHAPE_BLOCK, GRRenderIf::CYAN, v, w, p, q);
 				message = "composite block dropped.";
 			}
-			/* 不具合ありにつき無効化
-			if(id == ID_TOWER){
-				const double tower_radius = 10;
-				const int tower_height = 5;
-				const int numbox = 20;
-				double theta;
-				for(int i = 0; i < tower_height; i++){
-					for(int j = 0; j < numbox; j++){
-						theta = ((double)j + (i % 2 ? 0.0 : 0.5)) * Rad(360) / (double)numbox;
-						Drop(SHAPE_BOX, GRRenderIf::BLUE, Vec3d(), Vec3d(), Vec3d(0.5, 20, 0), Quaterniond::Rot(-theta, 'y'));
-					}
-				}
-				message = "tower built.";
-			}*/
 			if(id == ID_SHAKE){
 				std::cout << "F: shake floor." << std::endl;
 				if(floorShakeAmplitude == 0.0){
@@ -192,7 +181,7 @@ public:
 
 			if (id == ID_METHOD)
 			{
-				s_methodSW = (s_methodSW + 1) % 4;
+				s_methodSW = (s_methodSW + 1) % 3;
 				switch (s_methodSW)
 				{
 				case 0:
@@ -210,6 +199,8 @@ public:
 				default:
 					break;
 				}
+				aveCounter = 0;
+				avePool = 0;
 				
 			}
 
@@ -225,6 +216,8 @@ public:
 			{
 				showColtime = !showColtime;
 				GetPHScene()->GetConstraintEngine()->EnableReport(showColtime);
+				aveCounter = 0;
+				avePool = 0;
 			}
 		}
 		SampleApp::OnAction(menu, id);

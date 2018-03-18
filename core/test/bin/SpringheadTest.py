@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+Ôªø#!/usr/local/bin/python
 # -*- coding: utf-8 -*-
 # =============================================================================
 #  SYNOPSIS:
@@ -37,9 +37,10 @@
 # -----------------------------------------------------------------------------
 #  VERSION:
 #	Ver 1.0  2016/11/17 F.Kanehori	First version.
-#	Ver 2.0  2018/02/22 F.Kanehori	ëSëÃÇÃå©íºÇµ.
+#	Ver 2.0  2018/02/22 F.Kanehori	ÂÖ®‰Ωì„ÅÆË¶ãÁõ¥„Åó.
+#	Ver 2.01 2018/03/14 F.Kanehori	Dealt with new Error class.
 # =============================================================================
-version = 2.0
+version = 2.01
 
 import sys
 import os
@@ -150,7 +151,6 @@ if options.version:
 if len(args) != 4:
 	parser.error("incorrect number of arguments")
 
-
 # get arguments
 test_dir = args[0]
 res_file = '%s/%s' % (spr_path.abspath('test'), args[1])
@@ -161,7 +161,7 @@ top = Util.pathconv(test_dir)
 if not os.path.exists(top):
 	top = '%s/%s' % (spr_path.abspath('src'), top)
 	if not os.path.exists(top):
-		Error(prog).print('bad test directory: "%s"' % test_dir)
+		Error(prog).abort('bad test directory: "%s"' % test_dir)
 top = Util.upath(top)
 
 # get options
@@ -171,7 +171,7 @@ configs = make_list(options.configs, CONFS)
 csusage = options.closed_src_usage
 csusage_list = {'auto': CSU.AUTO, 'use': CSU.USE, 'unuse': CSU.UNUSE}
 if csusage not in csusage_list.keys():
-	Error(prog).print('invalid option: %s' % csusage)
+	Error(prog).abort('invalid option: %s' % csusage)
 csusage = csusage_list[csusage]
 rebuild= options.rebuild
 timeout= options.timeout
@@ -252,7 +252,8 @@ cmnd = 'python GenResultLog.py'
 outf = '-o ../log/result.log'
 args = 'r %s %s %s' % (res_file, platforms[0], configs[0])
 print(' '.join([cmnd, outf, args]))
-Proc(dry_run=False).exec([cmnd, outf, args]).wait()
+proc = Proc(dry_run=options.dry_run, verbose=options.verbose)
+proc.execute([cmnd, outf, args]).wait()
 
 # done
 print('test ended at: %s' % Util.now(format='%Y/%m/%d'))
