@@ -12,7 +12,7 @@
 #		       shell=False, env=None, addpath=None, append=False)
 #	status = wait(self, timeout=None)
 #	kill(self, pid=None, image=None, verbose=0)
-#	out, err = output(self)
+#	status, out, err = output(self, timeout=None)
 #
 # ----------------------------------------------------------------------
 #  VERSION:
@@ -26,6 +26,8 @@
 #					when dry_run flag specified.
 #	Ver 1.15 2018/03/12 F.Kanehori	Now OK for doxygen.
 #	Ver 1.2  2018/03/14 F.Kanehori	Change: exec() -> execute().
+#	Ver 1.3  2018/03/19 F.Kanehori	Change interface: output()
+#	Ver 1.31 2018/03/22 F.Kanehori	Bug fixed.
 # ======================================================================
 import sys
 import os
@@ -75,6 +77,10 @@ class Proc:
 		self.creationflags = 0
 
 	##  Execute program.
+	#   @n		Should be followed by self.wait() or self.output().
+	#   @n		e.g.
+	#   @n		rc = Proc(cmnd, ...).wait(...) or
+	#   @n		rc, out, err = Proc(cmnd, ...).output(...)
 	#   @param args		Command and its arguments (str or str[]).
 	#   @param stdin	File object, file name or pipe (obj or str).
 	#   @param stdout	File object, file name or pipe (obj or str).
@@ -247,29 +253,46 @@ class Proc:
 					print('  %s' % e)
 
 	##  Get both stdout and stderr output from the process.
-	#   @returns		out, err
+	#   @param timeout	Time out value in seconds (int).
+	#   @returns		rc, out, err
+	#   @n status:		Process termination code (int).
 	#   @n out:		Output string got from stdout stream (str).
 	#   @n err:		Output string got from stderr stream (str).
 	#
-	def output(self):
+	def output(self, timeout=None):
 		if self.dry_run:
-			return None, None
+			return 0, None, None
 		if self.proc is None:
 			if self.verbose:
 				print('  invalid process')
-			return None, None
+			return 1, None, None
 		if self.pipe[1] != Proc.PIPE and self.pipe[2] != Proc.PIPE:
 			if self.verbose:
-				print('  output is no redirected')
-			return None, None
+				print('  output is not redirected')
+			return 0, None, None
 		#
-		out, err = self.proc.communicate()
+		try:
+			out, err = self.proc.communicate(timeout=timeout)
+			status = self.proc.returncode
+		except subprocess.TimeoutExpired:
+			self.proc.kill()
+			out, err = self.proc.communicate()
+			status = Proc.ETIME
 		encoding = os.device_encoding(1)
 		if encoding is None:
 			encoding = 'UTF-8' if Util.is_unix() else 'cp932'
 		out = out.decode(encoding) if out else None
 		err = err.decode(encoding) if err else None
-		return out, err
+
+		# cleanup
+		self.__close(self.fd[0], self.pipe[0])
+		self.__close(self.fd[1], self.pipe[1])
+		self.__close(self.fd[2], self.pipe[2])
+		self.__revive_envirnment(self.org_env)
+
+		# only lower 16 bits are meaningful
+		self.status = self.__s16(status)
+		return self.status, out, err
 
 	# --------------------------------------------------------------
 	#  For class private use
@@ -293,8 +316,7 @@ class Proc:
 		cmnd = 'ps a' if Util.is_unix() else 'tasklist'
 		proc = Proc()
 		proc.execute(cmnd, stdout=Proc.PIPE, shell=True)
-		out, err = proc.output()
-		proc.wait()
+		stat, out, err = proc.output()
 		outlist = out.replace('\r', '').split('\n')
 		tasks = []
 		for line in outlist:
@@ -357,7 +379,7 @@ class Proc:
 	#   @param file		The same argument passed to self.__open().
 	#
 	def __close(self, object, file):
-		if isinstance(file, str):
+		if isinstance(file, str) and object:
 			object.close()
 
 	##  Device name for verbose message.
