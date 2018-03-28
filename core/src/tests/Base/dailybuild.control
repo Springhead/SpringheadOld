@@ -18,7 +18,7 @@
 #OutputDir	#$TOOLSET/$PLATFORM/$CONFIGURATION
 #BinaryOut	# output binary name if diffrent from "<solution-name>.exe"
 #Timeout	# time out value in sec
-Expected	-1
+#Expected	0
 #AddPath
 #PipeProcess	#GenKbEvent seq [sleep=.] [space=s] [escape=e] [htab=t] [enter=n]
 #KillProcess	# Use to kill process invoked as pipe process (if needed).

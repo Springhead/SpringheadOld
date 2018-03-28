@@ -1,34 +1,25 @@
 ################################################################
 #
-# 	Makefile for Samples
+# 	Makefile for Base
 #
 ################################################################
 
-################################################################
-#	A rule to make sub directories.
-################################################################
 TOP_DIR 	= ../..
+MAKE_DIR	:= $(shell env pwd)
+MAKE_DIRNAME	:= $(shell env basename $(MAKE_DIR))
 
-TARGET_DIRS	= \
-	Creature EmbPython Foundation Framework \
-	HumanInterface Physics Scilab
+TARGET_DIRS	= Quaternion
 
 SILENT		= --no-print-directory
 
+##
 all:
 	@for dir in $(TARGET_DIRS); do \
 		echo "--------------------------------------------"; \
 		echo "	make $$dir."; \
 		echo "--------------------------------------------"; \
-		$(MAKE) $(SILENT) -C $$dir all || exit; \
+		$(MAKE) -C $$dir all || exit; \
 	done
-
-
-################################################################
-#	Dummy rules for dailybuild.
-################################################################
-compile:
-test:
 
 
 ################################################################
@@ -38,7 +29,7 @@ test:
 clean:
 	@echo ""
 	@echo "--------------------------------------------"
-	@echo "	making clean in Samples ..."
+	@echo "	making clean in $(MAKE_DIRNAME) ..."
 	@echo "--------------------------------------------"
 	@for dir in $(TARGET_DIRS); do \
 		$(MAKE) $(SILENT) -s -C $$dir clean || exit; \
@@ -47,13 +38,14 @@ clean:
 realclean:
 	@echo ""
 	@echo "--------------------------------------------"
-	@echo "	making realclean in Samples ..."
+	@echo "	making realclean in $(MAKE_DIRNAME) ..."
 	@echo "--------------------------------------------"
 	@for dir in $(TARGET_DIRS); do \
 		$(MAKE) $(SILENT) -s -C $$dir realclean || exit; \
 	done
 
-
+	
 ################################################################
 # 	THE END
 ################################################################
+
