@@ -1,6 +1,6 @@
 ################################################################
 #
-# 	Makefile for Graphics
+# 	Makefile for HumanInterface
 #
 ################################################################
 
@@ -8,8 +8,7 @@ TOP_DIR 	= ../..
 MAKE_DIR	:= $(shell env pwd)
 MAKE_DIRNAME	:= $(shell env basename $(MAKE_DIR))
 
-TARGET_DIRS	= \
-	GRColorSpheres GRSimple GRVertexBlending
+TARGET_DIRS	= KeyMouse
 
 SILENT		= --no-print-directory
 

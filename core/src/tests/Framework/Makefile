@@ -1,6 +1,6 @@
 ################################################################
 #
-# 	Makefile for Graphics
+# 	Makefile for Framework
 #
 ################################################################
 
@@ -9,7 +9,7 @@ MAKE_DIR	:= $(shell env pwd)
 MAKE_DIRNAME	:= $(shell env basename $(MAKE_DIR))
 
 TARGET_DIRS	= \
-	GRColorSpheres GRSimple GRVertexBlending
+	FWAppBoxStack FWAppDXTest FWAppGLtest FWAppMuitlWinTest
 
 SILENT		= --no-print-directory
 
