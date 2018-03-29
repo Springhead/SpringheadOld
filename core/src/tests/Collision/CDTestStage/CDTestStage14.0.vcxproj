@@ -172,7 +172,7 @@
       <AdditionalDependencies>XINPUT9_1_0.LIB;%(AdditionalDependencies)</AdditionalDependencies>
       <IgnoreSpecificDefaultLibraries>XINPUT.LIB;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <LinkTimeCodeGeneration>Default</LinkTimeCodeGeneration>
-      <AdditionalOptions>/berbose %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/berbose %(AdditionalOptions) /ignore:4099</AdditionalOptions>
     </Link>
     <ProjectReference>
       <UseLibraryDependencyInputs>false</UseLibraryDependencyInputs>
@@ -183,7 +183,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>../../../../include;../../../../src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SprInclude);$(SprSrc);$(DependencySrc);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <InlineFunctionExpansion>Disabled</InlineFunctionExpansion>
@@ -200,11 +200,12 @@
       <PreprocessorDefinitions />
     </ClCompile>
     <Link>
-      <AdditionalLibraryDirectories>../../../../lib/win64;../../../../closed/lib/win64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(DependencyLib)/win64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <GenerateDebugInformation>Debug</GenerateDebugInformation>
       <AdditionalDependencies>XINPUT9_1_0.LIB;%(AdditionalDependencies)</AdditionalDependencies>
       <IgnoreSpecificDefaultLibraries>XINPUT.LIB;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <LinkTimeCodeGeneration>Default</LinkTimeCodeGeneration>
+      <AdditionalOptions> /ignore:4099</AdditionalOptions>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -237,7 +238,7 @@
       <AdditionalDependencies>XINPUT9_1_0.LIB;%(AdditionalDependencies)</AdditionalDependencies>
       <IgnoreSpecificDefaultLibraries>XINPUT.LIB;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <LinkTimeCodeGeneration>Default</LinkTimeCodeGeneration>
-      <AdditionalOptions>/VERBOSE %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/VERBOSE %(AdditionalOptions) /ignore:4099</AdditionalOptions>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Trace|Win32'">
@@ -247,7 +248,7 @@
       <FunctionLevelLinking>false</FunctionLevelLinking>
       <IntrinsicFunctions>false</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>../../../../include;../../../../src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SprInclude);$(SprSrc);$(DependencySrc);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
@@ -266,10 +267,11 @@
       </EnableCOMDATFolding>
       <OptimizeReferences>
       </OptimizeReferences>
-      <AdditionalLibraryDirectories>../../../../lib/win32;../../../../closed/lib/win32;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(DependencyLib)/win32;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>XINPUT9_1_0.LIB;%(AdditionalDependencies)</AdditionalDependencies>
       <IgnoreSpecificDefaultLibraries>XINPUT.LIB;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <LinkTimeCodeGeneration>Default</LinkTimeCodeGeneration>
+      <AdditionalOptions> /ignore:4099</AdditionalOptions>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -279,7 +281,7 @@
       <FunctionLevelLinking>false</FunctionLevelLinking>
       <IntrinsicFunctions>false</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>../../../../include;../../../../src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SprInclude);$(SprSrc);$(DependencySrc);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
@@ -298,10 +300,11 @@
       </EnableCOMDATFolding>
       <OptimizeReferences>
       </OptimizeReferences>
-      <AdditionalLibraryDirectories>../../../../lib/win64;../../../../closed/lib/win64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(DependencyLib)/win64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>XINPUT9_1_0.LIB;%(AdditionalDependencies)</AdditionalDependencies>
       <IgnoreSpecificDefaultLibraries>XINPUT.LIB;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <LinkTimeCodeGeneration>Default</LinkTimeCodeGeneration>
+      <AdditionalOptions> /ignore:4099</AdditionalOptions>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Trace|x64'">
@@ -311,7 +314,7 @@
       <FunctionLevelLinking>false</FunctionLevelLinking>
       <IntrinsicFunctions>false</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>../../../../include;../../../../src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SprInclude);$(SprSrc);$(DependencySrc);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
@@ -330,10 +333,11 @@
       </EnableCOMDATFolding>
       <OptimizeReferences>
       </OptimizeReferences>
-      <AdditionalLibraryDirectories>../../../../lib/win64;../../../../closed/lib/win64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(DependencyLib)/win64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>XINPUT9_1_0.LIB;%(AdditionalDependencies)</AdditionalDependencies>
       <IgnoreSpecificDefaultLibraries>XINPUT.LIB;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <LinkTimeCodeGeneration>Default</LinkTimeCodeGeneration>
+      <AdditionalOptions> /ignore:4099</AdditionalOptions>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
