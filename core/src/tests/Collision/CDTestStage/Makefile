@@ -21,8 +21,15 @@ OBJS 		= ${SRCS:.cpp=.o}
 REALCLEANS	= $(wildcard log/*)
 
 CXXFLAGS	:= $(CXXFLAGS) \
+		$(call add_inc,${SPR_GL_INC}) \
 		-D__cdecl= \
 		-std=gnu++11
+
+LDFLAGS		:= \
+		$(call add_lib,${SPR_LINUX_LIB}) \
+		$(LDFLAGS) \
+		-llapack
+
 
 ################################################################
 #	compile, link and go
