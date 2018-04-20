@@ -364,22 +364,21 @@ void PH1DJointMotor::SetParams(PHNDJointMotorParam<1>& p) {
 
 // -----  -----  -----  -----  -----  -----  -----  -----  -----  -----  -----  -----  -----  ----- 
 // PH1DJointNonLinearMotor
-void PH1DJointNonLinearMotor::SetFuncFromDatabase(int i, void* param){
-	if (i < 0 || i > sizeof(PH1DJointFunc) / sizeof(PH1DJointFunc[0])) {
-		fpFunc = PH1DJointFunc[i];
+void PH1DJointNonLinearMotor::SetSpring(FunctionMode m, void* param){
+	if (!(m < 0 || m > sizeof(PH1DJointFunc) / sizeof(PH1DJointFunc[0]))) {
+		springMode = m;
 		this->springParam = param;
 	}
 }
-
-void PH1DJointNonLinearMotor::SetFuncFromDatabase(int i, int j, void* sparam, void* dparam){
-	if (!(i < 0 || i > sizeof(PH1DJointFunc) / sizeof(PH1DJointFunc[0]))) {
-		springFunc = i;
-		this->springParam = sparam;
+void PH1DJointNonLinearMotor::SetDamper(FunctionMode m, void* param) {
+	if (!(m < 0 || m > sizeof(PH1DJointFunc) / sizeof(PH1DJointFunc[0]))) {
+		damperMode = m;
+		this->damperParam = param;
 	}
-	if (!(j < 0 || j > sizeof(PH1DJointFunc) / sizeof(PH1DJointFunc[0]))) {
-		damperFunc = j;
-		this->damperParam = dparam;
-	}
+}
+void PH1DJointNonLinearMotor::SetSpringDamper(FunctionMode smode, FunctionMode dmode, void* sparam, void* dparam){
+	SetSpring(smode, sparam);
+	SetDamper(dmode, dparam);
 }
 
 /// propVを計算する
@@ -406,10 +405,10 @@ void PH1DJointNonLinearMotor::GetParams(PHNDJointMotorParam<1>& p) {
 	p.yieldStress = j->yieldStress;
 	p.hardnessRate = j->hardnessRate;
 	//関数存在するならそれに合わせてspringとdamper, 各targetを変更
-	Vec2d sp = PH1DJointFunc[springFunc](joint->Cast(), springParam);
+	Vec2d sp = PH1DJointFunc[springMode](joint->Cast(), springParam);
 	p.spring[0] = sp[0];
 	targetPos = sp[1];
-	Vec2d da = PH1DJointFunc[damperFunc](joint->Cast(), damperParam);
+	Vec2d da = PH1DJointFunc[damperMode](joint->Cast(), damperParam);
 	p.damper[0] = da[0];
 	p.targetVelocity[0] = da[1];
 }
