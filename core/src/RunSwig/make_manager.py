@@ -1,4 +1,4 @@
-﻿#!/usr/local/bin/python3.4
+﻿#!/usr/local/bin/python
 # -*- coding: utf-8 -*-
 # ==============================================================================
 #  FILE:
@@ -33,8 +33,12 @@
 #	Ver 1.5  2017/11/08 F.Kanehori	Python library path の変更.
 #	Ver 1.6  2017/11/29 F.Kanehori	Python library path の変更.
 #	Ver 1.61 2018/02/09 F.Kanehori	Bug fixed.
+#	Ver 1.62 2018/03/05 F.Kanehori	Bug fixed.
+#	Ver 1.63 2018/03/07 F.Kanehori	Add trace code.
+#	Ver 1.64 2018/03/14 F.Kanehori	Deal with new Proc class.
 # ==============================================================================
-version = 1.6
+version = 1.64
+trace = False
 
 import sys
 import os
@@ -45,6 +49,9 @@ from optparse import OptionParser
 #  Constants
 #
 prog = sys.argv[0].split(os.sep)[-1].split('.')[0]
+if trace:
+	print('ENTER: %s: %s' % (prog, sys.argv[1:]))
+	sys.stdout.flush()
 
 # ----------------------------------------------------------------------
 #  Import Springhead python library.
@@ -102,7 +109,7 @@ def create(fname, proj, dept):
 	cmnd = '%s%s' % (createmkf, flag)
 	args = '%s %s %s' % (fname, proj, dept)
 	#print('create_mkf.py%s %s' % (flag, args))
-	proc.exec('%s %s' % (cmnd, args), shell=True)
+	proc.execute('%s %s' % (cmnd, args), shell=True)
 	proc.wait()
 
 #  Do the job for one project.
@@ -145,6 +152,10 @@ def do_process(proj, dept):
 	#  Option '-r': Rename temporary makefile to makefile.
 	if options.rename:
 		print('    *** %s: renaming "%s -> %s"' % (proj, tempfile, makefile))
+		if not os.path.exists(tempfile):
+			if os.path.exists(makefile):
+				# OK, nothing to do.
+				return
 		f_op.mv(tempfile, makefile)
 
 # ---------------------------------------------------------------------
@@ -195,6 +206,12 @@ if len(args) > 0:
 		parser.error("incorrect number of arguments")
 
 verbose = options.verbose
+flags = []
+if options.all:	    flags.append('-A')
+if options.delete:  flags.append('-d')
+if options.create:  flags.append('-c')
+if options.maketmp: flags.append('-t')
+if options.rename:  flags.append('-r')
 if verbose:
 	print('  sprtop:    %s' % sprtop)
 	print('  srcdir:    %s' % srcdir)
@@ -203,12 +220,6 @@ if verbose:
 	print('  tempfile:  %s' % tempfile)
 	print('  projfile:  %s' % projfile)
 	print('  one_file:  %s' % one_file)
-	flags = []
-	if options.all:	    flags.append('-A')
-	if options.delete:  flags.append('-d')
-	if options.create:  flags.append('-c')
-	if options.maketmp: flags.append('-t')
-	if options.rename:  flags.append('-r')
 	print('  flags:     %s' % ' '.join(flags))
 	if options.debug:
 		print('  projs (for debug) -> %s' % debug_projs)
@@ -265,12 +276,17 @@ for line in lines:
 			fio.writelines([line])
 			fio.close()
 		#  Do process.
+		if trace:
+			print('calling do_process: %s' % ' '.join(flags))
 		do_process(proj, dept)
 
 	#  Return to original directory.
 	if not options.debug:
 		os.chdir(cwd)
 
+if trace:
+	print('LEAVE: %s' % prog)
+	sys.stdout.flush()
 sys.exit(0)
 
 # end: make_manager.py

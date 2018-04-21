@@ -1,4 +1,4 @@
-﻿#!/usr/local/bin/python3.4
+﻿#!/usr/local/bin/python
 # -*- coding: utf-8 -*-
 # ==============================================================================
 #  FILE:
@@ -26,9 +26,12 @@
 #	Ver 1.4  2017/11/08 F.Kanehori	Python library path の変更.
 #	Ver 1.5  2017/11/15 F.Kanehori	Windows 版の nkf は buildtool を使用.
 #	Ver 1.6  2017/11/29 F.Kanehori	pythonlib: buildtool -> src/RunSwig.
+#	Ver 1.61 2018/03/07 F.Kanehori	FileOp.rm() 引数変更に対応.
+#	Ver 1.62 2018/03/14 F.Kanehori	Deal with new Proc class.
 # ==============================================================================
-version = 1.6
-debug = True
+version = 1.62
+debug = False
+trace = False
 
 import sys
 import os
@@ -39,6 +42,9 @@ from optparse import OptionParser
 #  Constants
 #
 prog = sys.argv[0].split(os.sep)[-1].split('.')[0]
+if trace:
+	print('ENTER: %s: %s' % (prog, sys.argv[1:]))
+	sys.stdout.flush()
 verbose = 1 if debug else 0
 dry_run = 1 if debug else 0
 
@@ -152,7 +158,7 @@ f_op = FileOp(verbose=verbose)
 #  src/Foundation へ移って RunSwig を実行する.
 #
 cmd = '%s Framework Foundation' % runswig_foundation
-proc.exec(cmd, shell=True)
+proc.execute(cmd, shell=True)
 status = proc.wait()
 if status != 0:
 	msg = '%s failed (%d)' % (runswig_foundation, status)
@@ -190,14 +196,14 @@ srcf_names = ['Foundation/UTTypeDesc.h', 'Framework/FWOldSpringheadNodeHandler.h
 for file in incf_names:
 	cmnd = '%s -s -O %s/%s %s/include/%s' % (nkf, incdir, file, swigtmp, file)
 	cmnd = util.pathconv(cmnd)
-	proc.exec(cmnd, addpath=addpath, shell=True)
+	proc.execute(cmnd, addpath=addpath, shell=True)
 	status = proc.wait()
 	if status != 0:
 		error.print('"%s" failed (%d)' % (util.pathconv(cmnd, 'unix'), status))
 for file in srcf_names:
 	cmnd = '%s -s -O %s/%s %s/src/%s' % (nkf, srcdir, file, swigtmp, file)
 	cmnd = util.pathconv(cmnd)
-	proc.exec(cmnd, addpath=addpath, shell=True)
+	proc.execute(cmnd, addpath=addpath, shell=True)
 	status = proc.wait()
 	if status != 0:
 		error.print('"%s" failed (%d)' % (util.pathconv(cmnd, 'unix'), status))
@@ -268,7 +274,9 @@ output(makefile, lines)
 cmd = '%s -f %s' % (make, makefile)
 if clean:
 	cmd += ' clean'
-proc.exec(cmd, shell=True)
+if trace:
+	print('exec: %s' % cmd)
+proc.execute(cmd, shell=True)
 status = proc.wait()
 if status != 0:
 	error.print('%s failed (%d)' % (make, status))
@@ -277,13 +285,16 @@ if status != 0:
 #  ファイルの後始末
 #
 os.chdir(oldcwd)
-f_op.rm('Framework.i', force=True)
-f_op.rm('FrameworkStub.cpp', force=True)
-f_op.rm('FrameworkStub.mak.txt', force=True)
+f_op.rm('Framework.i')
+f_op.rm('FrameworkStub.cpp')
+f_op.rm('FrameworkStub.mak.txt')
 
 # ----------------------------------------------------------------------
 #  処理終了.
 #
+if trace:
+	print('LEAVE: %s' % prog)
+	sys.stdout.flush()
 sys.exit(0)
 
 # end: RunSwigFramework.py

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+Ôªø#!/usr/local/bin/python
 # -*- coding: utf-8 -*-
 # ======================================================================
 #  CLASS:
@@ -37,7 +37,8 @@
 #	Ver 1.0  2016/10/05 F.Kanehori	First version.
 #	Ver 2.0  2017/08/10 F.Kanehori	Name changed: script, param file.
 #	Ver 3.0  2017/09/13 F.Kanehori	Python library revised.
-#	Ver 4.0  2018/02/05 F.Kanehori	ëSëÃÇÃå©íºÇµ.
+#	Ver 4.0  2018/02/26 F.Kanehori	ÂÖ®‰Ωì„ÅÆË¶ãÁõ¥„Åó.
+#	Ver 4.01 2018/03/14 F.Kanehori	Dealt with new Error class.
 # ======================================================================
 import sys
 import os
@@ -58,7 +59,7 @@ class ControlParams:
 	#
 	def __init__(self, fname, section=None, verbose=0):
 		self.clsname = self.__class__.__name__
-		self.version = 4.0
+		self.version = 4.01
 		#
 		self.fname = fname
 		self.section = section
@@ -113,19 +114,17 @@ class ControlParams:
 		#   section:	Control section name.
 
 		cwd = os.getcwd().split(os.sep)
-		top = len(cwd)
-		for n in range(len(cwd)):
+		siz = len(cwd)
+		top = siz
+		for n in range(siz):
 			if cwd[n] in ['core']:
 				top = n + 1
-		for n in range(top, len(cwd)):
-			up = len(cwd) - n - 1
-			prefix = ''
-			for n in range(up):
-				prefix += '..' + os.sep
+		for n in range(top, siz):
+			prefix = '../' * (siz - n - 1)
 			if os.path.exists(prefix + fname):
 				path = Util.upath(os.path.abspath(prefix + fname))
 				if self.verbose:
-					prinit('read: %s' % path)
+					print('read: %s' % path)
 				kvf = KvFile(path, verbose=0)
 				num_sections = kvf.read(self.control)
 				self.__set_control_values(kvf, section)
@@ -180,7 +179,7 @@ if __name__ == '__main__':
 			default=0, help='set verbose mode')
 	(options, args) = parser.parse_args()
 	if len(args) != 2:
-		Proc().exec('python ControlParams.py -h').wait()
+		Proc().execute('python ControlParams.py -h').wait()
 		sys.exit(-1)
 
 	fname = args[0]
@@ -188,7 +187,7 @@ if __name__ == '__main__':
 
 	ctl = ControlParams(fname, section)
 	if ctl.error():
-		Error().print(ctl.error())
+		Error().abort(ctl.error())
 	ctl.info()
 
 	sys.exit(0)

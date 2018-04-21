@@ -20,6 +20,8 @@ setlocal enabledelayedexpansion
 ::	Ver 2.1  2017/12/27 F.Kanehori	レポートファイル名を変更
 ::	Ver 2.2  2018/01/02 F.Kanehori	NEWREV ログはテスト結果から直接得る
 ::	Ver 2.21 2018/01/10 F.Kanehori	レポート表記を一部変更
+::	Ver 2.22 2018/02/22 F.Kanehori	レポート表記を一部変更
+::	Ver 2.23 2018/03/05 F.Kanehori	Bug fixed.
 :: ============================================================================
 set PROG=%~n0
 
@@ -266,8 +268,9 @@ set TMPRUNERRDIFFFILE=%TMPDIR%\%DATESTR%.runerrlog.diff
 set TMPSPLERRDIFFFILE=%TMPDIR%\%DATESTR%.splerrlog.diff
 
 if %OPT_V% == 1 (
+    call :abs_path REPORTFILE_ABS %REPORTFILE%
     echo output to:
-    echo   %REPORTFILE%
+    echo   !REPORTFILE_ABS!
 )
 
 ::----------------------------------------------
@@ -439,6 +442,13 @@ exit /b
 	goto :trim_again_2
     )
     set %1=%TRIM_ARG%
+exit /b
+
+:: ====================
+::  絶対パスを返す
+:: ====================
+:abs_path
+	set %1=%~f2
 exit /b
 
 :: ====================

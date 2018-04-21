@@ -8,14 +8,26 @@
 
 namespace Spr {
 	; 
+
+	/*  FWTrajectoryPlanner
+	    トルク変化最小軌道を用いて関節系をコントロールするための計算クラス
+		参考論文
+		 Title : Trajectory Formation of Arm Movement by a Neural Network with Forward and Inverse Dynamics Models
+		 Authors : Yasuhiro WADA and Mitsuo KAWATO
+		 Outline : They got approximate solution of Minimum Torque Change Model by using iterative method named FIRM(Forward Inverse Relaxation Model).
+
+	*/
+
 	class MinJerkTrajectory {
 	private:
 		ControlPoint sPoint;
 		ControlPoint fPoint;
 		int stime;
 		int ftime;
+		// 経由点情報
 		ControlPoint vPoint;
 		int vtime;
+		// 係数行列
 		PTM::TMatrixRow<6, 3, double> coeffToV;
 		PTM::TMatrixRow<6, 3, double> coeffToF;
 	public:
@@ -92,7 +104,7 @@ namespace Spr {
 
 	class FWTrajectoryPlanner : public Object{
 	public:
-		//Joint系の管理クラス
+		//Joint系の管理クラス(PHJointとは別)
 		class Joint {
 		public:
 			virtual void Initialize(int iterate, int movetime, int nVia, double rate = 1.0, bool vCorr = true) = 0;
@@ -212,6 +224,7 @@ namespace Spr {
 		public:
 			PHIKBallActuatorIf* ball;            //アクチュエータ
 
+			/// 
 			PTM::VVector<Vec3d> torque;          //Inverse時に記録したトルク
 			PTM::VVector<Vec3d> torqueLPF;       //LPF後トルク
 			PTM::VMatrixRow<Quaterniond> ori;    //Inverseで動かす用角度(修正込み)

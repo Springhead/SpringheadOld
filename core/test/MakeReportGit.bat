@@ -5,31 +5,31 @@ setlocal enabledelayedexpansion
 ::	MakeReport [-k] [-h] [-v] [-s] [-D level]
 ::
 ::  DESCRIPTION:
-::	daily_build ‚ÌƒŒƒ|[ƒgƒtƒ@ƒCƒ‹‚ğì¬‚·‚é. Ÿ‚ÌƒRƒ}ƒ“ƒh‚ªƒ[ƒJƒ‹‚Å“®ì
-::	‚·‚é•K—v‚ª‚ ‚é (‚±‚ê‚ç‚Í bin ƒfƒBƒŒƒNƒgƒŠ‚É’u‚­‚±‚Æ).
-::	    gawk.exe	( awk ‚Ì‘ã‘Ö•¨‚È‚ç‚È‚ñ‚Å‚à‚æ‚¢ )
+::	daily_build $B$N%l%]!<%H%U%!%$%k$r:n@.$9$k(B. $B<!$N%3%^%s%I$,%m!<%+%k$GF0:n(B
+::	$B$9$kI,MW$,$"$k(B ($B$3$l$i$O(B bin $B%G%#%l%/%H%j$KCV$/$3$H(B).
+::	    gawk.exe	( awk $B$NBeBXJ*$J$i$J$s$G$b$h$$(B )
 ::	    nkf.exe
 ::
 ::  VERSION:
-::	Ver 1.0	 2012/11/03 F.Kanehori	‰”Å (Unix ŒÄo‚µ”Å)
-::	Ver 2.0  2013/02/07 F.Kanehori	Windows ˆÚA‰”Å
-::	Ver 3.0  2017/10/18 F.Kanehori	VƒŒƒ|ƒWƒgƒŠ\‘¢‘Î‰
-::	Ver 3.1  2017/11/22 F.Kanehori	ŠJn/I—¹‚ğ•\¦
+::	Ver 1.0	 2012/11/03 F.Kanehori	$B=iHG(B (Unix $B8F=P$7HG(B)
+::	Ver 2.0  2013/02/07 F.Kanehori	Windows $B0\?"=iHG(B
+::	Ver 3.0  2017/10/18 F.Kanehori	$B?7%l%]%8%H%j9=B$BP1~(B
+::	Ver 3.1  2017/11/22 F.Kanehori	$B3+;O(B/$B=*N;;~9o$rI=<((B
 ::	Ver 3.2  2017/12/21 F.Kanehori	Log directory on the web changed.
 :: ==============================================================================
 set PROG=%~n0
 echo %PROG%: started at %date% %time%
 
 ::----------------------------------------------
-::  ‰ºˆÊ‚Ìˆ—ƒvƒƒOƒ‰ƒ€‚É“n‚·ƒIƒvƒVƒ‡ƒ“
-::    -k  ì‹Æƒtƒ@ƒCƒ‹‚ğc‚·
-::    -V  ƒo[ƒoƒXî•ño—ÍiƒfƒtƒHƒ‹ƒgj
-::    -D  ƒfƒoƒbƒOî•ño—Í
-::  ‚±‚Ìƒoƒbƒ`ƒXƒNƒŠƒvƒg‚Åg—p‚·‚éƒIƒvƒVƒ‡ƒ“
-::    -c  ƒŒƒ|[ƒgƒtƒ@ƒCƒ‹‚ğƒEƒFƒu‚ÉƒRƒs[‚·‚é
-::    -h  g—p•û–@‚Ì•\¦
-::    -v  ƒo[ƒoƒXî•ño—ÍiƒfƒtƒHƒ‹ƒgj
-::    -s  ƒo[ƒoƒXî•ño—Í—}§i‘SƒXƒNƒŠƒvƒgj
+::  $B2<0L$N=hM}%W%m%0%i%`$KEO$9%*%W%7%g%s(B
+::    -k  $B:n6H%U%!%$%k$r;D$9(B
+::    -V  $B%P!<%P%9>pJs=PNO!J%G%U%)%k%H!K(B
+::    -D  $B%G%P%C%0>pJs=PNO(B
+::  $B$3$N%P%C%A%9%/%j%W%H$G;HMQ$9$k%*%W%7%g%s(B
+::    -c  $B%l%]!<%H%U%!%$%k$r%&%'%V$K%3%T!<$9$k(B
+::    -h  $B;HMQJ}K!$NI=<((B
+::    -v  $B%P!<%P%9>pJs=PNO!J%G%U%)%k%H!K(B
+::    -s  $B%P!<%P%9>pJs=PNOM^@)!JA4%9%/%j%W%H!K(B
 ::----------------------------------------------
 set OPT_C=0
 set OPT_K=0
@@ -71,7 +71,7 @@ if "%ARGS:~0,1%" == " " (
 if %ARGC% == 1 (set ARGS=%ARGS% %1)
 
 ::----------------------------------------------
-::  “ú•tî•ñ‚Ìæ“¾
+::  $BF|IU>pJs$N<hF@(B
 ::
 set YYYY=%DATE:~0,4%
 set MM=%DATE:~5,2%
@@ -79,14 +79,14 @@ set DD=%DATE:~8,2%
 set TODAY=%YYYY%-%MM%%DD%
 
 ::----------------------------------------------
-::  g—p‚·‚éƒvƒƒOƒ‰ƒ€
+::  $B;HMQ$9$k%W%m%0%i%`(B
 ::
 set BASEDIR=.\Monitoring
 set BINDIR=.\bin
 set CMND=build_monitor_Git
 
 ::----------------------------------------------
-::  ƒ[ƒJƒ‹ƒzƒXƒgã‚ÅƒRƒ}ƒ“ƒh‚ğÀs
+::  $B%m!<%+%k%[%9%H>e$G%3%^%s%I$r<B9T(B
 ::
 set CWD=%cd%
 cd %BASEDIR%
@@ -94,7 +94,7 @@ cmd /c %BINDIR%\%CMND% %ARGS%
 cd %CWD%
 
 ::----------------------------------------------
-::  ƒRƒs[Œ³/æ‚ÌƒfƒBƒŒƒNƒgƒŠ‚Ì’è‹`
+::  $B%3%T!<85(B/$B@h$N%G%#%l%/%H%j$NDj5A(B
 ::
 set SELFPATH=%~dp0
 set REPBASE=%SELFPATH%report
@@ -102,7 +102,7 @@ set WEBBASE=\\haselab\HomeDirs\WWW\docroots\springhead\dailybuild\log
 set WEBREPT=%WEBBASE%
 
 ::----------------------------------------------
-::  ƒEƒFƒu‚ÉƒRƒs[‚·‚éƒtƒ@ƒCƒ‹‚Ì’è‹`
+::  $B%&%'%V$K%3%T!<$9$k%U%!%$%k$NDj5A(B
 ::
 set REPFILE=%TODAY%.report
 set BLDDIFF=%TODAY%.bldlog.diff
@@ -110,7 +110,7 @@ set STBDIFF=%TODAY%.stblog.diff
 set RUNDIFF=%TODAY%.runlog.diff
 set SPLDIFF=%TODAY%.spllog.diff
 
-:: ƒEƒFƒuã‚Å‚Ì–¼Ì
+:: $B%&%'%V>e$G$NL>>N(B
 ::
 set WEB_REPFILE=Test.report
 set WEB_BLDDIFF=Build.log.diff
@@ -119,7 +119,7 @@ set WEB_RUNDIFF=Run.log.diff
 set WEB_SPLDIFF=SamplesBuild.log.diff
 
 ::----------------------------------------------
-::  ƒEƒFƒu‚ÉƒRƒs[
+::  $B%&%'%V$K%3%T!<(B
 ::
 if %OPT_C% == 1 (
     if %OPT_V% == 1 ( echo copying files to the web ... )
@@ -132,7 +132,7 @@ if %OPT_C% == 1 (
 )
 
 ::----------------------------------------------
-::  ƒ[ƒJƒ‹‚Ìƒtƒ@ƒCƒ‹‚ğíœ
+::  $B%m!<%+%k$N%U%!%$%k$r:o=|(B
 ::
 if not %OPT_K% == 1 (
     if %OPT_V% == 1 ( set /p=clearing directory %REPBASE% ... < NUL )
@@ -149,7 +149,7 @@ endlocal
 exit /b
 
 ::----------------------------------------------
-::  g—p•û–@‚Ì•\¦
+::  $B;HMQJ}K!$NI=<((B
 ::----------------------------------------------
 :usage
     echo Usage: %PROG% [options] [xxxx:yyyy]

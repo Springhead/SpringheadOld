@@ -10,10 +10,22 @@
 
 【概要】
   CCDのテストプログラム。
-  
+  判定手法，オブジェクトを切り替えてテストできる
+  左上に現在の衝突時間が表示される
+  colcounterはサポート探索回数
+
 【終了基準】
   強制終了。 
- 
+
+【操作】
+3,4,5　衝突判定メソッド切り替え（3=Springhead，4＝加速，5＝GJKRaycast）
+1,2 操作オブジェクト切り替え
+z,x,c,v,b,n 形状切り替え
+w,a,s,d,q,e オブジェクト移動
+t,g,f,h オブジェクト回転
+p　csv定義の組み合わせでの計測開始
+l　今の組み合わせで計測開始
+o　今の衝突情報を記録
  */
 
 #include <Springhead.h>		//	Springheadのインタフェース
@@ -25,7 +37,7 @@
 #include<Foundation/UTPreciseTimer.h>
 #include <iostream>
 #include <fstream>
-#include <tests/Collision\CDTestStage\teststage.h>
+#include <tests/Collision/CDTestStage/teststage.h>
 #ifdef USE_HDRSTOP
 #pragma hdrstop
 #endif
@@ -41,12 +53,12 @@ using namespace Spr;
 #define COLTIME_AVE_FRAME 90	//衝突判定時間の平均を何フレームごとに出すか
 
 const double epsilon = 1e-16;	//1e-8
-const float testHeight = 5;
+const float testHeight = 10;
 const float moverate = 0.05f;
-const float rotaterate = M_PI/180; //1°刻み
+const float rotaterate = (float) M_PI/180; //1°刻み
 
 bool automode = false;
-bool superAuto = false;
+bool superAuto = false; //csv分全部通しでやるときにはtrue
 
 UTRef<PHSdkIf> sdk;
 TestStage stage;
@@ -117,7 +129,11 @@ void SetFileName() {
 	time_t timer;
 	time(&timer);
 	tm lTimer;
-	localtime_s(&lTimer, &timer);
+#ifdef _MSC_VER
+	localtime_s(&lTimer, &timer);	// この引数並びは正しい？
+#else
+	localtime_r(&timer, &lTimer);
+#endif
 	filename = "CDTest_" + to_string(lTimer.tm_mon + 1) + to_string(lTimer.tm_mday) + to_string(lTimer.tm_hour) + to_string(lTimer.tm_min) + ".csv";
 	hitFilename = "CDHit_" + to_string(lTimer.tm_mon + 1) + to_string(lTimer.tm_mday) + to_string(lTimer.tm_hour) + to_string(lTimer.tm_min) + ".csv";
 }
@@ -131,7 +147,8 @@ void StartAutomode(bool sameFile) {
 	hitCount = 0;
 	outCount = 0;
 	if(!sameFile) SetFileName();
-	obj[0].SetRot(Quaternionf());
+	Quaternionf quat = Quaternionf();
+	obj[0].SetRot(quat);
 	obj[0].SetPos(Vec3f(-3, testHeight, -3));
 	if (!superAuto) {
 		ofstream ofs(filename, ios::app);
@@ -170,26 +187,20 @@ void __cdecl display(){
 	glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, mat_floor);
 	glPushMatrix();
 	Posed pose = solid[0]->GetPose();
-	//pose.ToAffine(ad);
-	//glMultMatrixd(ad);	
 
 	Vec3f normal;
 	for(int i=0; i<solid[0]->NShape(); ++i){
 		SetGLMesh(solid[0]->GetShape(i), obj[1].m_shapeID, pose);
 	}
-	//glPopMatrix();
 
 	
 	// 上の青い剛体(objA)
 	glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, mat_block);
-	//glPushMatrix();
 	pose = solid[1]->GetPose();
-	//ad = Affined(pose);
-	//glMultMatrixd(ad);
-		for(int i=0; i<solid[1]->NShape(); ++i){
-			SetGLMesh(solid[1]->GetShape(i), obj[0].m_shapeID, pose);
+	for(int i=0; i<solid[1]->NShape(); ++i){
+		SetGLMesh(solid[1]->GetShape(i), obj[0].m_shapeID, pose);
 	}
-	//glPopMatrix();
+
 	
 		//衝突情報描画
 		glDisable(GL_ALPHA);
@@ -208,7 +219,7 @@ void __cdecl display(){
 			double dist = 0;
 			Vec3d dir(0, -1, 0);
 			double dirLength = testHeight*2;
-			int res;
+			int res = 0;
 			colcounter = 0;
 			float maxSurf = mesh[0]->GetMaxSurf();
 			switch (colMethod)
@@ -236,9 +247,9 @@ void __cdecl display(){
 				coltimePhase1 = 0;
 				coltimePhase2 = 0;
 				coltimePhase3 = 0;
+				//自動テスト時の処理
 				if (automode) {
-					//ofstream ofs(filename, ios::app);
-					//ofs <<colMethod << "," << recordCount*10 << "," << coltimeDisp[0] << "," << coltimeDisp[1] << "," << coltimeDisp[2] << "," << colcounter << std::endl;
+					//衝突してるかどうかで分ける
 					if (res == 1) {
 						hitTimePool += coltimeDisp[0] + coltimeDisp[1] + coltimeDisp[2];
 						hitCount++;
@@ -248,13 +259,13 @@ void __cdecl display(){
 						outCount++;
 					}
 					recordCount++;
-					obj[0].Rotate(Quaternionf::Rot(rotaterate*15, Vec3f(0, 0, 1)));
-					if (recordCount >= 24) {
+					obj[0].Rotate(Quaternionf::Rot(rotaterate*15, Vec3f(1, 0, 0)));
+					if (recordCount >= 24) { //回転が終わったら
 						recordCount = 0;
 						transCount++;
 						obj[0].SetRot(Quaternionf());
-						obj[0].SetPos(Vec3f(transCount % 6 - 3, testHeight, transCount / 6 - 3));
-						if (!superAuto) {
+						obj[0].SetPos(Vec3f(transCount % 6 - 3, testHeight, transCount / 6 - 3)); //6*6のグリッドを移動
+						if (!superAuto) { //一回だけならここで記録
 							ofstream ofs(filename, ios::app);
 							if (hitCount > 0)
 								hitTimePool = hitTimePool / hitCount;
@@ -267,7 +278,7 @@ void __cdecl display(){
 							hitTimePool = 0;
 							outTimePool = 0;
 						}						
-						if (transCount >= 36) {
+						if (transCount >= 36) { //全グリッド測ったら
 							ofstream ofs(filename, ios::app);
 							float hitTimeAve = 0;
 							float outTimeAve = 0;
@@ -275,18 +286,18 @@ void __cdecl display(){
 								hitTimeAve = hitTimePool / (float)hitCount;
 							if (outCount > 0)
 								outTimeAve = outTimePool / (float)outCount;
-							ofs << colMethod << "," << obj[0].m_shapeID << "," << obj[1].m_shapeID << "," << hitTimeAve << "," << outTimeAve << std::endl;
+							ofs << colMethod << "," << obj[0].m_shapeID << "," << obj[1].m_shapeID << "," << hitTimeAve << "," << outTimeAve << std::endl; //書き込み
 							automode = false;
-							if (superAuto && caseCount < testShapes.size()) {
-								if (colMethod == 2) {
+							if (superAuto && caseCount < testShapes.size()) { //形状切り替え，終了判定
+								if (colMethod == 2) {//次の形状へ
 									caseCount += 2;
 									obj[0].SetShape(stage.GetShape((ShapeID)testShapes[caseCount]), (ShapeID)testShapes[caseCount]);
 									obj[1].SetShape(stage.GetShape((ShapeID)testShapes[caseCount+1]), (ShapeID)testShapes[caseCount+1]);
 								}
-								colMethod = (colMethod+1)%3;
+								colMethod = (colMethod+1)%3; //メソッド切り替え
 								StartAutomode(true);
 							}
-							else {
+							else { //終了
 								automode = false;
 								superAuto = false;
 							}
@@ -298,19 +309,17 @@ void __cdecl display(){
 			{
 				aveCount++;
 			}
-
+			//VSのログに出すとき
 			//DSTR << "res:" << res << " normal:" << normal << " dist:" << dist;
 			//DSTR << " p:" << pose[0] * pos[0] << " q:" << pose[1] * pos[1] << std::endl;
-			//		pose[1].Ori() = Quaterniond::Rot('z', Rad(5)) * pose[1].Ori();
-			//		solid[1]->SetPose(pose[1]);
 			Vec3d hitPos = ObjtoScreenPos(pose[0] * pos[0]);
 			Vec3d hitPos2 = ObjtoScreenPos(pose[1] * pos[1]);
 			Vec3d vecPos = hitPos2;
 			Vec3d vecPos2 = ObjtoScreenPos(pose[1] * pos[1] +dir*dirLength);
 			BeginRend2D();
-			RendText(0,0.95f,"res:%d normal:%.3f,%.3f,%.3f deist:%.4f", res, normal.x, normal.y, normal.z, dist);
-			RendText(0, 0.9f, "coltime phase1:%d phase2:%d phase3:%d phase3 loop:%d", coltimeDisp[0], coltimeDisp[1], coltimeDisp[2],colcounter);
-			RendText(0, 0.85f, "bias param:%.2f", biasParam);
+			RendText(0,0.95f,(char*)"res:%d normal:%.3f,%.3f,%.3f deist:%.4f", res, normal.x, normal.y, normal.z, dist);
+			RendText(0, 0.9f, (char*)"coltime phase1:%d phase2:%d phase3:%d phase3 loop:%d", coltimeDisp[0], coltimeDisp[1], coltimeDisp[2],colcounter);
+			RendText(0, 0.85f, (char*)"bias param:%.2f", biasParam);
 			if (recordHit)
 			{
 				ofstream ofs(hitFilename, ios::app);
@@ -322,14 +331,14 @@ void __cdecl display(){
 			}
 			glPointSize(5.0);					// 点の太さ
 			glBegin(GL_POINTS);					// 点の座標を記述開始
-			glColor4f(0.3, 1.0, 0.3, 0);	// 点の色(RGBA)
+			glColor4f(0.3f, 1.0f, 0.3f, 0);	// 点の色(RGBA)
 			glVertex2d(hitPos.X(), hitPos.Y());			// 点2つ分の座標
 			glVertex2d(hitPos2.X(), hitPos2.Y());
 			glEnd();							// 座標の記述終了
 			glLineWidth(3.0);
 			
 			glBegin(GL_LINES);		//線
-			glColor4f(0.3, 0.3, 1.0, 0);	// 線の色(RGBA)
+			glColor4f(0.3f, 0.3f, 1.0f, 0);	// 線の色(RGBA)
 			glVertex2d(vecPos.X(), vecPos.Y());			// 線の座標
 			glVertex2d(vecPos2.X(), vecPos2.Y());
 			glEnd();
@@ -384,8 +393,8 @@ void __cdecl reshape(int w, int h){
 	glLoadIdentity();
 	gluPerspective(60.0, (GLfloat)w/(GLfloat)h, 1.0, 500.0);
 	glMatrixMode(GL_MODELVIEW);
-	width = w;
-	height = h;
+	width = (float) w;
+	height = (float) h;
 }
 
 void __cdecl RecordHit()
@@ -425,6 +434,8 @@ void __cdecl keyboard(unsigned char key, int x, int y){
 	if (key == 'v') obj[selectObj].SetShape(stage.GetShape(ShapeID::SHAPE_ROUNDCONE), ShapeID::SHAPE_ROUNDCONE);
 	if (key == 'b') obj[selectObj].SetShape(stage.GetShape(ShapeID::SHAPE_POLYSPHERE), ShapeID::SHAPE_POLYSPHERE);
 	if (key == 'n') obj[selectObj].SetShape(stage.GetShape(ShapeID::SHAPE_DODECA), ShapeID::SHAPE_DODECA);
+	if (key == 'm') obj[selectObj].SetShape(stage.GetShape(ShapeID::SHAPE_LONGCAPSULE), ShapeID::SHAPE_LONGCAPSULE);
+	if (key == ',') obj[selectObj].SetShape(stage.GetShape(ShapeID::SHAPE_LONGPOLYSPHERE), ShapeID::SHAPE_LONGPOLYSPHERE);
 	if (key == 'p') {
 		colMethod = 0;
 		caseCount = 0;
@@ -488,7 +499,8 @@ void __cdecl motion(int x, int y) {
 void __cdecl idle(){
 	static int total;
 	total ++;
-#if 0
+#if 1 //自動テスト通す用 手動でテストするときは0に
+	colMethod = (colMethod + 1) % 3;
 	if (total > TOTAL_IDLE_COUNTER){
 		//exit(EXIT_FAILURE);
 		exit(EXIT_SUCCESS);
@@ -569,19 +581,14 @@ int __cdecl main(int argc, char* argv[]){
 	scene = sdk->CreateScene();				// シーンの作成
 	stage = TestStage();
 	stage.Init(sdk);
-	//p_timer = new UTPreciseTimer();
-	//p_timer->Init();
+
 	PHSolidDesc desc;
 	desc.mass = 2.0;
 	desc.inertia *= 2.0;
-	//objA = scene->CreateSolid(desc);		// 剛体をdescに基づいて作成
 
-	//desc.mass = 1e20f;
-	//desc.inertia *= 1e20f;
 	obj[0].Init(scene->CreateSolid(desc), stage.GetShape(idBlock), idBlock);
 	obj[1].Init(scene->CreateSolid(desc), stage.GetShape(idFloor), idFloor);
-	//objB = scene->CreateSolid(desc);		// 剛体をdescに基づいて作成
-	//objB->SetGravity(false);
+
 	
 	//	形状の作成
 #if 0
@@ -631,7 +638,7 @@ int __cdecl main(int argc, char* argv[]){
 	
 	glutInit(&argc, argv);
 	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA | GLUT_DEPTH);
-	glutInitWindowSize(width, height);
+	glutInitWindowSize((int)width, (int)height);
 	glutCreateWindow("PHShapeGL");
 	initialize();
 	glutDisplayFunc(display);

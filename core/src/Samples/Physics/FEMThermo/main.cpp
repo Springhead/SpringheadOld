@@ -22,7 +22,9 @@ Springhead2/src/Samples/FEMThermo
 #include <Graphics/GRMesh.h>
 #include <list>
 
+#ifdef	_MSC_VER
 #pragma hdrstop
+#endif
 
 using namespace PTM;
 
@@ -95,8 +97,8 @@ public:
 		shapeRoundCone= GetSdk()->GetPHSdk()->CreateShape(rcd)->Cast();
 		
 		//	ファイルのロード
-		UTRef<ImportIf> import = GetSdk()->GetFISdk()->CreateImport();
-		GetSdk()->LoadScene("sceneTHTest5.spr", import);			// ファイルのロード			// scene.spr:negiをロード, scene2.spr:デバッグ用の直方体, scene3.spr:穴あきcheeseをロード, sceneTHtest.spr:フライパンなどインポートのテスト
+		GetSdk()->LoadScene("sceneTHTest5.spr");			// ファイルのロード
+
 		numScenes = GetSdk()->NScene();
 		if (numScenes) SwitchScene(GetSdk()->NScene()-1);
 
@@ -1152,6 +1154,7 @@ int SPR_CDECL main(int argc, char *argv[]) {
 	SEH_HANDLER_TRY
 
 	app.Init(argc, argv);
+	glewInit();
 	app.StartMainLoop();
 
 	SEH_HANDLER_CATCH

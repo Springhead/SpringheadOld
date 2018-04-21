@@ -1,8 +1,10 @@
-#pragma once
-//#include <Springhead.h>
+ï»¿#pragma once
+
 #include <GL/glut.h>
-//#include <stdio.h>
-#//include <stdarg.h>
+
+#ifdef	__unix__
+  #define vsprintf_s(b,s,f,a) vsnprintf(b,(int)sizeof(b),f,a)
+#endif
 
 using namespace Spr;
 using namespace std;
@@ -12,7 +14,7 @@ using namespace std;
 static float width = 400;
 static float height = 300;
 
-/// Œ`óID
+/// å½¢çŠ¶ID
 enum ShapeID {
 	SHAPE_BOX,
 	SHAPE_CAPSULE,
@@ -20,15 +22,17 @@ enum ShapeID {
 	SHAPE_SPHERE,
 	SHAPE_ROCK,
 	SHAPE_POLYSPHERE,
-	SHAPE_DODECA
+	SHAPE_DODECA,
+	SHAPE_LONGCAPSULE,
+	SHAPE_LONGPOLYSPHERE
 };
 
 /**
-brief     ‘½–Ê‘Ì‚Ì–Ê(OŠpŒ`)‚Ì–@ü‚ğ‹‚ß‚é
-param	   <in/out> normal@@  –@ü
-param     <in/-->   base@@@ mesh‚Ì’¸“_
-param     <in/-->   face@@@ ‘½–Ê‘Ì‚Ì–Ê
-return     ‚È‚µ
+brief     å¤šé¢ä½“ã®é¢(ä¸‰è§’å½¢)ã®æ³•ç·šã‚’æ±‚ã‚ã‚‹
+param	   <in/out> normalã€€ã€€  æ³•ç·š
+param     <in/-->   baseã€€ã€€ã€€ meshã®é ‚ç‚¹
+param     <in/-->   faceã€€ã€€ã€€ å¤šé¢ä½“ã®é¢
+return     ãªã—
 */
 void genFaceNormal(Vec3f& normal, Vec3f* base, CDFaceIf* face) {
 	Vec3f edge0, edge1;
@@ -48,7 +52,7 @@ void BeginRend2D() {
 	gluOrtho2D(0, 1, 0, 1);
 	//glLoadIdentity();
 }
-void EndRend2D() {//•K‚¸ƒZƒbƒg‚Åg‚¤
+void EndRend2D() {//å¿…ãšã‚»ãƒƒãƒˆã§ä½¿ã†
 	glPopMatrix();
 	glMatrixMode(GL_MODELVIEW);
 	glPopMatrix();
@@ -58,7 +62,7 @@ void RendText(float posx,float posy,char* format, ...) {
 	
 	va_list args;
 	va_start(args, format);
-	int count = vsprintf_s(text,256, format, args);//vsprintf‚¶‚á‚È‚¢‚Æva_list‚É‘Î‰‚µ‚È‚¢
+	int count = vsprintf_s(text,256, format, args);//vsprintfã˜ã‚ƒãªã„ã¨va_listã«å¯¾å¿œã—ãªã„
 	va_end(args);
 	if (count <= 0) return;
 	
@@ -71,21 +75,22 @@ void RendText(float posx,float posy,char* format, ...) {
 }
 
 Vec3d ObjtoScreenPos(const Vec3d objPos) {
-	double modelview[16];//ƒ‚ƒfƒ‹ƒrƒ…[s—ñæ“¾
+	double modelview[16];//ãƒ¢ãƒ‡ãƒ«ãƒ“ãƒ¥ãƒ¼è¡Œåˆ—å–å¾—
 	glGetDoublev(GL_MODELVIEW_MATRIX, modelview);
 
-	double projection[16];//“§‹“Š‰es—ñæ“¾
+	double projection[16];//é€è¦–æŠ•å½±è¡Œåˆ—å–å¾—
 	glGetDoublev(GL_PROJECTION_MATRIX, projection);
 
-	int viewport[4];//ƒrƒ…[ƒ|[ƒgæ“¾
+	int viewport[4];//ãƒ“ãƒ¥ãƒ¼ãƒãƒ¼ãƒˆå–å¾—
 	glGetIntegerv(GL_VIEWPORT, viewport);
 
-	double winX, winY, winZ;//ƒEƒBƒ“ƒhƒEÀ•WŠi”[—p
+	double winX, winY, winZ;//ã‚¦ã‚£ãƒ³ãƒ‰ã‚¦åº§æ¨™æ ¼ç´ç”¨
 
-	gluProject(objPos.X(), objPos.Y(), objPos.Z(), modelview, projection, viewport, &winX, &winY, &winZ); //À•W•ÏŠ·‚ÌŒvZ
+	gluProject(objPos.X(), objPos.Y(), objPos.Z(), modelview, projection, viewport, &winX, &winY, &winZ); //åº§æ¨™å¤‰æ›ã®è¨ˆç®—
 	return Vec3d(winX/width, winY/height, winZ);
 }
 
+//OpenGLã§ã®è¡¨ç¤ºç”¨ã®ãƒ¡ãƒƒã‚·ãƒ¥ä½œæˆ
 void SetGLMesh(CDShapeIf* shape,ShapeID id,Posed pose) {
 	Affined affine;
 	glPushMatrix();
@@ -102,7 +107,8 @@ void SetGLMesh(CDShapeIf* shape,ShapeID id,Posed pose) {
 		}
 		break;
 	}
-	case SHAPE_CAPSULE: {
+	case SHAPE_CAPSULE:
+	case SHAPE_LONGCAPSULE:{
 		CDCapsuleIf* cap = DCAST(CDCapsuleIf, shape);
 		if (cap) {
 			float radius = cap->GetRadius();
@@ -143,7 +149,8 @@ void SetGLMesh(CDShapeIf* shape,ShapeID id,Posed pose) {
 	}
 	case SHAPE_ROCK :
 	case SHAPE_POLYSPHERE:
-	case SHAPE_DODECA:{
+	case SHAPE_DODECA:
+	case SHAPE_LONGPOLYSPHERE:{
 		Vec3f normal;
 		CDConvexMeshIf* mesh = DCAST(CDConvexMeshIf, shape);
 		if (mesh) {
@@ -244,7 +251,7 @@ public:
 
 class TestStage {
 public:
-	/// ì‚è‚¨‚«Œ`ó
+	/// ä½œã‚ŠãŠãå½¢çŠ¶
 	CDBoxIf*				shapeBox;
 	CDSphereIf*				shapeSphere;
 	CDCapsuleIf*			shapeCapsule;
@@ -252,10 +259,12 @@ public:
 	CDConvexIf*				shapeRock;
 	CDConvexIf*				shapePolySphere;
 	CDConvexIf*				shapeDodecahedron;
+	CDCapsuleIf*			shapeLongCapsule;
+	CDConvexIf*				shapeLongPolySphere;
 
 
 	void Init(PHSdkIf *sdk) {
-		// Œ`ó‚Ìì¬
+		// å½¢çŠ¶ã®ä½œæˆ
 		CDBoxDesc bd;
 		bd.boxsize = Vec3f(3, 3, 3);
 		shapeBox = sdk->CreateShape(bd)->Cast();
@@ -268,11 +277,17 @@ public:
 		cd.radius = 1;
 		cd.length = 2;
 		shapeCapsule = sdk->CreateShape(cd)->Cast();
+		//long
+		cd.radius = 0.1f;
+		cd.length = 10;
+		shapeLongCapsule = sdk->CreateShape(cd)->Cast();
 
 		CDRoundConeDesc rcd;
 		rcd.length = 3;
 		//rcd.radius = Vec2f(1.f, 2.f);
 		shapeRoundCone = sdk->CreateShape(rcd)->Cast();
+
+
 
 		CDConvexMeshDesc md;
 		int nv = 250;
@@ -301,14 +316,30 @@ public:
 				Quaterniond rot = Quaterniond();
 				rot.Euler(yangle,xangle, 0);
 				v = rot*v;
-				//rot = Quaterniond::Rot(xangle, Vec3d(0, 1, 0) ^ v);
-				//v = rot*v;
 				v.y *= 0.5;
 				pd.vertices.push_back(v);
 			}
 			
 		}
 		shapePolySphere = sdk->CreateShape(pd)->Cast();
+		//long spheroid
+		pd.vertices.clear();
+		pd.vertices.push_back(Vec3d(0, scale*0.05, 0));
+		pd.vertices.push_back(Vec3d(0, -scale*0.05, 0));
+		for (int i = 0; i < ynum; ++i) {
+			double yangle = (2 * M_PI / ynum)*i;
+			for (int j = 1; j<xnum; ++j) {
+				double xangle = (M_PI / xnum)*j - (M_PI / 2);
+				Vec3d v = Vec3d(scale, 0, 0);
+				Quaterniond rot = Quaterniond();
+				rot.Euler(yangle, xangle, 0);
+				v = rot*v;
+				v.y *= 0.05;
+				pd.vertices.push_back(v);
+			}
+
+		}
+		shapeLongPolySphere = sdk->CreateShape(pd)->Cast();
 		
 		pd.vertices.clear();
 		pd.vertices.push_back(Vec3d(1, 1, 1));
@@ -341,6 +372,7 @@ public:
 
 	}
 
+	//å½¢çŠ¶ã‚’å–å¾—
 	CDShapeIf* GetShape(ShapeID id) {
 		switch (id)
 		{
@@ -364,6 +396,12 @@ public:
 			break;
 		case SHAPE_DODECA:
 			return shapeDodecahedron;
+			break;
+		case SHAPE_LONGCAPSULE:
+			return shapeLongCapsule;
+			break;
+		case SHAPE_LONGPOLYSPHERE:
+			return shapeLongPolySphere;
 			break;
 		default:
 			return shapeSphere;

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+﻿#!/usr/local/bin/python
 # -*- coding: utf-8 -*-
 # ======================================================================
 #  CLASS:
@@ -36,7 +36,11 @@
 #
 # ----------------------------------------------------------------------
 #  VERSION:
-#	Ver 1.0  2018/02/08 F.Kanehori	First version.
+#	Ver 1.0  2018/02/26 F.Kanehori	First version.
+#	Ver 1.01 2018/03/14 F.Kanehori	Dealt with new Error class.
+#	Ver 1.1  2018/03/15 F.Kanehori	Bug fixed (for unix).
+#	Ver 1.11 2018/03/28 F.Kanehori	Bug fixed (for unix).
+#	Ver 1.12 2018/04/19 F.Kanehori	Special trap introduced.
 # ======================================================================
 import sys
 import os
@@ -69,7 +73,7 @@ class Traverse:
 			timeout, report=True, audit=False,
 			dry_run=False, verbose=0):
 		self.clsname = self.__class__.__name__
-		self.version = 1.0
+		self.version = 1.1
 		#
 		self.testid = testid
 		self.result = result
@@ -92,22 +96,35 @@ class Traverse:
 			self.is_dailybuild = True
 		else:
 			self.is_dailybuild = False
+		self.trap_enabled = False	#### special trap ####
 		#
+		self.encoding = 'utf-8' if Util.is_unix() else 'cp932'
 		self.once = True
 		self.trace = True
-		self.err = Error(self.clsname)
 		self.fop = FileOp()
 
 	#  Compile the solution.
 	#
 	def traverse(self, top):
+		#### special trap for manual test ####
+		skips = os.getenv('SPR_SKIP')
+		if self.trap_enabled and top.split('/')[-1] in skips:
+			print('skip: %s' % top)
+			return 0
+		#### end trap ####
 		if not os.path.isdir(top):
-			self.err.print('not a directory: %s' % top, alive=True)
+			msg = 'not a directory: %s' % top
+			Error(self.clsname).error(msg)
+			return 0
 	
+		# go to test directory
+		dirsave = self.__chdir(top)
+		cwd = Util.upath(os.getcwd())
+		
 		# read control file
-		ctl = ControlParams(self.control, self.section)
+		ctl = ControlParams(self.control, self.section, verbose=self.verbose)
 		if ctl.error():
-			self.err.print(ctl.error(), alive=True)
+			Error(self.clsname).error(ctl.error())
 			return -1
 		if self.once:
 			self.__init_log(ctl.get(CFK.BUILD_LOG), RST.BLD)
@@ -117,10 +134,6 @@ class Traverse:
 			self.once = False
 			print()
 
-		# go to test directory
-		dirsave = self.__chdir(top)
-		cwd = Util.upath(os.getcwd())
-		
 		# check test condition
 		is_cand = self.__is_candidate_dir(cwd)
 		exclude = ctl.get(CFK.EXCLUDE, False)
@@ -128,6 +141,7 @@ class Traverse:
 		descend = ctl.get(CFK.DESCEND) and is_cand and not exclude
 		do_this = is_cand and not exclude and has_sln
 		#
+		interrupted = False
 		stat = 0
 		if do_this:
 			if self.audit:
@@ -135,6 +149,8 @@ class Traverse:
 			if self.verbose:
 				ctl.info()
 			stat = self.process(cwd, ctl)
+			if stat == Proc.ECANCELED:
+				interrupted = True
 		elif self.audit:
 			if not is_cand: msg = 'not a candidate dir'
 			if exclude:	msg = 'exclude condition'
@@ -142,12 +158,16 @@ class Traverse:
 			print('skip: -%s (%s)' % (cwd, msg))
 
 		# process for all subdirectories
-		if descend:
-			for item in os.listdir(cwd):
+		if descend and not interrupted:
+			for item in sorted(os.listdir(cwd)):
 				if not os.path.isdir(item):
+					continue
+				if not self.__is_candidate_dir(item):
 					continue
 				subdir = '%s/%s' % (cwd, item)
 				stat = self.traverse(subdir)
+				if stat == Proc.ECANCELED:
+					break
 
 		# all done for this directory and decsendants.
 		if self.audit and do_this:
@@ -160,7 +180,8 @@ class Traverse:
 	#
 	def process(self, cwd, ctl):
 		if not os.path.isdir(cwd):
-			self.err.print('not a directory: %s' % cwd, alive=True)
+			msg = 'not a directory: %s' % cwd
+			Error(self.clsname).error(msg)
 		#
 		slnfile = self.__solution_file_name(ctl, cwd, self.toolset)
 		if self.verbose > 1:
@@ -183,6 +204,7 @@ class Traverse:
 			return -1
 		#
 		self.result.set_info(name, RST.EXP, ctl.get(CFK.EXPECTED))
+		stat = 0
 		for platform in self.platforms:
 			# need build?
 			if not ctl.get(CFK.BUILD):
@@ -193,11 +215,13 @@ class Traverse:
 			self.__report(' %s:' % platform, None, False)
 			self.platform = platform
 
+			stat = 0
 			for config in self.configs:
-				# build (compile and link)
+				#
+				# Build (compile and link)
+				#
 				self.__report('%s' % config, '.build', False)
 				self.config = config
-				#
 				outpath = self.__make_outpath(ctl, slnfile)
 				stat = bar.build(None,
 						slnfile,
@@ -219,21 +243,26 @@ class Traverse:
 					print(self.__status_str(RST.BLD, stat))
 				if stat != 0:
 					self.__report(None, None, False, True)
+					if stat == Proc.ECANCELED:
+						print('interrupted')
+						break
 					if self.verbose:
 						print('build error (%d)' % stat)
 					continue
-
-				# need run?
+				#
+				# Run
+				#
 				if not ctl.get(CFK.RUN):
-					self.__report(',', 'skip. ', False)
+					self.__report(',', '(skip). ', False)
 					continue
 				if ctl.get(CFK.INTERVENTION):
 					self.__report(',', 'intervention. ', False)
 					continue
-				#
 				self.__report(None, 'run', False)
 				#
 				addpath = self.__runtime_addpath(ctl, platform)
+				if Util.is_unix():
+					outpath = slnfile
 				stat = bar.run(None,
 						outpath,
 						'',	# no args
@@ -251,11 +280,21 @@ class Traverse:
 				self.result.set_result(name, RST.RUN,
 						platform, config,
 						stat)
+				if stat == Proc.ECANCELED:
+					self.__report(None, None, False, True)
+					if self.verbose:
+						print('interrupted')
+					break
 				#
-				self.__report(',', '.', False, False)
 				if self.verbose:
 					print(self.__status_str(RST.RUN, stat))
+				if stat == Proc.ETIME:
+					self.__report('', '(timedout)', False, False)
+				self.__report(',', ' (rc %s).' % stat, False, False)
+
 			# end config
+			if stat == Proc.ECANCELED:
+				break
 		# end platform
 
 		self.__report_1(None, False, True)
@@ -313,10 +352,10 @@ class Traverse:
 			(testids[self.testid], steps[step], err)
 
 		# write header
-		f = TextFio(path, 'w', encoding='cp932')
+		f = TextFio(path, 'w', encoding=self.encoding)
 		if f.open() < 0:
 			msg = '__init_log: open error "%s"', path
-			self.err.print(msg, alive=True)
+			Error(self.clsname).error(msg)
 			return
 		f.writeline(datestr)
 		f.writeline(header)
@@ -339,7 +378,7 @@ class Traverse:
 			os.chdir(abspath)
 		except:
 			msg = 'chdir failed (%s)' % path
-			self.err.print(msg, alive=True)
+			Error(self.clsname).error(msg)
 		return Util.upath(cwd)
 
 	#  Is this directory a test candidate?
@@ -470,6 +509,8 @@ class Traverse:
 		for n in range(len(tmp)):
 			if tmp[n] == 'core':
 				name = '/'.join(tmp[n+2:])
+		if name == '':
+			name = tmp[-1]
 		if header:
 			sys.stdout.write('%s:\t' % name.replace('/', ': '))
 		if msg:
