@@ -292,11 +292,12 @@ if check_exec('DAILYBUILD_COPYTO_BUILDLOG', unix_copyto_buildlog):
 	copy_all(logdir, webbase, False, dry_run)
 	os.chdir(repository)
 
+"""
 # ----------------------------------------------------------------------
 #  Create commit.id which holds newest commit id on GitHub.
 #
 if check_exec('DAILYBUILD_COMMIT_RESULTLOG', unix_copyto_buildlog):
-	Print('extracting HEAD commit id from GitHub')
+	Print('creating "commit.id"')
 	logdir = '%s/log' % testdir
 	os.chdir(logdir)
 	#
@@ -311,6 +312,8 @@ if check_exec('DAILYBUILD_COMMIT_RESULTLOG', unix_copyto_buildlog):
 		if fio.open() == 0:
 			fio.writeline(commit_id)
 			fio.close()
+	else:
+		Print('  ** extracting HEAD log from GitHub failed **')
 	#
 	os.chdir(repository)
 
@@ -331,8 +334,13 @@ if check_exec('DAILYBUILD_COMMIT_RESULTLOG', unix_copyto_buildlog):
 	if rc == 0:
 		cmnd = 'git push'
 		rc = proc.execute(cmnd, shell=shell).wait()
+		if rc != 0:
+			Print('  ** git push failed **')
+	else:
+		Print('  ** nothing to commit **')
 	#
 	os.chdir(repository)
+"""
 
 # ----------------------------------------------------------------------
 #  Make document (doxygen).
