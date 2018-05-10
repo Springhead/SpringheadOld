@@ -10,13 +10,14 @@
 #		  'GitHub'	    GitHub system
 #
 #  INITIALIZER:
-#	obj = VersionControlSystem(system, args=None, verbose=0)
+#	obj = VersionControlSystem(system, url, wrkdir='.', verbose=0)
 #	arguments:
 #	    system:	Version control system name.
 #			'Subversion'	Apache Subversion system
 #			'GitHub'	GitHub system
-#	    args:	Atguments to get system information (dic).
-#			  'url':	Url of the repository.
+#			'haselab'	git.haselab.net system
+#	    url:	Url of git server.
+#	    wrkdir:	Directory to perform action (Git directory).
 #	    verbose:	Verbose level (int) (0: silent).
 #	    
 #  METHODS:
@@ -27,10 +28,11 @@
 #		rev:	    Revision (str).
 #		err:	    Error message got from stderr (str).
 #
-#	info = revision_info(commit_id='HEAD')
+#	info = revision_info(revision='HEAD')
 #	    Get commit information.
 #	    arguments:
-#		commit_id:  Commit short name to retrieve (str).
+#		revision:   Subversion: revision number to retrieve (str).
+#			    Git: Commit short name to retrieve (str).
 #			    If 'all', get all commit info.
 #	    returns:
 #		'all':	    List of triplets.
@@ -40,11 +42,12 @@
 #				date:	    Commit date ('YYYY-MM-DD').
 #			    [] if can not get information.
 #
-#	content = get_file_content(path, commit_id)
+#	content = get_file_content(path, revision)
 #	    Get file contents of specified revision.
 #	    arguments:
 #		path:	    File path relative to repository top dir (str).
-#		commit_id:  Commit id (short form will do) (str).
+#		revision:   Subversion: revision number (str).
+#			    Git: Commit id (short form will do) (str).
 #	    returns:	    File contents (str).
 #
 # ----------------------------------------------------------------------
@@ -57,12 +60,12 @@
 #	Ver 1.41 2018/02/19 F.Kanehori	Bug fixed.
 #	Ver 1.42 2018/03/14 F.Kanehori	Dealt with new Proc class.
 #	Ver 1.43 2018/03/19 F.Kanehori	Dealt with Proc.output() change.
+#	Ver 1.5  2018/05/08 F.Kanehori	Code reviewd.
 # ======================================================================
 import sys
 import os
 import re
 import datetime
-from optparse import OptionParser
 
 # local python library
 #
@@ -81,58 +84,66 @@ class VersionControlSystem:
 
 	#  Class initializer.
 	#
-	def __init__(self, system, args=None, verbose=0):
+	def __init__(self, system, url, wrkdir='.', verbose=0):
 		self.clsname = self.__class__.__name__
-		self.version = 1.42
+		self.version = 1.5
 		#
 		self.system = system
+		self.url = Util.upath(url)
+		self.wrkdir = Util.upath(wrkdir)
 		self.verbose = verbose
 		#
 		if system == 'Subversion':
-			self.obj = self.Subversion(args['url'], verbose)
-		elif system == 'GitHub':
-			self.obj = self.GitHub(args['url'], verbose)
+			self.obj = self.Subversion(url, verbose)
+		elif system == 'GitHub' or system == 'haselab':
+			self.obj = self.GitHub(url, verbose)
 		#
 		if verbose:
 			print('VersionControlSystem: %s' % system)
+			print('  connecting to "%s"' % self.url)
+			print('  working dir:  "%s"' % self.wrkdir)
 
 	#  Get revision number.
 	#
-	def revision(self, dir=None):
-		if dir == None:
-			revision = self.obj.revision()
-		else:
-			cwd = os.getcwd()
-			os.chdir(dir)
-			revision = self.obj.revision()
-			os.chdir(cwd)
+	def revision(self):
+		self.__pushd()
+		revision = self.obj.revision()
+		self.__popd()
 		return revision
 
 	#  Get revision information.
 	#
-	def revision_info(self, dir=None, revision='HEAD'):
-		if dir:
-			cwd = os.getcwd()
-			os.chdir(dir)
-		if system == 'Subversion':
-			r = -1
-			s = 'NOT IMPLEMENTED'
-			f = None
-			d = None
-		elif system == 'GitHub':
-			revisions = self.obj.revision_info(revision)
-		if dir:
-			os.chdir(cwd)
+	def revision_info(self, revision='HEAD'):
+		self.__pushd()
+		revisions = self.obj.revision_info(revision)
+		self.__popd()
 		return revisions
 
 	#  Get file contents of specified revision.
 	#
 	def get_file_content(self, path, revision):
-		if system == 'GitHub':
-			return self.obj.get_file_content(path, revision)
-		# not implemented.
-		return None
+		self.__pushd()
+		content = self.obj.get_file_content(path, revision)
+		self.__popd()
+		return content
 
+	# --------------------------------------------------------------
+	#  Local helper methods.
+	#
+	def __pushd(self):
+		cwd = Util.upath(os.getcwd())
+		if self.wrkdir in [None, cwd]:
+			self.dirsave = None
+		else:
+			self.dirsave = cwd
+			os.chdir(self.wrkdir)
+
+	def __popd(self):
+		if self.dirsave:
+			os.chdir(self.dirsave)
+			self.dirsave = None
+
+	# ==============================================================
 	#  Subclass: Subversion
 	#
 	class Subversion:
@@ -157,6 +168,15 @@ class VersionControlSystem:
 						revision = m.group(1)
 			return status, revision, err
 
+		def revision_info(self, revision='HEAD'):
+			# sorry - not implemented yet
+			return []
+
+		def get_file_content(self, path, revision):
+			# sorry - not implemented yet
+			return None
+
+	# ==============================================================
 	#  Subclass: GitHub
 	#
 	class GitHub:
@@ -176,6 +196,7 @@ class VersionControlSystem:
 				m = re.match(pattern, out)
 				if m:
 					rev = m.group(1)
+					err = None
 			return status, rev, err
 
 		def revision_info(self, commit_id='HEAD'):
@@ -204,7 +225,7 @@ class VersionControlSystem:
 					dt = datetime.datetime.strptime(mstr, ifmt)
 					date = dt.strftime(ofmt)
 					info = [short_id, long_id, date]
-					if short_id == commit_id or commit_id == 'HEAD':
+					if commit_id in [short_id, 'HEAD']:
 						return info
 					infos.append(info)
 			return infos
@@ -237,38 +258,67 @@ class VersionControlSystem:
 #	    "TestAllGit.bat" and "MakeReport{Git|SVN}.bat"
 #	So do not DELETE nor MODIFY this program.
 # ----------------------------------------------------------------------
+from optparse import OptionParser
+from Error import *
 if __name__ == '__main__':
+	prog = sys.argv[0].split(os.sep)[-1].split('.')[0]
 
-	topdir_svn = '../../..'
-	topdir_git = '../../../../Springhead'
+	repository_def = {
+	    'Subversion': {
+		'url': 'http://springhead.info/spr2/Springhead/trunk/',
+		'dir': '../../..'
+	    },
+	    'GitHub': {
+		'url': 'http://github.com/sprphys/Springhead/',
+		'dir': '../../../../Springhead'
+	    },
+	    'haselab': {
+		'url': 'http://git.haselab.net/DailyBuild/Result/',
+		'dir': '../../../../DailyBuildResult/Result'
+	    }
+	}
 
+	def print_usage():
+		print()
+		cmnd = 'python %s.py --help' % prog
+		shell = False if Util.is_unix() else True
+		Proc().execute(cmnd, shell=shell).wait()
+		sys.exit(1)
+	
 	# --------------------------------------------------------------
 	usage = 'Usage: %prog [options] {HEAD | all | commit-id}'
 	parser = OptionParser(usage = usage)
-	parser.add_option('-s', '--subversion',
-				dest='subversion', action='store_true', default=False,
+	#
+	parser.add_option('-S', '--subversion', dest='subversion',
+				action='store_true', default=False,
 				help='use Subversion')
-	parser.add_option('-g', '--github',
-				dest='github', action='store_true', default=False,
+	parser.add_option('-G', '--github', dest='github',
+				action='store_true', default=False,
 				help='use GitHub')
-	parser.add_option('-h', '--git-haselab',
-				dest='githaselab', action='store_true', default=False,
+	parser.add_option('-H', '--haselab', dest='haselab',
+				action='store_true', default=False,
 				help='use git.haselab.net')
-	parser.add_option('-f', '--fname',
-				dest='fname', default=None,
+	parser.add_option('-f', '--fname', dest='fname',
+				action='store', default=None,
 				help='get file content')
-	parser.add_option('-v', '--verbose',
-				dest='verbose', action='count', default=0,
+	parser.add_option('-v', '--verbose', dest='verbose',
+				action='count', default=0,
 				help='set verbose mode')
-	parser.add_option('-V', '--version',
-				dest='version', action='store_true', default=False,
+	parser.add_option('-V', '--version', dest='version',
+				action='store_true', default=False,
 				help='show version')
+	#
 	(options, args) = parser.parse_args()
+	if options.version:
+		version = VersionControlSystem('', '').version
+		print('%s: Version %s' % (prog, version))
+		sys.exit(0)
 	if len(args) != 1:
-		parser.error("incorrect number of arguments")
+		Error(prog).error("incorrect number of arguments")
+		print_usage()
 	repo_sub = options.subversion
 	repo_git = options.github
-	repo_hlb = options.githaselab
+	repo_hlb = options.haselab
 	verbose = options.verbose
 	revision = args[0]
 
@@ -282,16 +332,17 @@ if __name__ == '__main__':
 		sys.exit(-1)
 	if repo_count == 0:
 		print('one of -s, -g or -h required')
+		print(usage)
 		sys.exit(-1)
 
 	if repo_sub: system = 'Subversion'
 	if repo_git: system = 'GitHub'
-	if repo_hlb: system = 'git.haselab.net'
+	if repo_hlb: system = 'haselab'
 
 	# --------------------------------------------------------------
-	def test(system, args, topdir, verbose):
-		vcs = VersionControlSystem(system, args, verbose)
-		code, rev, err = vcs.revision(topdir)
+	def test(system, url, wrkdir, verbose):
+		vcs = VersionControlSystem(system, url, wrkdir, verbose)
+		code, rev, err = vcs.revision()
 		if code == 0:
 			print('%s: revision: %s' % (system, rev))
 		else:
@@ -299,18 +350,18 @@ if __name__ == '__main__':
 		if system == 'Subversion':
 			return
 		#
-		revisions = vcs.revision_info(topdir)
+		revisions = vcs.revision_info()
 		print('default: %s' % revisions)
-		revisions = vcs.revision_info(topdir, '7813b94')
+		revisions = vcs.revision_info('7813b94')
 		print('7813b94: %s' % revisions)
-		revisions = vcs.revision_info(topdir, 'all')
+		revisions = vcs.revision_info('all')
 		print('all:')
 		for rev in revisions:
 			print('         %s' % rev)
 
-	def info(system, args, topdir, commit_id, out=True):
-		vcs = VersionControlSystem(system, args, verbose)
-		revs = vcs.revision_info(topdir, commit_id)
+	def info(system, args, wrkdir, commit_id, out=True):
+		vcs = VersionControlSystem(system, url, wrkdir, verbose)
+		revs = vcs.revision_info(commit_id)
 		if out:
 			if commit_id != 'all':
 				revs = [revs]
@@ -318,8 +369,8 @@ if __name__ == '__main__':
 				print('%s,%s,%s' % (rev[0], rev[1], rev[2]))
 		return revs
 
-	def contents(topdir, fname, rev):
-		vcs = VersionControlSystem(system, args, verbose)
+	def contents(wrkdir, fname, rev):
+		vcs = VersionControlSystem(system, url, wrkdir, verbose)
 		contents = vcs.get_file_content(fname, rev[0])
 		print('--[%s,%s,%s]--' % (rev[0], rev[1], rev[2]))
 		if contents is None:
@@ -328,31 +379,22 @@ if __name__ == '__main__':
 			print(contents.replace('\r', ''))
 
 	# --------------------------------------------------------------
+	repository = repository_def[system]
+	url = repository['url']
+	wrkdir = repository['dir']
+
 	if system == 'Subversion':
-		args = {'url': 'http://springhead.info/spr2/Springhead/trunk/'}
-		test(system, args, topdir_svn, verbose)
+		test(system, url, srkdir, verbose)
 
-	if system == 'GitHub':
-		args = {'url': 'http://github.com/sprphys/Springhead/'}
+	else:
 		if options.fname:
-			revs = info(system, args, topdir_git, revision, out=False)
+			revs = info(system, url, wrkdir, revision, out=False)
 			if not isinstance(revs[0], list):
 				revs = [revs]
 			for rev in revs:
-				contents(topdir_git, options.fname, rev)
+				contents(wrkdir, options.fname, rev)
 		else:
-			revisions = info(system, args, topdir_git, revision)
-
-	if system == 'git.haselab.net':
-		args = {'url': 'http://git.haselab.net/DailyBuild/Result/'}
-		if options.fname:
-			revs = info(system, args, topdir_git, revision, out=False)
-			if not isinstance(revs[0], list):
-				revs = [revs]
-			for rev in revs:
-				contents(topdir_git, options.fname, rev)
-		else:
-			revisions = info(system, args, topdir_git, revision)
+			revisions = info(system, url, wrkdir, revision)
 
 	sys.exit(0)
 
