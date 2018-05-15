@@ -14,7 +14,6 @@ MinJerkTrajectory::MinJerkTrajectory() {
 MinJerkTrajectory::MinJerkTrajectory(Posed spose, Posed fpose, int time) {
 	sPoint = ControlPoint(spose, 0, 0); fPoint = ControlPoint(fpose, time, 0); 
 	stime = 0; ftime = time;
-	Vec3d diff = fPoint.pose.Pos() - sPoint.pose.Pos();
 
 	for (int i = 0; i < 3; ++i) {
 		PTM::TMatrixRow<6, 6, double> A;
@@ -398,6 +397,10 @@ QuaMinJerkTrajectory::QuaMinJerkTrajectory(Quaterniond vqua, int time, int vtime
 	}
 }
 
+QuaMinJerkTrajectory::~QuaMinJerkTrajectory() {
+	delete amjt;
+}
+
 Quaterniond QuaMinJerkTrajectory::GetCurrentQuaternion(int t) {
 	if (t <= stime) {
 		return sQua;
@@ -686,17 +689,6 @@ double AngleMinJerkTrajectory::GetCurrentVelocity(int t) {
 	return (r < vtime ? coeffToV : coeffToF) * Vec6d(0, 1, 2 * r, 3 * pow(r, 2), 4 * pow(r, 3), 5 * pow(r, 4));
 }
 
-double AngleMinJerkTrajectory::GetCurrentAcceleration(int t) {
-	if (t < stime) {
-		return 0;
-	}if (t > ftime) {
-		return 0;
-	}
-	double s = (double)(t - stime) / (ftime - stime);
-	double r = t - stime;
-	return (r < vtime ? coeffToV : coeffToF) * Vec6d(0, 0, 2, 6 * r, 12 * pow(r, 2), 20 * pow(r, 3));
-}
-
 ControlPoint::ControlPoint() {
 	pose = Posed();
 	vel = Vec6d();
@@ -730,45 +722,59 @@ ControlPoint::ControlPoint(ControlPoint& c) {
 FWTrajectoryPlanner::HingeJoint::HingeJoint(PHIKHingeActuatorIf* hinge, std::string path, bool oe) {
 	this->hinge = hinge;
 	outputEnable = oe;
-		/*char* filename = "";
-		std::strcpy(filename, hinge->GetName());
-		std::strcat(filename, "Torque.csv");*/
-		DSTR << hinge->GetName() << hinge->GetJoint()->GetName() << std::endl;
-		torGraph = new std::ofstream(path + "Torque.csv");
-		/*char* filename2 = "";
-		std::strcpy(filename2, hinge->GetName());
-		std::strcat(filename2, "TorqueChange.csv");*/
-		torChangeGraph = new std::ofstream(path + "TorqueChange.csv");
+	torGraph = new std::ofstream(path + "Torque.csv");
+	torChangeGraph = new std::ofstream(path + "TorqueChange.csv");
 }
 FWTrajectoryPlanner::HingeJoint::~HingeJoint(){
-	//(*torGraph).close();
-	//(*torChangeGraph).close();
+	CloseFile();
+	delete torGraph;
+	delete torChangeGraph;
 }
 void FWTrajectoryPlanner::HingeJoint::Initialize(int iterate, int mtime, int nVia, double rate, bool vCorr) {
+	// 
 	hinge->Enable(true);
 	this->iterate = iterate;
 	this->movetime = mtime;
 	originalSpring = hinge->GetJoint()->GetSpring();
 	originalDamper = hinge->GetJoint()->GetDamper();
+	this->rateLPF = rate;
+
+	// データのリサイズ
 	torque.resize(mtime, 0);
 	torqueLPF.resize(mtime, 0);
 	angle.resize(iterate + 1, mtime);
-	//angle.clear();
 	angleLPF.resize(iterate + 1, mtime);
-	//angle.clear();
 	angleVels.resize(iterate + 1, mtime);
 	angleVelsLPF.resize(iterate + 1, mtime);
-	//weight = 100 / hinge->GetJoint()->GetSpring();
-	this->rateLPF = rate;
+	tChanges.resize(nVia + 1, 0);
+
+	// 初期姿勢時のデータを保存
 	initialTorque = hinge->GetJoint()->GetMotorForceN(0);
 	initialAngle = hinge->GetJoint()->GetPosition();
 	initialVel = hinge->GetJoint()->GetVelocity();
+
+	// 経由点関係の初期化
 	viaAngles.resize(nVia + 1, 0);
 	viaVels.resize(nVia + 1, 0);
 	viatimes.resize(nVia + 1, 0);
-	tChanges.resize(nVia + 1, 0);
 	viaCorrect = vCorr;
+
 	CorrTraj.resize(iterate, mtime);
+
+	// プラグ剛体の慣性テンソルを質量から計算
+	// なお、密度均一として
+	double volume = 0;
+	PHSolidIf* so = hinge->GetJoint()->GetPlugSolid();
+	int nShape = so->NShape();
+	for (int i = 0; i < nShape; i++) {
+		volume += so->GetShape(i)->CalcVolume();
+	}
+	if (volume == 0) return;
+	double density = so->GetMass() / volume;
+	for (int i = 0; i < nShape; i++) {
+		so->GetShape(i)->SetDensity(density);
+	}
+	so->CompInertia();
 }
 void FWTrajectoryPlanner::HingeJoint::MakeJointMinjerk(int cnt) {
 	double per = hinge->GetJoint()->GetScene()->GetTimeStep();
@@ -814,6 +820,7 @@ void FWTrajectoryPlanner::HingeJoint::CloseFile() {
 }
 void FWTrajectoryPlanner::HingeJoint::SaveTorque(int n) {
 	/*
+	//limitにかかってたらsavetorqueを0に
 	PH1DJointLimitIf* limit = hinge->GetJoint()->GetLimit();
 	if (limit) {
 		if (limit->IsOnLimit()) {
@@ -836,30 +843,19 @@ void FWTrajectoryPlanner::HingeJoint::SaveTarget() {
 void FWTrajectoryPlanner::HingeJoint::SetTarget(int k, int n) {
 	//後で整理
 	if (k >= 0 && k <= iterate) {
-		if (hinge->GetJoint()->GetLimit()) {
-			Vec2d range;
-			hinge->GetJoint()->GetLimit()->GetRange(range);
-			if (range[0] < range[1] && (range[0] > angle[k][n] || range[1] < angle[k][n])) {
-				if (range[0] > angle[k][n]) {
-					hinge->GetJoint()->SetTargetPosition(range[0]);
-				}
-				else {
-					hinge->GetJoint()->SetTargetPosition(range[1]);
-				}
-			}
-			else {
-				hinge->GetJoint()->SetTargetPosition(angle[k][n]);
-			}
-		}
-		else {
-			hinge->GetJoint()->SetTargetPosition(angle[k][n]);
+		hinge->GetJoint()->SetTargetPosition(angle[k][n]);
+		int s = movetime * 0.1;
+		if (k == 0 && n < s) {
+			double r = (double)n / s;
+			hinge->GetJoint()->SetTargetPosition(r * angle[0][n] + (1 - r) * initialAngle);
 		}
 	}
 }
+
 void FWTrajectoryPlanner::HingeJoint::SetTargetVelocity(int k, int n) {
 	if (k >= 0 && k <= iterate) {
-		//hinge->GetJoint()->SetTargetVelocity(angleVels[k][n]);
-		hinge->GetJoint()->SetTargetVelocity(hinge->GetJoint()->GetVelocity());
+		hinge->GetJoint()->SetTargetVelocity(angleVels[k][n]);
+		//hinge->GetJoint()->SetTargetVelocity(hinge->GetJoint()->GetVelocity());
 	}
 }
 
@@ -869,10 +865,12 @@ void FWTrajectoryPlanner::HingeJoint::SetTargetInitial() {
 }
 void FWTrajectoryPlanner::HingeJoint::SetOffsetFromLPF(int n) {
 	hinge->GetJoint()->SetOffsetForceN(0, torqueLPF[n]);
-	DSTR << torqueLPF[n] << " ";
 }
 void FWTrajectoryPlanner::HingeJoint::ResetOffset() {
-	hinge->GetJoint()->SetOffsetForceN(0, 0);
+	int nMotors = hinge->GetJoint()->NMotors();
+	for (int i = 0; i < nMotors; i++) {
+		hinge->GetJoint()->SetOffsetForceN(i, 0);
+	}
 }
 void FWTrajectoryPlanner::HingeJoint::SavePosition(int k, int n) {
 	angle[k][n] = hinge->GetJoint()->GetPosition();
@@ -914,7 +912,8 @@ void FWTrajectoryPlanner::HingeJoint::TrajectoryCorrection(int k, bool s) {
 	for (int i = 0; i < time - stime; i++) {
 		angle[k][i + stime] = delta.GetDeltaAngle(i + 1) + angleLPF[k][i + stime]; //k+1でいいのか？
 		angleLPF[k][i + stime] += delta.GetDeltaAngle(i + 1);
-		angleVels[k][i + stime] = delta.GetCurrentVelocity(i + 1) * perInv + angleVelsLPF[k][i + stime];
+		//angleVels[k][i + stime] = delta.GetCurrentVelocity(i + 1) * perInv + angleVelsLPF[k][i + stime];
+		angleVels[k][i + stime] = (angle[k][i + stime] - (i + stime > 0 ? angle[k][i + stime - 1] : initialAngle)) * perInv;
 		angleVelsLPF[k][i + stime] += delta.GetCurrentVelocity(i + 1) * perInv;
 		//CorrTraj[k - 1][i + stime] = delta.GetCurrentVelocity(i);
 	}
@@ -960,7 +959,7 @@ void FWTrajectoryPlanner::HingeJoint::TrajectoryCorrection(int k, bool s) {
 	*/
 	
 }
-void FWTrajectoryPlanner::HingeJoint::ApplyLPF(int lpf, int count) {
+void FWTrajectoryPlanner::HingeJoint::ApplyLPF(int count) {
 	//torqueLPF = LPF::weightedv(torque, initialTorque, weight, rateLPF);
 	for (int i = 0; i < count; i++) {
 		torqueLPF = LPF::centerNSMAv(torqueLPF, 3, 1, initialTorque);
@@ -1076,54 +1075,60 @@ void FWTrajectoryPlanner::HingeJoint::OutputTorque() {
 FWTrajectoryPlanner::BallJoint::BallJoint(PHIKBallActuatorIf* ball, std::string path, bool oe) {
 	this->ball = ball;
 	outputEnable = oe;
-		/*char* filename = "";
-		std::strcpy(filename, hinge->GetName());
-		std::strcat(filename, "Torque.csv");*/
-		torGraph = new std::ofstream(path + "Torque.csv");
-		/*char* filename2 = "";
-		std::strcpy(filename2, hinge->GetName());
-		std::strcat(filename2, "TorqueChange.csv");*/
-		torChangeGraph = new std::ofstream(path + "TorqueChange.csv");
+	torGraph = new std::ofstream(path + "Torque.csv");
+	torChangeGraph = new std::ofstream(path + "TorqueChange.csv");
 }
 FWTrajectoryPlanner::BallJoint::~BallJoint() { 
 	DSTR << "BallJoint Class Object is destroyed" << std::endl;
-	//(*torGraph).close();
-	//(*torChangeGraph).close();
+	CloseFile();
+	delete torGraph;
+	delete torChangeGraph;
 }
 void FWTrajectoryPlanner::BallJoint::Initialize(int iterate, int mtime, int nVia, double rate, bool vCorr) {
+	// 
 	ball->Enable(true);
 	this->iterate = iterate;
 	this->movetime = mtime;
+	this->rateLPF = rate;
+	originalSpring = ball->GetJoint()->GetSpring();
+	originalDamper = ball->GetJoint()->GetDamper();
+
+	// データのリサイズ
 	torque.resize(mtime, Vec3d());
 	torqueLPF.resize(mtime, Vec3d());
 	ori.resize(iterate + 1, mtime);
-	//ori.clear();
 	oriLPF.resize(iterate + 1, mtime);
-	//oriLPF.clear();
 	oriVels.resize(iterate + 1, mtime);
 	oriVelsLPF.resize(iterate + 1, mtime);
-	//weight = 100 / ball->GetJoint()->GetSpring();
-	this->rateLPF = rate;
+
+	// 初期姿勢時のデータを保存
 	initialTorque = ball->GetJoint()->GetMotorForceN(0);
 	initialOri = ball->GetJoint()->GetPosition();
 	initialVel = ball->GetJoint()->GetVelocity();
-	originalSpring = ball->GetJoint()->GetSpring();
-	originalDamper = ball->GetJoint()->GetDamper();
+
+	// 経由点関係の初期化
 	viaOris.resize(nVia + 1, Quaterniond());
 	viaVels.resize(nVia + 1, Vec3d());
 	viatimes.resize(nVia + 1, 0);
 	tChanges.resize(nVia + 1, 0);
 	viaCorrect = vCorr;
-	/*
-	char* filename;
-	std::strcpy(filename, ball->GetName());
-	std::strcat(filename, "Torque.csv");
-	torGraph.open(filename);
-	char* filename2;
-	std::strcpy(filename2, ball->GetName());
-	std::strcat(filename2, "TorqueChange.csv");
-	torChangeGraph.open(filename2);
-	*/
+
+	// プラグ剛体の慣性テンソルを質量から計算
+	// なお、密度は均一として
+	double volume = 0;
+	PHSolidIf* so = ball->GetJoint()->GetPlugSolid();
+	int nShape = so->NShape();
+	for (int i = 0; i < nShape; i++) {
+		volume += so->GetShape(i)->CalcVolume();
+	}
+	if (volume == 0) return;
+	double density = so->GetMass() / volume;
+	for (int i = 0; i < nShape; i++) {
+		so->GetShape(i)->SetDensity(density);
+	}
+	so->CompInertia();
+	DSTR << "inertia" << std::endl << so->GetInertia() << std::endl;
+	return;
 }
 void FWTrajectoryPlanner::BallJoint::MakeJointMinjerk(int cnt) {
 	double per = ball->GetJoint()->GetScene()->GetTimeStep();
@@ -1180,12 +1185,17 @@ void FWTrajectoryPlanner::BallJoint::SaveTarget() {
 void FWTrajectoryPlanner::BallJoint::SetTarget(int k, int n) {
 	if (k >= 0 && k <= iterate) {
 		ball->GetJoint()->SetTargetPosition(ori[k][n]);
+		int s = movetime * 0.1;
+		double r = (double)n / s;
+		if (k == 0 && n < s) {
+			ball->GetJoint()->SetTargetPosition(interpolate(r, initialOri, ori[0][n]));
+		}
 	}
 }
 void FWTrajectoryPlanner::BallJoint::SetTargetVelocity(int k, int n) {
 	if (k >= 0 && k <= iterate) {
-		//ball->GetJoint()->SetTargetVelocity(oriVels[k][n]);
-		ball->GetJoint()->SetTargetVelocity(ball->GetJoint()->GetVelocity());
+		ball->GetJoint()->SetTargetVelocity(oriVels[k][n]);
+		//ball->GetJoint()->SetTargetVelocity(ball->GetJoint()->GetVelocity());
 	}
 }
 void FWTrajectoryPlanner::BallJoint::SetTargetInitial() {
@@ -1198,13 +1208,20 @@ void FWTrajectoryPlanner::BallJoint::SetOffsetFromLPF(int n) {
 	//ball->GetJoint()->SetOffsetForceN(0, Vec3d(1, 0, 0));
 }
 void FWTrajectoryPlanner::BallJoint::ResetOffset() {
-	ball->GetJoint()->SetOffsetForceN(0, Vec3d(0, 0, 0));
+	int nMotors = ball->GetJoint()->NMotors();
+	for (int i = 0; i < nMotors; i++) {
+		ball->GetJoint()->SetOffsetForceN(i, Vec3d(0, 0, 0));
+	}
 }
 void FWTrajectoryPlanner::BallJoint::SavePosition(int k, int n) {
 	ori[k][n] = ball->GetJoint()->GetPosition();
 }
 void FWTrajectoryPlanner::BallJoint::SaveVelocity(int k, int n) {
 	oriVels[k][n] = ball->GetJoint()->GetVelocity();
+	if (k == 0) {
+		Vec3d calced = ori[k][n].AngularVelocity(ori[k][n] - (n > 0 ? ori[k][n - 1] : initialOri));
+		DSTR << "comp vel rec:" << oriVels[k][n] << " calced:" << calced << std::endl;
+	}
 }
 
 void FWTrajectoryPlanner::BallJoint::SaveViaPoint(int v, int t) {
@@ -1248,7 +1265,9 @@ void FWTrajectoryPlanner::BallJoint::TrajectoryCorrection(int k, bool s) {
 	}
 	for (int i = 0; i < movetime - stime; i++) {
 		ori[k][i + stime] = delta.GetCurrentQuaternion(i + 1) * oriLPF[k][i + stime];
-		oriVels[k][i + stime] = delta.GetCurrentVelocity(i + 1) * perInv + oriVelsLPF[k][i + stime];
+		//oriVels[k][i + stime] = delta.GetCurrentVelocity(i + 1) * perInv + oriVelsLPF[k][i + stime];
+		//oriVels[k][i + stime] = (ori[k][i + stime] * (i + stime > 0 ? ori[k][i + stime - 1] : initialOri).Inv()).ToEuler() * perInv;
+		oriVels[k][i + stime] = ori[k][i + stime].AngularVelocity(ori[k][i + stime] - (i + stime > 0 ? ori[k][i + stime - 1] : initialOri)) * perInv;
 		/*
 		//limit補正
 		if (limit) {
@@ -1313,7 +1332,7 @@ void FWTrajectoryPlanner::BallJoint::TrajectoryCorrection(int k, bool s) {
 	}
 	*/
 }
-void FWTrajectoryPlanner::BallJoint::ApplyLPF(int lpf, int count) {
+void FWTrajectoryPlanner::BallJoint::ApplyLPF(int count) {
 	//torqueLPF = LPF::weightedv(torque, initialTorque, weight, rateLPF);
 	for (int i = 0; i < count; i++) {
 		torqueLPF = LPF::centerNSMAv(torqueLPF, 3, 1, initialTorque);
@@ -1451,264 +1470,130 @@ void FWTrajectoryPlanner::Joints::Add(PHIKActuatorIf* j, std::string path, bool 
 }
 void FWTrajectoryPlanner::Joints::Initialize(int iterate, int movetime, int nVia, double rate, bool vCorr) {
 	for (size_t i = 0; i < joints.size(); i++) {
-	joints[i]->Initialize(iterate, movetime, nVia, rate, vCorr);
-	}/*/
-	for (int i = 0; i < (int)balls.size(); i++) {
-		balls[i].Initialize(iterate, movetime, nVia, rate, vCorr);
+		joints[i]->Initialize(iterate, movetime, nVia, rate, vCorr);
 	}
-	for (int i = 0; i < (int)hinges.size(); i++) {
-		hinges[i].Initialize(iterate, movetime, nVia, rate, vCorr);
-	}*/
 }
 void FWTrajectoryPlanner::Joints::MakeJointMinjerk(int cnt) {
 	for (size_t i = 0; i < joints.size(); i++) {
 		joints[i]->MakeJointMinjerk(cnt);
-	}/*/
-	 for (int i = 0; i < (int)balls.size(); i++) {
-	 balls[i].MakeMinJerk();
-	 }
-	 for (int i = 0; i < (int)hinges.size(); i++) {
-	 hinges[i].MakeMinjerk();
-	 }*/
+	}
 }
 
 void FWTrajectoryPlanner::Joints::CloseFile() {
 	for (size_t i = 0; i < joints.size(); i++) {
-	joints[i]->CloseFile();
-	}/*/
-	for (int i = 0; i < (int)balls.size(); i++) {
-		balls[i].CloseFile();
+		joints[i]->CloseFile();
 	}
-	for (int i = 0; i < (int)hinges.size(); i++) {
-		hinges[i].CloseFile();
-	}*/
 }
 
 void FWTrajectoryPlanner::Joints::SetTarget(int k, int n) {
 	for (size_t i = 0; i < joints.size(); i++) {
-	joints[i]->SetTarget(k, n);
-	}/*/
-	for (int i = 0; i < (int)balls.size(); i++) {
-		balls[i].SetTarget(k, n);
+		joints[i]->SetTarget(k, n);
 	}
-	for (int i = 0; i < (int)hinges.size(); i++) {
-		hinges[i].SetTarget(k, n);
-	}*/
 }
 
 void FWTrajectoryPlanner::Joints::SetTargetVelocity(int k, int n) {
 	for (size_t i = 0; i < joints.size(); i++) {
 		joints[i]->SetTargetVelocity(k, n);
-	}/*/
-	 for (int i = 0; i < (int)balls.size(); i++) {
-	 balls[i].SetTargetVelocity(k, n);
-	 }
-	 for (int i = 0; i < (int)hinges.size(); i++) {
-	 hinges[i].SetTargetVelocity(k, n);
-	 }*/
+	}
 }
 
 void FWTrajectoryPlanner::Joints::SetTargetInitial() {
 	for (size_t i = 0; i < joints.size(); i++) {
 		joints[i]->SetTargetInitial();
-	}/*/
-	 for (int i = 0; i < (int)balls.size(); i++) {
-	 balls[i].SetTargetInitial();
-	 }
-	 for (int i = 0; i < (int)hinges.size(); i++) {
-	 hinges[i].SetTargetInitial();
-	 }*/
+	}
 }
 
 void FWTrajectoryPlanner::Joints::SaveTorque(int n) {
 	for (size_t i = 0; i < joints.size(); i++) {
-	joints[i]->SaveTorque(n);
-	}/*/
-	for (int i = 0; i < (int)balls.size(); i++) {
-		balls[i].SaveTorque(n);
+		joints[i]->SaveTorque(n);
 	}
-	for (int i = 0; i < (int)hinges.size(); i++) {
-		hinges[i].SaveTorque(n);
-	}*/
 }
 
 void FWTrajectoryPlanner::Joints::SaveTarget() {
 	for (size_t i = 0; i < joints.size(); i++) {
 		joints[i]->SaveTarget();
-	}/*/
-	for (int i = 0; i < balls.size(); i++)
-	{
-		balls[i].SaveTarget();
 	}
-	for (int i = 0; i < hinges.size(); i++)
-	{
-		hinges[i].SaveTarget();
-	}*/
 }
 
 void FWTrajectoryPlanner::Joints::SetOffsetFromLPF(int n) {
 	for (size_t i = 0; i < joints.size(); i++) {
-	joints[i]->SetOffsetFromLPF(n);
-	}/*/
-	for (int i = 0; i < (int)balls.size(); i++) {
-		balls[i].SetOffsetFromLPF(n);
+		joints[i]->SetOffsetFromLPF(n);
 	}
-	for (int i = 0; i < (int)hinges.size(); i++) {
-		hinges[i].SetOffsetFromLPF(n);
-	}*/
 	DSTR << std::endl;
 }
 
 void FWTrajectoryPlanner::Joints::ResetOffset() {
 	for (size_t i = 0; i < joints.size(); i++) {
-	joints[i]->ResetOffset();
-	}/*/
-	for (int i = 0; i < (int)balls.size(); i++) {
-		balls[i].ResetOffset();
+		joints[i]->ResetOffset();
 	}
-	for (int i = 0; i < (int)hinges.size(); i++) {
-		hinges[i].ResetOffset();
-	}*/
 }
 
 void FWTrajectoryPlanner::Joints::SavePosition(int k, int n) {
 	for (size_t i = 0; i < joints.size(); i++) {
-	joints[i]->SavePosition(k, n);
-	}/*/
-	for (int i = 0; i < (int)balls.size(); i++) {
-		balls[i].SavePosition(k, n);
+		joints[i]->SavePosition(k, n);
 	}
-	for (int i = 0; i < (int)hinges.size(); i++) {
-		hinges[i].SavePosition(k, n);
-	}*/
 }
 
 void FWTrajectoryPlanner::Joints::SaveVelocity(int k, int n) {
 	for (size_t i = 0; i < joints.size(); i++) {
 		joints[i]->SaveVelocity(k, n);
-	}/*/
-	 for (int i = 0; i < (int)balls.size(); i++) {
-	 balls[i].SaveVelocity(k, n);
-	 }
-	 for (int i = 0; i < (int)hinges.size(); i++) {
-	 hinges[i].SaveVelocity(k, n);
-	 }*/
+	}
 }
 
 void FWTrajectoryPlanner::Joints::SaveViaPoint(int v, int t) {
 	for (size_t i = 0; i < joints.size(); i++) {
-	joints[i]->SaveViaPoint(v, t);
-	}/*/
-	for (int i = 0; i < (int)balls.size(); i++) {
-		balls[i].SaveViaPoint(v, t);
+		joints[i]->SaveViaPoint(v, t);
 	}
-	for (int i = 0; i < (int)hinges.size(); i++) {
-		hinges[i].SaveViaPoint(v, t);
-	}*/
 }
 
 void FWTrajectoryPlanner::Joints::SavePositionFromLPF(int k, int n) {
 	for (size_t i = 0; i < joints.size(); i++) {
-	joints[i]->SavePositionFromLPF(k, n);
-	}/*/
-	for (int i = 0; i < (int)balls.size(); i++) {
-		balls[i].SavePositionFromLPF(k, n);
+		joints[i]->SavePositionFromLPF(k, n);
 	}
-	for (int i = 0; i < (int)hinges.size(); i++) {
-		hinges[i].SavePositionFromLPF(k, n);
-	}*/
 }
 
 void FWTrajectoryPlanner::Joints::SaveVelocityFromLPF(int k, int n) {
 	for (size_t i = 0; i < joints.size(); i++) {
 		joints[i]->SaveVelocityFromLPF(k, n);
-	}/*/
-	 for (int i = 0; i < (int)balls.size(); i++) {
-	 balls[i].SaveVelocityFromLPF(k, n);
-	 }
-	 for (int i = 0; i < (int)hinges.size(); i++) {
-	 hinges[i].SaveVelocityFromLPF(k, n);
-	 }*/
+	}
 }
 void FWTrajectoryPlanner::Joints::SaveVelocityForwardEnd() {
 	for (size_t i = 0; i < joints.size(); i++) {
 		joints[i]->SaveVelocityForwardEnd();
-	}/*/
-	 for (int i = 0; i < (int)balls.size(); i++) {
-	 balls[i].SaveVelocityForwardEnd();
-	 }
-	 for (int i = 0; i < (int)hinges.size(); i++) {
-	 hinges[i].SaveVelocityForwardEnd();
-	 }*/
+	}
 }
 
 void FWTrajectoryPlanner::Joints::TrajectoryCorrection(int k, bool s) {
 	for (size_t i = 0; i < joints.size(); i++) {
-	joints[i]->TrajectoryCorrection(k, s);
-	}/*/
-	for (int i = 0; i < (int)balls.size(); i++) {
-		balls[i].TrajectoryCorrection(k, s);
+		joints[i]->TrajectoryCorrection(k, s);
 	}
-	for (int i = 0; i < (int)hinges.size(); i++) {
-		hinges[i].TrajectoryCorrection(k, s);
-	}*/
 }
 
-void FWTrajectoryPlanner::Joints::ApplyLPF(int lpf, int count) {
+void FWTrajectoryPlanner::Joints::ApplyLPF(int count) {
 	for (size_t i = 0; i < joints.size(); i++) {
-	joints[i]->ApplyLPF(lpf, count);
-	}/*/
-	for (int i = 0; i < (int)balls.size(); i++) {
-		balls[i].ApplyLPF(lpf, count);
+		joints[i]->ApplyLPF(count);
 	}
-	for (int i = 0; i < (int)hinges.size(); i++) {
-		hinges[i].ApplyLPF(lpf, count);
-	}*/
 }
 void FWTrajectoryPlanner::Joints::Soften() {
 	for (size_t i = 0; i < joints.size(); i++) {
-	joints[i]->Soften();
-	}/*/
-	for (int i = 0; i < (int)balls.size(); i++) {
-		balls[i].Soften();
+		joints[i]->Soften();
 	}
-	for (int i = 0; i < (int)hinges.size(); i++) {
-		hinges[i].Soften();
-	}*/
 }
 void FWTrajectoryPlanner::Joints::Harden() {
 	for (size_t i = 0; i < joints.size(); i++) {
-	joints[i]->Harden();
-	}/*/
-	for (int i = 0; i < (int)balls.size(); i++) {
-		balls[i].Harden();
+		joints[i]->Harden();
 	}
-	for (int i = 0; i < (int)hinges.size(); i++) {
-		hinges[i].Harden();
-	}*/
 }
 void FWTrajectoryPlanner::Joints::ResetPD() {
 	for (size_t i = 0; i < joints.size(); i++) {
-	joints[i]->ResetPD();
-	}/*/
-	for (int i = 0; i < (int)balls.size(); i++) {
-		balls[i].ResetPD();
+		joints[i]->ResetPD();
 	}
-	for (int i = 0; i < (int)hinges.size(); i++) {
-		hinges[i].ResetPD();
-	}*/
 }
 double FWTrajectoryPlanner::Joints::CalcTotalTorqueChange() {
 	double total = 0;
 	for (size_t i = 0; i < joints.size(); i++) {
 		total += joints[i]->CalcTotalTorqueChange();
-	}/*/
-	for (int i = 0; i < (int)balls.size(); i++) {
-		total += balls[i].CalcTotalTorqueChange();
 	}
-	for (int i = 0; i < (int)hinges.size(); i++) {
-		total += hinges[i].CalcTotalTorqueChange();
-	}*/
 	return total;
 }
 double FWTrajectoryPlanner::Joints::CalcTotalTorqueChange(std::ofstream& o) {
@@ -1716,15 +1601,7 @@ double FWTrajectoryPlanner::Joints::CalcTotalTorqueChange(std::ofstream& o) {
 	for (size_t i = 0; i < joints.size(); i++) {
 		total += joints[i]->CalcTotalTorqueChange();
 		o << joints[i]->CalcTotalTorqueChange() << ",";
-	}/*/
-	for (int i = 0; i < (int)balls.size(); i++) {
-		total += balls[i].CalcTotalTorqueChange();
-		o << balls[i].CalcTotalTorqueChange() << ",";
 	}
-	for (int i = 0; i < (int)hinges.size(); i++) {
-		total += hinges[i].CalcTotalTorqueChange();
-		o << hinges[i].CalcTotalTorqueChange() << ",";
-	}*/
 	return total;
 }
 
@@ -1732,99 +1609,41 @@ double FWTrajectoryPlanner::Joints::CalcTotalTorqueChangeLPF() {
 	double total = 0;
 	for (size_t i = 0; i < joints.size(); i++) {
 		total += joints[i]->CalcTotalTorqueChangeLPF();
-	}/*/
-	for (int i = 0; i < (int)balls.size(); i++) {
-		total += balls[i].CalcTotalTorqueChangeLPF();
 	}
-	for (int i = 0; i < (int)hinges.size(); i++) {
-		total += hinges[i].CalcTotalTorqueChangeLPF();
-	}*/
 	return total;
 }
 double FWTrajectoryPlanner::Joints::CalcTorqueChangeInSection(int n) {
 	double total = 0;
 	for (size_t i = 0; i < joints.size(); i++) {
 		total += joints[i]->CalcTorqueChangeInSection(n);
-	}/*/
-	for (int i = 0; i < (int)balls.size(); i++) {
-		total += balls[i].CalcTorqueChangeInSection(n);
 	}
-	for (int i = 0; i < (int)hinges.size(); i++) {
-		total += hinges[i].CalcTorqueChangeInSection(n);
-	}*/
 	return total;
 }
 void FWTrajectoryPlanner::Joints::SetBestTorqueChange() {
 	for (size_t i = 0; i < joints.size(); i++) {
 		joints[i]->SetBestTorqueChange();
-	}/*/
-	for (int i = 0; i < (int)balls.size(); i++) {
-		balls[i].SetBestTorqueChange();
 	}
-	for (int i = 0; i < (int)hinges.size(); i++) {
-		hinges[i].SetBestTorqueChange();
-	}*/
 }
 double FWTrajectoryPlanner::Joints::GetBestTorqueChangeInSection(int n) {
 	double total = 0;
 	for (size_t i = 0; i < joints.size(); i++) {
 		total += joints[i]->GetBestTorqueChangeInSection(n);
-	}/*/
-	for (int i = 0; i < (int)balls.size(); i++) {
-		total += balls[i].tChanges[n];
-		DSTR << balls[i].tChanges[n] << " ";
 	}
-	for (int i = 0; i < (int)hinges.size(); i++) {
-		total += hinges[i].tChanges[n];
-		DSTR << hinges[i].tChanges[n] << " ";
-	}*/
 	DSTR << std::endl;
 	return total;
 }
 void FWTrajectoryPlanner::Joints::ShowInfo() {
 	for (size_t i = 0; i < joints.size(); i++) {
 		joints[i]->ShowInfo();
-	}/*/
-	for (int i = 0; i < (int)balls.size(); i++) {
-		balls[i].ShowInfo();
 	}
-	for (int i = 0; i < (int)hinges.size(); i++) {
-		hinges[i].ShowInfo();
-	}*/
 }
 void FWTrajectoryPlanner::Joints::SetTargetCurrent() {
 	for (size_t i = 0; i < joints.size(); i++) {
-	joints[i]->SetTargetCurrent();
-	}/*/
-	for (int i = 0; i < (int)balls.size(); i++) {
-		balls[i].SetTargetCurrent();
+		joints[i]->SetTargetCurrent();
 	}
-	for (int i = 0; i < (int)hinges.size(); i++) {
-		hinges[i].SetTargetCurrent();
-	}*/
 }
 void FWTrajectoryPlanner::Joints::SetWeight() {
 	double min = INFINITY;
-	/*
-	for (int i = 0; i < (int)balls.size(); i++) {
-		if (balls[i].originalSpring < minSp) {
-			minSp = balls[i].originalSpring;
-		}
-	}
-	for (int i = 0; i < (int)hinges.size(); i++) {
-		if (hinges[i].originalSpring < minSp) {
-			minSp = hinges[i].originalSpring;
-		}
-	}
-	for (int i = 0; i < (int)balls.size(); i++) {
-		//balls[i].weight = minSp / balls[i].originalSpring;
-		balls[i].weight = 1.0;
-	}
-	for (int i = 0; i < (int)hinges.size(); i++) {
-		//hinges[i].weight = minSp / hinges[i].originalSpring;
-		hinges[i].weight = 1.0;
-	}
-	*/
 	for (size_t i = 0; i < joints.size(); i++) {
 		if (joints[i]->GetMaxForce() < min) {
 			min = joints[i]->GetMaxForce();
@@ -1838,49 +1657,25 @@ void FWTrajectoryPlanner::Joints::SetWeight() {
 void FWTrajectoryPlanner::Joints::SetPD(double s, double d, bool mul) {
 	for (size_t i = 0; i < joints.size(); i++) {
 		joints[i]->SetPD(s, d, mul);
-	}/*/
-	for (int i = 0; i < (int)balls.size(); i++) {
-		balls[i].SetPD(s, d, mul);
 	}
-	for (int i = 0; i < (int)hinges.size(); i++) {
-		hinges[i].SetPD(s, d, mul);
-	}*/
 }
 
 void FWTrajectoryPlanner::Joints::SetTargetFromLPF(int k, int n) {
 	for (size_t i = 0; i < joints.size(); i++) {
-	joints[i]->SetTargetFromLPF(k, n);
-	}/*/
-	for (int i = 0; i < (int)balls.size(); i++) {
-		balls[i].SetTargetFromLPF(k, n);
+		joints[i]->SetTargetFromLPF(k, n);
 	}
-	for (int i = 0; i < (int)hinges.size(); i++) {
-		hinges[i].SetTargetFromLPF(k, n);
-	}*/
 }
 
 void FWTrajectoryPlanner::Joints::UpdateIKParam(double b, double p) {
 	for (size_t i = 0; i < joints.size(); i++) {
-	joints[i]->UpdateIKParam(b, p);
-	}/*/
-	for (int i = 0; i < (int)balls.size(); i++) {
-		balls[i].UpdateIKParam(b, p);
+		joints[i]->UpdateIKParam(b, p);
 	}
-	for (int i = 0; i < (int)hinges.size(); i++) {
-		hinges[i].UpdateIKParam(b, p);
-	}*/
 }
 
 void FWTrajectoryPlanner::Joints::OutputTorque() {
 	for (size_t i = 0; i < joints.size(); i++) {
-	joints[i]->OutputTorque();
-	}/*/
-	for (int i = 0; i < (int)balls.size(); i++) {
-		balls[i].OutputTorque();
+		joints[i]->OutputTorque();
 	}
-	for (int i = 0; i < (int)hinges.size(); i++) {
-		hinges[i].OutputTorque();
-	}*/
 }
 
 //N-Simple Moving Average LPF
@@ -1910,14 +1705,7 @@ PTM::VMatrixRow<T> FWTrajectoryPlanner::LPF::NSMA(PTM::VMatrixRow<T> input, int 
 				output[i][j] = sum / n;
 			}
 			for (; j < input.width(); j++) {
-				sum = sum + input[i][j] - input[i][j - n];   //このやり方だと累積誤差出ます
-															 /* 累積誤差チェック用
-															 double check_sum = 0;
-															 for (int k = 0; k < n; k++){
-															 check_sum += input[i][j - k];
-															 }
-															 DSTR << sum - check_sum << std::endl;
-															 */
+				sum = sum + input[i][j] - input[i][j - n];
 				output[i][j] = mag * sum / n;
 			}
 		}
@@ -1963,7 +1751,6 @@ PTM::VVector<T> FWTrajectoryPlanner::LPF::centerNSMAv(PTM::VVector<T> input, int
 		sum = sum + input[input.size() - 1] - input[j - half - 1];
 		output[j] = mag * sum / n;
 	}
-
 	return output;
 }
 
@@ -2011,29 +1798,17 @@ PTM::VVector<T> FWTrajectoryPlanner::LPF::weightedv(PTM::VVector<T> input, T ini
 		output[j] = input[j] + weight * (input[j - 1] + input[j + 1] - 2 * input[j]);
 	}
 	output[input.size() - 1] = input[input.size() - 1] + weight * (input[input.size() - 2] - input[input.size() - 1]);
-	/*
-	double s = 0.99;
-	for (int j = 1; j < (int)output.size() - 1; j++) {
-		output[j] = s * output[j] + (1 - s) * initial;
-	}
-	*/
 	return output;
 }
 
-FWTrajectoryPlanner::FWTrajectoryPlanner(int d, int i, int iv, double f, double q, int n, double mg, int c, bool wf, bool snc, double r, double vRate, bool sc) {
+FWTrajectoryPlanner::FWTrajectoryPlanner(int d, int i, int iv, bool c, double r, double vRate, bool sc) {
 	this->depth = d;
-	this->iterate = i;
-	this->iterateViaAdjust = iv;
-	this->freq = f;
-	this->qvalue = q;
-	this->nsma = n;
-	this->mag = mg;
-	this->correction = c;
-	this->rate = r;
+	this->maxIterate = i;
+	this->maxIterateViaAdjust = iv;
+	this->bCorrection = c;
+	this->LPFRate = r;
 	this->viaAdjustRate = vRate;
-	this->waitFlag = wf;
-	this->saveNotCorrected = snc;
-	this->springCor = sc;
+	this->bUseSpringCorrection = sc;
 }
 
 void FWTrajectoryPlanner::Init() {
@@ -2042,65 +1817,37 @@ void FWTrajectoryPlanner::Init() {
 	//計算に使うのだけはCheckAndSetJoints内で有効化
 	int nEEF = scene->NIKEndEffectors();
 	for (int i = 0; i < nEEF; i++) {
-		scene->GetIKEndEffector(i)->Enable(false);
+		//scene->GetIKEndEffector(i)->Enable(false);
 	}
-	
-	int nJoints = scene->NJoints();
-	for (int i = 0; i < nJoints; i++) {
-		if (DCAST(PHHingeJointIf, scene->GetJoint(i))) {
-			DCAST(PHHingeJointIf, scene->GetJoint(i))->SetSpring(spring);
-			DCAST(PHHingeJointIf, scene->GetJoint(i))->SetDamper(1e20);
-		}
-		if (DCAST(PHBallJointIf, scene->GetJoint(i))) {
-			DCAST(PHBallJointIf, scene->GetJoint(i))->SetSpring(spring);
-			DCAST(PHBallJointIf, scene->GetJoint(i))->SetDamper(1e20);
-		}
-	}
-	
+	 
 	int nAct = scene->NIKActuators();
 	for (int i = 0; i < nAct; i++) {
-		scene->GetIKActuator(i)->Enable(false);
+		//scene->GetIKActuator(i)->Enable(false);
 	}
-
+	
 	CheckAndSetJoints();
 
 	eef->SetTargetPosition(eef->GetSolid()->GetPose().Pos());
 	eef->SetTargetVelocity(Vec3d());
-	/*
-	for (int i = 0; i < 10; i++) {
-		scene->Step();
-	}
-	*/
+
 	//jointsの初期化
-	joints.Initialize(iterate, movtime, (int)viaPoints.size(), rate, viaCorrect);
+	joints.Initialize(maxIterate, movtime, (int)viaPoints.size(), LPFRate, bViaCorrection);
 	joints.SetWeight();
-	/*
-	int cnt = 0;
-	for (int i = 0; i < (int)joints.balls.size(); i++) {
-		joints.balls[i].weight = weights[cnt];
-		cnt++;
-	}
-	for (int i = 0; i < (int)joints.hinges.size(); i++) {
-		joints.hinges[i].weight = weights[cnt];
-		cnt++;
-	}
-	*/
-	joints.SetPD(spring, damper, mul);
+	joints.SetPD(springRate, damperRate, bMultiplePD);
 
 	//手先軌道リサイズ
-	trajData.resize(iterate + 1, movtime);
-	trajDataNotCorrected.resize(iterate, movtime);
-	trajVel.resize(iterate + 1, movtime + 1);
-	trajVelNotCorrected.resize(iterate, movtime + 1);
+	trajData.resize(maxIterate + 1, movtime);
+	trajDataNotCorrected.resize(maxIterate, movtime);
+	trajVel.resize(maxIterate + 1, movtime + 1);
+	trajVelNotCorrected.resize(maxIterate, movtime + 1);
 
 	//stateの保存
 	states = ObjectStatesIf::Create();
-	cstates = ObjectStatesIf::Create();
 	tmpstates.clear();
 	for (int i = 0; i < (int)viaPoints.size(); i++) {
 		tmpstates.push_back(ObjectStatesIf::Create());
 	}
-	for (int i = 0; i < iterate; i++) {
+	for (int i = 0; i < maxIterate; i++) {
 		corstates.push_back(ObjectStatesIf::Create());
 		beforecorstates.push_back(ObjectStatesIf::Create());
 	}
@@ -2114,19 +1861,8 @@ void FWTrajectoryPlanner::Init() {
 	calced = false;
 }
 
-void FWTrajectoryPlanner::Init(int d, int i, int iv, int n, double mg, int c, bool wf, bool snc, double r, double vRate, bool vCorr, bool sc) {
-	this->depth = d;
-	this->iterate = i;
-	this->iterateViaAdjust = iv;
-	this->nsma = n;
-	this->mag = mg;
-	this->correction = c;
-	this->rate = r;
-	this->viaAdjustRate = vRate;
-	this->waitFlag = wf;
-	this->saveNotCorrected = snc;
-	this->viaCorrect = vCorr;
-	this->springCor = sc;
+void FWTrajectoryPlanner::Init(int d, int i, int iv, bool c, double r, double vRate, bool vCorr, bool sc) {
+	ResetParameters(d, i, iv, c, r, vRate, vCorr, sc);
 	Init();
 }
 
@@ -2134,6 +1870,7 @@ void FWTrajectoryPlanner::CheckAndSetJoints() {
 	PHIKActuatorIf* ika;
 	ika = eef->GetParentActuator();
 	eef->Enable(true);
+
 	//depthがオーバーしてないかチェック
 	for (int i = 0; i < depth; i++) {
 		if (ika->GetParent()) {
@@ -2166,22 +1903,80 @@ void FWTrajectoryPlanner::CheckAndSetJoints() {
 	}
 }
 
-void FWTrajectoryPlanner::SetControlTarget(PHIKEndEffectorIf* e) { this->eef = e; };
-
-void FWTrajectoryPlanner::SetScene(PHSceneIf* s) { this->scene = s; };
-
-void FWTrajectoryPlanner::AddControlPoint(ControlPoint c) { viaPoints.push_back(c); };
-
-void JointRecalcFromIterateN(Posed tPose, double mt, int LPFmode, int smoothCount, std::string output, bool bChange = false, bool pChange = false, bool staticTarget = false, bool jmjt = false) {
-
-}
-
 void FWTrajectoryPlanner::RecalcFromIterationN(int n) {
 
 }
 
+void FWTrajectoryPlanner::Debug() { 
+	// Debug用にいろいろ表示する
+	DSTR << "----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- -----" << std::endl;
+	int nsolids = scene->NSolids();
+	for (int i = 0; i < nsolids; i++) {
+		PHSolidIf* so = scene->GetSolids()[i];
+		DSTR << "Solid" << i << " mass:" << so->GetMass() << ": pose" << so->GetPose() << " velocity" << so->GetVelocity() << " force" << so->GetForce() << " torque" << so->GetTorque() << std::endl;
+	}
+	joints.ShowInfo();
+	DSTR << "EndeffectorPosition:" << eef->GetSolid()->GetPose() * eef->GetTargetLocalPosition() << std::endl;
+	DSTR << "EndeffectorRotation:" << eef->GetSolid()->GetPose().Ori() << std::endl;
+	DSTR << "EndEffectorVelocity:" << eef->GetSolid()->GetVelocity() << std::endl;
+	DSTR << "EndEffectorTarget:" << eef->GetTargetPosition() << std::endl;
+	DSTR << "Gravity:" << scene->GetGravity() << std::endl << std::endl;
+}
+
+void FWTrajectoryPlanner::OutputTrajectory(std::string filename) {
+	// 手先軌道をファイル出力出力
+	std::ofstream outfile(filename + ".csv");
+	for (int i = 0; i < maxIterate + 1; i++) {
+		for (int j = 0; j < trajData.width(); j++) {
+			outfile << trajData[i][j].Pos().x << "," << trajData[i][j].Pos().y << "," << trajData[i][j].Pos().z << "," << std::endl;
+		}
+	}
+}
+
+void FWTrajectoryPlanner::OutputNotCorrectedTrajectory(std::string filename) {
+	// 修正前の手先軌道をファイル出力
+	std::ofstream outfile(filename + "NotCorrected.csv");
+	for (int i = 0; i < maxIterate; i++) {
+		for (int j = 0; j < movtime; j++) {
+			outfile << trajDataNotCorrected[i][j].Pos().x << "," << trajDataNotCorrected[i][j].Pos().y << "," << trajDataNotCorrected[i][j].Pos().z << "," << std::endl;
+		}
+	}
+}
+
+void FWTrajectoryPlanner::OutputVelocity(std::string filename) {
+	// 手先剛体の速度をファイル出力
+	std::ofstream outfile(filename + "Velocity.csv");
+	for (int i = 0; i < maxIterate + 1; i++) {
+		for (int j = 0; j < movtime + 1; j++) {
+			outfile << trajVel[i][j].x << "," << trajVel[i][j].y << "," << trajVel[i][j].z << "," << trajVel[i][j].w << ",";
+			outfile << std::endl;
+		}
+	}
+	std::ofstream outfile2(filename + "VelocityNotCorrected.csv");
+	for (int i = 0; i < maxIterate; i++) {
+		for (int j = 0; j < movtime + 1; j++) {
+			outfile2 << trajVelNotCorrected[i][j].x << "," << trajVelNotCorrected[i][j].y << "," << trajVelNotCorrected[i][j].z << "," << trajVelNotCorrected[i][j].w << "," << std::endl;
+		}
+	}
+}
+
+void FWTrajectoryPlanner::Replay(int ite, bool noncorrected) {
+	if (!calced) return;
+	if (ite < 0 || ite > maxIterate) return; // 多分変える
+
+	// 要求された再生番号を設定
+	this->ite = ite;
+	noncorrectedReplay = noncorrected;
+	moving = true;
+	torquechange.clear();
+	joints.SetTargetInitial();
+	states->LoadState(scene);
+	scene->GetIKEngine()->ApplyExactState();
+	repCount = -50;
+}
+
 void FWTrajectoryPlanner::JointTrajStep(bool step) {
-	if (moving) {   //軌道再生中
+	if (moving) {
 		if (repCount >= 0 && repCount < (int)trajData.width()) {
 			if (!noncorrectedReplay) {
 				joints.SetTarget(ite, repCount);
@@ -2206,185 +2001,9 @@ void FWTrajectoryPlanner::JointTrajStep(bool step) {
 		}
 		Debug();
 	}
-	DSTR << std::endl;
 }
 
-void FWTrajectoryPlanner::Debug() {   //Debug用にいろいろ表示する
-	int nsolids = scene->NSolids();
-	for (int i = 0; i < nsolids; i++) {
-		PHSolidIf* so = scene->GetSolids()[i];
-		DSTR << "Solid" << i << " mass:" << so->GetMass() << ": pose" << so->GetPose() << " velocity" << so->GetVelocity() << " force" << so->GetForce() << " torque" << so->GetTorque() << std::endl;
-	}
-	joints.ShowInfo();
-	DSTR << "EndeffectorPosition:" << eef->GetSolid()->GetPose() * eef->GetTargetLocalPosition() << std::endl;
-	DSTR << "EndeffectorRotation:" << eef->GetSolid()->GetPose().Ori() << std::endl;
-	DSTR << "EndEffectorVelocity:" << eef->GetSolid()->GetVelocity() << std::endl;
-	DSTR << "EndEffectorTarget:" << eef->GetTargetPosition() << std::endl;
-	DSTR << "Gravity:" << scene->GetGravity() << std::endl << std::endl;
-}
-
-void FWTrajectoryPlanner::PrepareOutputFilename(std::string& filename) {
-	//日時からファイル名用の文字列を生成
-	time_t t = time(NULL);
-	struct tm *pnow = localtime(&t);
-	std::stringstream ss;
-	ss << pnow->tm_year + 1900;
-
-	if ((pnow->tm_mon + 1) < 10) {
-		ss << "0" << pnow->tm_mon + 1;
-	}
-	else {
-		ss << pnow->tm_mon + 1;
-	}
-
-	if (pnow->tm_mday < 10) {
-		ss << "0" << pnow->tm_mday;
-	}
-	else {
-		ss << pnow->tm_mday;
-	}
-
-	if (pnow->tm_hour < 10) {
-		ss << "0" << pnow->tm_hour;
-	}
-	else {
-		ss << pnow->tm_hour;
-	}
-
-	if (pnow->tm_min < 10) {
-		ss << "0" << pnow->tm_min;
-	}
-	else {
-		ss << pnow->tm_min;
-	}
-
-	if (pnow->tm_sec < 10) {
-		ss << "0" << pnow->tm_sec;
-	}
-	else {
-		ss << pnow->tm_sec;
-	}
-	ss >> filename;
-}
-
-void FWTrajectoryPlanner::OutputTrajectory(std::string filename) {
-	//とりあえず可視化しやすい手先軌道を出力して軌道可視化に使う
-	std::ofstream outfile(filename + ".csv");
-	for (int i = 0; i < iterate + 1; i++) {
-		for (int j = 0; j < trajData.width(); j++) {
-			outfile << trajData[i][j].Pos().x << "," << trajData[i][j].Pos().y << "," << trajData[i][j].Pos().z << "," << std::endl;
-		}
-	}
-}
-
-void FWTrajectoryPlanner::OutputNotCorrectedTrajectory(std::string filename) {
-	//とりあえず可視化しやすい手先軌道を出力して軌道可視化に使う
-	std::ofstream outfile(filename + "NotCorrected.csv");
-	for (int i = 0; i < iterate; i++) {
-		for (int j = 0; j < movtime; j++) {
-			outfile << trajDataNotCorrected[i][j].Pos().x << "," << trajDataNotCorrected[i][j].Pos().y << "," << trajDataNotCorrected[i][j].Pos().z << "," << std::endl;
-		}
-	}
-}
-
-void FWTrajectoryPlanner::OutputVelocity(std::string filename) {
-	//手先剛体の速度のcsv出力
-	std::ofstream outfile(filename + "Velocity.csv");
-	for (int i = 0; i < iterate + 1; i++) {
-		for (int j = 0; j < movtime + 1; j++) {
-			outfile << trajVel[i][j].x << "," << trajVel[i][j].y << "," << trajVel[i][j].z << "," << trajVel[i][j].w << ",";
-			outfile << std::endl;
-		}
-	}
-	std::ofstream outfile2(filename + "VelocityNotCorrected.csv");
-	for (int i = 0; i < iterate; i++) {
-		for (int j = 0; j < movtime + 1; j++) {
-			outfile2 << trajVelNotCorrected[i][j].x << "," << trajVelNotCorrected[i][j].y << "," << trajVelNotCorrected[i][j].z << "," << trajVelNotCorrected[i][j].w << "," << std::endl;
-		}
-	}
-	/*
-	std::ofstream outfile3(filename + "VelocityDelta.csv");
-	int nBall = (int)joints.balls.size();
-	int nHinge = (int)joints.hinges.size();
-	for (int i = 0; i < iterate; i++) {
-		for (int j = 0; j < movtime; j++) {
-			for (int k = 0; k < nBall; k++)
-			{
-				
-			}
-			for (int k = 0; k < nHinge; k++)
-			{
-				outfile3 << joints.hinges[k].CorrTraj[i][j] << ",";
-			}
-			outfile3 << std::endl;
-		}
-	}
-
-	for (int k = 0; k < (int)joints.hinges.size(); k++) {
-		std::ofstream outfile4(filename + "Hinge" + std::to_string(k) + "Velocity.csv");
-		for (int i = 0; i < iterate + 1; i++) {
-			for (int j = 0; j < movtime + 1; j++) {
-				outfile4 << joints.hinges[k].angleVels[i][j] << ",";
-			}
-			outfile4 << std::endl;
-		}
-		outfile4.close();
-	}
-	for (int k = 0; k < (int)joints.balls.size(); k++) {
-		std::ofstream outfile4(filename + "Ball" + std::to_string(k) + "Velocity.csv");
-		for (int i = 0; i < iterate + 1; i++) {
-			for (int j = 0; j < movtime + 1; j++) {
-				outfile4 << joints.balls[k].oriVels[i][j].norm() << ",";
-			}
-			outfile4 << std::endl;
-		}
-		outfile4.close();
-	}
-	*/
-}
-
-void FWTrajectoryPlanner::LoadScene() {
-	states->LoadState(scene);
-	scene->GetIKEngine()->ApplyExactState();
-	DSTR << "Loaded" << std::endl;
-	Debug();
-	eef->SetTargetPosition(eef->GetSolid()->GetPose().Pos());
-	for (int i = 0; i < 10; i++) {
-		scene->Step();
-		DSTR << "after" << i + 1 << "step" << std::endl;
-		Debug();
-	}
-}
-
-void FWTrajectoryPlanner::SetPD(double s, double d, bool mul) {
-	this->spring = s;
-	this->damper = d;
-	this->mul = mul;
-}
-
-void FWTrajectoryPlanner::Replay(int ite, bool noncorrected) {
-	if (!calced) return;
-	if (ite < 0 || ite > iterate) return;
-	this->ite = ite;
-	//if (moving) return;
-	moving = true;
-	noncorrectedReplay = noncorrected;
-	torquechange.clear();
-	joints.SetTargetInitial();
-	DSTR << "Before replay load" << std::endl;
-	Debug();
-	states->LoadState(scene);
-	scene->GetIKEngine()->ApplyExactState();
-	DSTR << "After replay load" << std::endl;
-	Debug();
-	repCount = -50;
-}
-
-double FWTrajectoryPlanner::GetTotalChange() { return totalchange; }
-
-int FWTrajectoryPlanner::GetBest() { return best; }
-
-void FWTrajectoryPlanner::FIRM(ControlPoint tpoint, int LPFmode, int smoothCount, std::string output, bool bChange, bool pChange, bool staticTarget, bool jmjt) {
+void FWTrajectoryPlanner::FIRM(ControlPoint tpoint, std::string output) {
 	// --- デバッグ用の出力ファイル準備 ---
 	std::ofstream torqueChangeOutput(output + "TorqueChange.csv");
 
@@ -2398,8 +2017,8 @@ void FWTrajectoryPlanner::FIRM(ControlPoint tpoint, int LPFmode, int smoothCount
 	joints.OutputTorque();
 
 	//IKのバイアスとプルバックを弱く
-	//joints.UpdateIKParam(1, 0);
 	int nIK = scene->NIKActuators();
+	/*
 	if (bChange) {
 		for (int i = 0; i < nIK; i++) {
 			scene->GetIKActuator(i)->SetBias(1);
@@ -2410,6 +2029,7 @@ void FWTrajectoryPlanner::FIRM(ControlPoint tpoint, int LPFmode, int smoothCount
 			scene->GetIKActuator(i)->SetPullbackRate(0);
 		}
 	}
+	*/
 
 	// --- 軌道計算の繰り返し計算 ---
 
@@ -2418,22 +2038,22 @@ void FWTrajectoryPlanner::FIRM(ControlPoint tpoint, int LPFmode, int smoothCount
 	double torqueChange;
 	double torqueChangeLPF;
 
-	int max = jointMJT ? iterate + 1 : iterate;
+	int max = bUseJointMJTInitial ? maxIterate + 1 : maxIterate;
 	for (int k = 1; k < max && !stop; k++) {
 		
-			//トルクにLPFをかける
-			double level = 1 + (double)(iterate - k) / iterate;
-			joints.ApplyLPF(LPFmode, smoothCount * level);
+		//トルクにLPFをかける
+		double level = 1 + (double)(maxIterate - k) / maxIterate;
+		joints.ApplyLPF(maxLPF * level);
 
-			//フォワード(トルクー＞軌道)
-			Forward(k);
+		//フォワード(トルクー＞軌道)
+		Forward(k);
 
-			torqueChangeLPF = joints.CalcTotalTorqueChangeLPF();
+		torqueChangeLPF = joints.CalcTotalTorqueChangeLPF();
 
-			//軌道の修正
-			if (correction == 1) {
-				Correction(k);
-			}
+		//軌道の修正
+		if (bCorrection) {
+			Correction(k);
+		}
 		
 		//インバース(軌道ー＞トルク)
 		Inverse(k);
@@ -2441,20 +2061,16 @@ void FWTrajectoryPlanner::FIRM(ControlPoint tpoint, int LPFmode, int smoothCount
 		torqueChange = joints.CalcTotalTorqueChange(torqueChangeOutput);
 		torqueChangeOutput << torqueChange << "," << torqueChangeLPF << std::endl;
 		joints.OutputTorque();
-		//springdamper小さくする
 	}
 
-	if (!jointMJT) {
+	if (!bUseJointMJTInitial) {
 		//インバース(軌道ー＞トルク)
-		Inverse(iterate);
+		Inverse(maxIterate);
 
 		torqueChange = joints.CalcTotalTorqueChange(torqueChangeOutput);
 		torqueChangeOutput << torqueChange << "," << torqueChangeLPF << std::endl;
 		joints.OutputTorque();
-		//springdamper小さくする
 	}
-
-	//scene->GetIKEngine()->Enable(true);
 
 	// --- 計算後であることのフラグ有効化 ---
 	moving = true;
@@ -2466,86 +2082,11 @@ void FWTrajectoryPlanner::FIRM(ControlPoint tpoint, int LPFmode, int smoothCount
 
 	//いろいろとファイル出力
 	OutputTrajectory(output);
-	if (saveNotCorrected) {
-		OutputNotCorrectedTrajectory(output);
-	}
+	OutputNotCorrectedTrajectory(output);
 	OutputVelocity(output);
 
 	states->LoadState(scene);
 	scene->GetIKEngine()->ApplyExactState();
-
-	int nJoints = scene->NJoints();
-	for (int i = 0; i < nJoints; i++) {
-		PHJointIf* jo = scene->GetJoint(i);
-		if (DCAST(PHBallJointIf, jo)) {
-			DCAST(PHBallJointIf, jo)->SetTargetVelocity(Vec3d());
-		}
-		if (DCAST(PHHingeJointIf, jo)) {
-			DCAST(PHHingeJointIf, jo)->SetTargetVelocity(0);
-		}
-	}
-}
-
-bool FWTrajectoryPlanner::ViatimeAdjustment() {
-	if (viaPoints.empty()) return false;
-	//トルクの総変化量と各セクションでの変化量を取得
-	int nVia = (int)viaPoints.size();
-	double* tChange = new double[nVia + 1];
-	for (int i = 0; i < nVia + 1; i++) {
-		tChange[i] = joints.GetBestTorqueChangeInSection(i);
-		DSTR << tChange[i] << std::endl;
-	}
-	DSTR << std::endl;
-
-	//現在の各区間の時間を求める
-	double* ti = new double[nVia + 1];
-	for (int i = 0; i < nVia + 1; i++) {
-		ti[i] = (i == nVia ? movtime * scene->GetTimeStep() : viaPoints[i].time) - (i == 0 ? 0 : viaPoints[i - 1].time);
-		DSTR << ti[i] << std::endl;
-	}
-
-	//deltatを求める
-	double sumdeltat = 0;
-	for(int i = 0; i < nVia + 1; i++){
-		sumdeltat += tChange[i] / ti[i];
-	}
-	double sigma = (movtime * scene->GetTimeStep() * viaAdjustRate) / sumdeltat;
-	double* deltat = new double[nVia + 1];
-	for (int i = 0; i < nVia + 1; i++) {
-		deltat[i] = sigma * tChange[i] / ti[i];
-		DSTR << "delta_t " << i << " : " << deltat[i] << std::endl;
-	}
-
-	//時間の総変化量を計算
-	sumdeltat = 0;
-	for (int i = 0; i < nVia + 1; i++) {
-		sumdeltat += deltat[i];
-	}
-	DSTR << "whole sum of delta_t : " << sumdeltat << std::endl;
-
-	//各経由点到達時間を更新
-	double sumtime = 0;
-	bool cont = true;
-	for (int i = 0; i < nVia; i++) {
-		sumtime += deltat[i];
-		double newtime = (viaPoints[i].time + sumtime) * movtime * scene->GetTimeStep() / (movtime * scene->GetTimeStep() + sumdeltat);
-		int newstep = TimeToStep(newtime);
-		cont &= (newstep == viaPoints[i].step);
-		viaPoints[i].time = newtime;
-		viaPoints[i].step = newstep;
-		DSTR << "new viatime " << i << " : " << viaPoints[i].time << std::endl;
-	}
-
-	return !cont;
-}
-
-void FWTrajectoryPlanner::ViatimeInitialize() {
-	//各経由点の通過時間を等間隔に初期化
-	int nVia = (int)viaPoints.size();
-	for (int i = 0; i < nVia; i++) {
-		viaPoints[i].time = movtime * scene->GetTimeStep() * (i + 1) / (nVia + 1);
-		viaPoints[i].step = TimeToStep(viaPoints[i].time);
-	}
 }
 
 void FWTrajectoryPlanner::MakeMinJerkAll() {
@@ -2596,28 +2137,27 @@ void FWTrajectoryPlanner::MakeMinJerkAll() {
 	
 	joints.Harden();
 
-	//states->LoadState(scene);
+	states->LoadState(scene);
+	scene->GetIKEngine()->ApplyExactState();
 	scene->GetIKEngine()->Enable(true);
-	//eef->Enable(true);
-	//scene->GetIKEngine()->ApplyExactState();
 	Debug();
 
 	Vec3d eefVel = eef->GetSolid()->GetVelocity();
-	for (int i = 0; i < iterate + 1; i++) {
+	for (int i = 0; i < maxIterate + 1; i++) {
 		trajVel[i][0] = Vec4d(eefVel.x, eefVel.y, eefVel.z, eefVel.norm());
 	}
-	for (int i = 0; i < iterate; i++) {
+	for (int i = 0; i < maxIterate; i++) {
 		trajVelNotCorrected[i][0] = Vec4d(eefVel.x, eefVel.y, eefVel.z, eefVel.norm());
 	}
 
 	int reach = 0;
 	int count = 0;
 	Posed minjerkTarget;
-	//空間躍度最小軌道を再生して関節角を保存
+	// 空間躍度最小軌道を再生して関節角を保存
 	for (; reach < movtime; reach++) {
 		 minjerkTarget = minjerkPoses[reach];
 		eef->SetTargetPosition(minjerkTarget.Pos());
-		//eef->SetTargetOrientation(minjerkTarget.Ori());
+		eef->SetTargetOrientation(minjerkTarget.Ori());
 		eef->SetTargetVelocity((minjerkPoses[reach].Pos() - (reach == 0 ? startPoint.pose.Pos() : minjerkPoses[reach - 1].Pos())) * scene->GetTimeStepInv());
 		for (int i = 0; i < 1; i++) {
 			scene->Step();
@@ -2629,51 +2169,38 @@ void FWTrajectoryPlanner::MakeMinJerkAll() {
 			}
 		}
 		Debug();
-		for (int i = 0; i < iterate + 1; i++) {
+		for (int i = 0; i < maxIterate + 1; i++) {
 			joints.SavePosition(i, reach);
 			joints.SaveVelocity(i, reach);
 		}
 		trajData[0][reach] = Posed();
-		//trajData[0][reach].Pos() = eef->GetSolid()->GetPose() * eef->GetTargetLocalPosition();
-		//trajData[0][reach].Ori() = eef->GetSolid()->GetPose().Ori();
+		trajData[0][reach].Pos() = eef->GetSolid()->GetPose() * eef->GetTargetLocalPosition();
+		trajData[0][reach].Ori() = eef->GetSolid()->GetPose().Ori();
 		eefVel = eef->GetSolid()->GetVelocity();
 		trajVel[0][reach + 1] = Vec4d(eefVel.x, eefVel.y, eefVel.z, eefVel.norm());
 		//trajVel[0][reach + 1] = Vec4d(minjerkTarget.Pos().x, minjerkTarget.Pos().y, minjerkTarget.Pos().z, minjerkPoses[reach].Pos().y);
-	} //多分他の方法を使うべき
+	}
 
 	joints.SaveViaPoint(count, movtime);
 
 	joints.SaveTarget();
 
-	//関節次元躍度最小軌道の生成
-	//２パターン用意してるけどどっちがいいかは未検討
+	// 関節次元躍度最小軌道の生成
 	double per = scene->GetTimeStep();
-	if (jointMJT) {
+	if (bUseJointMJTInitial) {
 		joints.MakeJointMinjerk(0);
 	}else{
-		joints.MakeJointMinjerk(iterate);
+		joints.MakeJointMinjerk(maxIterate);
 	}
 
 	states->LoadState(scene);
 	scene->GetIKEngine()->ApplyExactState();
-	/*
-	for (int i = 0; i < nBall; i++)
-	{
-		joints.balls[i].ball->GetJoint()->SetTargetVelocity(Vec3d());
-	}
-	for (int i = 0; i < nHinge; i++)
-	{
-		joints.hinges[i].hinge->GetJoint()->SetTargetVelocity(0);
-	}
-	Debug();
-	*/
-
-	//joints.Harden();
 
 	scene->GetIKEngine()->Enable(false);
 
 	count = 0;
 	for (int i = 0; i < movtime; i++) {
+		//跳ね対策(SetTarget内にてk==0の最初の方だけ線形補間)
 		joints.SetTarget(0, i);
 		joints.SetTargetVelocity(0, i);
 		//joints.SetTargetCurrent();
@@ -2683,16 +2210,15 @@ void FWTrajectoryPlanner::MakeMinJerkAll() {
 		if (count < (int)viaPoints.size()) {
 			if (i == (viaPoints[count].step - 1)) {
 				joints.SaveViaPoint(count, (viaPoints[count].step));
-				cstates->SaveState(scene);
 				count++;
 			}
 		}
 		Debug();
 		joints.SaveTorque(i);
-		trajData[0][i].Pos() = eef->GetSolid()->GetPose() * eef->GetTargetLocalPosition();
-		trajData[0][i].Ori() = eef->GetSolid()->GetPose().Ori();
+		//trajData[0][i].Pos() = eef->GetSolid()->GetPose() * eef->GetTargetLocalPosition();
+		//trajData[0][i].Ori() = eef->GetSolid()->GetPose().Ori();
 		eefVel = eef->GetSolid()->GetVelocity();
-		//trajVel[0][i + 1] = Vec4d(eefVel.x, eefVel.y, eefVel.z, eefVel.norm());
+		trajVel[0][i + 1] = Vec4d(eefVel.x, eefVel.y, eefVel.z, eefVel.norm());
 	}
 
 	best = 0;
@@ -2706,19 +2232,11 @@ void FWTrajectoryPlanner::MakeMinJerkAll() {
 }
 
 void FWTrajectoryPlanner::Forward(int k) {
+	// 関節ターゲットで動かすためにIKをオフ
 	scene->GetIKEngine()->Enable(false);
 	joints.Soften();
-	/*
-	for (int i = 0; i < nBall; i++)
-	{
-		DSTR << joints.balls[i].initialTorque << " ";
-	}
-	for (int i = 0; i < nHinge; i++)
-	{
-		DSTR << joints.hinges[i].initialTorque << " ";
-	}
-	DSTR << std::endl;
-	*/
+	
+	// モータのオフセットを使って関節を駆動させ、角度を保存
 	Vec3d eefVel = eef->GetSolid()->GetVelocity();
 	trajVelNotCorrected[k > 0 ? k - 1 : 0][0] = Vec4d(eefVel.x, eefVel.y, eefVel.z, eefVel.norm());
 	Debug();
@@ -2727,11 +2245,6 @@ void FWTrajectoryPlanner::Forward(int k) {
 		scene->Step();
 		if (eef->GetSolid()->GetVelocity().norm() > 1e3) {
 			stop = true;
-		}
-		if (i == 0) {
-			Debug();
-			DSTR << "in forward " << k << " " << i << std::endl;
-			DSTR << std::endl;
 		}
 		joints.SavePositionFromLPF(k, i);
 		joints.SaveVelocityFromLPF(k, i);
@@ -2805,7 +2318,7 @@ void FWTrajectoryPlanner::Inverse(int k) {
 
 	//ロードしてIK周りの調整
 	states->LoadState(scene);
-	scene->GetIKEngine()->ApplyExactState();   //IKの一時的目標角?のリセット
+	scene->GetIKEngine()->ApplyExactState();
 	Debug();
 }
 
@@ -2816,11 +2329,11 @@ void FWTrajectoryPlanner::Correction(int k) {
 
 	double dist = 0;
 	int count;
-	if (!springCor) {
+	if (!bUseSpringCorrection) {
 		scene->GetIKEngine()->Enable(true);
 
 		//IKを用いて目標に到達させ、jointsに状態保存
-		if (!staticTarget) {
+		if (!bStaticTarget) {
 
 			eef->SetTargetPosition(targetPoint.pose.Pos());
 			eef->SetTargetOrientation(targetPoint.pose.Ori());
@@ -2832,15 +2345,6 @@ void FWTrajectoryPlanner::Correction(int k) {
 					dist = (eef->GetSolid()->GetPose() * eef->GetTargetLocalPosition() - targetPoint.pose.Pos()).norm();
 					DSTR << count << " step" << std::endl;
 					Debug();
-				}
-			}
-			else {
-				MinJerkTrajectory mjt = MinJerkTrajectory(eef->GetSolid()->GetPose(), targetPoint.pose, 10);
-				for (int i = 0; i < 10; i++) {
-					Posed target = mjt.GetCurrentPose(i + 1);
-					eef->SetTargetPosition(target.Pos());
-					eef->SetTargetOrientation(target.Ori());
-					scene->Step();
 				}
 			}
 
@@ -2870,9 +2374,8 @@ void FWTrajectoryPlanner::Correction(int k) {
 	}
 	else {
 		joints.ResetPD();
-		//joints.Soften();
 
-		if (!staticTarget) {
+		if (!bStaticTarget) {
 			joints.SetTargetCurrent();
 			targetSpring->Enable(true);
 			count = 0;
@@ -2913,7 +2416,7 @@ void FWTrajectoryPlanner::Correction(int k) {
 		}
 	}
 
-	joints.TrajectoryCorrection(k, staticTarget);
+	joints.TrajectoryCorrection(k, bStaticTarget);
 	scene->GetIKEngine()->Enable(false);
 
 	states->LoadState(scene);
@@ -2934,11 +2437,77 @@ void FWTrajectoryPlanner::Correction(int k) {
 	Debug();
 }
 
+bool FWTrajectoryPlanner::ViatimeAdjustment() {
+	if (viaPoints.empty()) return false;
+	// トルクの総変化量と各セクションでの変化量を取得
+	int nVia = (int)viaPoints.size();
+	double* tChange = new double[nVia + 1];
+	for (int i = 0; i < nVia + 1; i++) {
+		tChange[i] = joints.GetBestTorqueChangeInSection(i);
+		DSTR << tChange[i] << std::endl;
+	}
+	DSTR << std::endl;
+
+	// 現在の各区間の時間を求める
+	double* ti = new double[nVia + 1];
+	for (int i = 0; i < nVia + 1; i++) {
+		ti[i] = (i == nVia ? movtime * scene->GetTimeStep() : viaPoints[i].time) - (i == 0 ? 0 : viaPoints[i - 1].time);
+		DSTR << ti[i] << std::endl;
+	}
+
+	// deltatを求める
+	double sumdeltat = 0;
+	for(int i = 0; i < nVia + 1; i++){
+		sumdeltat += tChange[i] / ti[i];
+	}
+	double sigma = (movtime * scene->GetTimeStep() * viaAdjustRate) / sumdeltat;
+	double* deltat = new double[nVia + 1];
+	for (int i = 0; i < nVia + 1; i++) {
+		deltat[i] = sigma * tChange[i] / ti[i];
+		DSTR << "delta_t " << i << " : " << deltat[i] << std::endl;
+	}
+
+	//時間の総変化量を計算
+	sumdeltat = 0;
+	for (int i = 0; i < nVia + 1; i++) {
+		sumdeltat += deltat[i];
+	}
+	DSTR << "whole sum of delta_t : " << sumdeltat << std::endl;
+
+	// 各経由点到達時間を更新
+	double sumtime = 0;
+	bool cont = true;
+	for (int i = 0; i < nVia; i++) {
+		sumtime += deltat[i];
+		double newtime = (viaPoints[i].time + sumtime) * movtime * scene->GetTimeStep() / (movtime * scene->GetTimeStep() + sumdeltat);
+		int newstep = TimeToStep(newtime);
+		cont &= (newstep == viaPoints[i].step);
+		viaPoints[i].time = newtime;
+		viaPoints[i].step = newstep;
+		DSTR << "new viatime " << i << " : " << viaPoints[i].time << std::endl;
+	}
+
+	delete tChange;
+	delete ti;
+	delete deltat;
+
+	return !cont;
+}
+
+void FWTrajectoryPlanner::ViatimeInitialize() {
+	// 各経由点の通過時間を等間隔に初期化
+	int nVia = (int)viaPoints.size();
+	for (int i = 0; i < nVia; i++) {
+		viaPoints[i].time = movtime * scene->GetTimeStep() * (i + 1) / (nVia + 1);
+		viaPoints[i].step = TimeToStep(viaPoints[i].time);
+	}
+}
+
 void FWTrajectoryPlanner::PrepareSprings() {
 	viaSolids.clear();
 	viaSprings.clear();
 
-	//ターゲットの剛体とバネの設定
+	// ターゲットの剛体とバネの設定
 	PHSolidDesc tDesc = PHSolidDesc();
 	tDesc.pose = targetPoint.pose;
 	tDesc.mass = 1.0;
@@ -2962,7 +2531,7 @@ void FWTrajectoryPlanner::PrepareSprings() {
 	targetSpring->SetPlugPose(Posed(eef->GetTargetLocalPosition(), Quaterniond()));
 	scene->SetContactMode(targetSolid, eef->GetSolid(), PHSceneDesc::ContactMode::MODE_NONE);
 	
-	//経由点の剛体とバネの設定
+	// 経由点の剛体とバネの設定
 	for (size_t i = 0; i < (int)viaPoints.size(); i++) {
 		PHSolidDesc vDesc = PHSolidDesc();
 		vDesc.pose = viaPoints[i].pose;
@@ -2990,7 +2559,7 @@ void FWTrajectoryPlanner::PrepareSprings() {
 }
 
 void FWTrajectoryPlanner::ReloadCorrected(int k, bool nc) {
-	if (k < 0 || k >= iterate) return;
+	if (k < 0 || k >= maxIterate) return;
 	if (nc) {
 		beforecorstates[k]->LoadState(scene);
 	}
@@ -3011,7 +2580,7 @@ void FWTrajectoryPlanner::ReloadCorrected(int k, bool nc) {
 	}
 }
 
-void FWTrajectoryPlanner::CalcTrajectory(ControlPoint tpoint, int LPFmode, int smoothCount, std::string output, bool bChange, bool pChange, bool staticTarget, bool jmjt) {
+void FWTrajectoryPlanner::CalcTrajectory(ControlPoint tpoint, std::string output) {
 
 	//総移動ステップ数設定
 	movtime = tpoint.step;
@@ -3021,9 +2590,6 @@ void FWTrajectoryPlanner::CalcTrajectory(ControlPoint tpoint, int LPFmode, int s
 
 	DSTR << "stapose:" << startPoint.pose << " tarvel:" << startPoint.vel << " time:" << startPoint.step << std::endl;
 	DSTR << "tarpose:" << targetPoint.pose << " tarvel:" << targetPoint.vel << " time:" << targetPoint.step << std::endl;
-
-	this->staticTarget = staticTarget;
-	this->jointMJT = jmjt;
 
 	auto start = std::chrono::system_clock::now();
 
@@ -3038,7 +2604,7 @@ void FWTrajectoryPlanner::CalcTrajectory(ControlPoint tpoint, int LPFmode, int s
 	//開始点の設定
 	Vec3d eefVel = eef->GetSolid()->GetVelocity();
 	startPoint.pose = Posed(eef->GetSolid()->GetPose() * eef->GetTargetLocalPosition(), eef->GetSolid()->GetPose().Ori());
-	//startPoint.vel = Vec6d(eefVel.x, eefVel.y, eefVel.z, 0, 0, 0);
+	startPoint.vel = Vec6d(eefVel.x, eefVel.y, eefVel.z, 0, 0, 0);
 	startPoint.vel = Vec6d();
 	startPoint.acc = Vec6d();
 	startPoint.step = 0;
@@ -3052,18 +2618,19 @@ void FWTrajectoryPlanner::CalcTrajectory(ControlPoint tpoint, int LPFmode, int s
 	std::ofstream outfile2(output + "Bests.csv");
 
 	bool cont = true;
-	for (int i = 0; i < (iterateViaAdjust + 1) && cont; i++) {
-		//現在の経由点通過時間を記録
+	int i = 0;
+	do {
+		// 現在の経由点通過時間を記録
 		for (int j = 0; j < (int)viaPoints.size(); j++) {
 			outfile << viaPoints[j].step << ",";
 		}
 		outfile << std::endl;
-		//FIRMにより近似最適解の導出
-		FIRM(tpoint, LPFmode, smoothCount, output, bChange, pChange, staticTarget, jmjt);
+		// FIRMにより近似最適解の導出
+		FIRM(tpoint, output);
 		outfile2 << besttorque << std::endl;
-		//経由点の通過時間の調整をして継続か判断
+		// 経由点の通過時間の調整をして継続か判断
 		cont = ViatimeAdjustment();
-	}
+	} while (maxIterateViaAdjust > i++ && cont);
 
 	joints.CloseFile();
 	outfile.close();
