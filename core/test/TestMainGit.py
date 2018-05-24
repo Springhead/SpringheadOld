@@ -26,8 +26,13 @@
 #  VERSION:
 #	Ver 1.0  2018/03/05 F.Kanehori	First version.
 #	Ver 1.1  2018/04/26 F.Kanehori	Commit result.log to git server.
+#	Ver 1.2  2018/05/01 F.Kanehori	Git pull for DailyBuild/Result.
+#	Ver 1.21 2018/05/08 F.Kanehori	Change VersionControlSystem args.
+#	Ver 1.22 2018/05/10 F.Kanehori	Add git config.
+#	Ver 1.23 2018/05/14 F.Kanehori	Add snap message for debug.
+#	Ver 1.24 2018/05/17 F.Kanehori	Rewrite code about "git push" .
 # ======================================================================
-version = 1.1
+version = 1.24
 
 import sys
 import os
@@ -64,6 +69,7 @@ prog = sys.argv[0].split(os.sep)[-1].split('.')[0]
 result_log = 'result.log'
 history_log = 'History.log'
 date_record = 'Test.date'
+commit_id = 'Springhead.commit.id'
 
 # ----------------------------------------------------------------------
 #  Local methods.
@@ -116,6 +122,17 @@ def copy_all(src, dst, rm_topdir=True, dry_run=False, verbose=0):
 			dst_dir = '%s/%s' % (dst, name)
 			fop.cp(name, dst_dir)
 
+def date_str_conv(from_str):
+	# from:	'Dow Mon dd hh:mm:ss YYYY +0900'
+	# to:   'YYYY-mmdd hh:mm:ss'
+	# ** There should be some useful library method! (datetime?) **
+	montab = {'Jan': 1, 'Feb': 2, 'Mar': 3, 'Apr': 4, 'May': 5, 'Jun': 6,
+		  'Jul': 7, 'Aug': 8, 'Sep': 9, 'Oct':10, 'Nov':11, 'Dec':12 }
+	dt = from_str.split()
+	yyyy = dt[4]
+	mmdd = '%02d%02d' % (montab[dt[1]], int(dt[2]))
+	return '%s-%s %s' % (yyyy, mmdd, dt[3])
+
 def flush():
 	sys.stdout.flush()
 	sys.stderr.flush()
@@ -124,10 +141,19 @@ def Print(msg):
 	print(msg)
 	flush()
 
+def get_username(fname):
+	fio = TextFio(fname)
+	if fio.open() < 0:
+		Error(prog).error(fio.error())
+		return ''
+	lines = fio.read()
+	fio.close()
+	return lines[0]
+
 # ----------------------------------------------------------------------
 #  Options
 #
-usage = 'Usage: %prog [options] test-repositoy'
+usage = 'Usage: %prog [options] test-repositoy result-repository'
 parser = OptionParser(usage = usage)
 parser.add_option('-c', '--conf', dest='conf',
 			action='store', default='Release',
@@ -155,7 +181,7 @@ parser.add_option('-V', '--version', dest='version',
 if options.version:
 	print('%s: Version %s' % (prog, str(version)))
 	sys.exit(0)
-if len(args) != 1:
+if len(args) != 2:
 	parser.error("incorrect number of arguments")
 
 # get arguments
@@ -165,6 +191,15 @@ repository = Util.upath(os.path.abspath(repository))
 if not os.path.isdir(repository):
 	msg = '"%s" is not a directory' % repository
 	Error(prog).abort(msg)
+
+result_repository = '%s/../%s' % (repository, args[1])
+if not os.path.exists(result_repository):
+	msg = '"%s" does not exist' % result_repository
+	Error(prog).abort(msg)
+if not os.path.isdir(result_repository):
+	msg = '"%s" is not a directory' % result_repository
+	Error(prog).abort(msg)
+result_repository = Util.upath(os.path.abspath(result_repository))
 
 # get options
 toolset = options.toolset
@@ -184,9 +219,10 @@ shell = True if Util.is_unix() else False
 print('Test parameters:')
 if Util.is_windows():
 	print('   toolset id:      [%s]' % toolset)
-print('   platform:        [%s]' % plat)
-print('   configuration:   [%s]' % conf)
-print('   test repository: [%s]' % repository)
+print('   platform:          [%s]' % plat)
+print('   configuration:     [%s]' % conf)
+print('   test repository:   [%s]' % repository)
+print('   result repository: [%s]' % result_repository)
 
 # ----------------------------------------------------------------------
 #  Go to test repository.
@@ -244,17 +280,73 @@ if check_exec('DAILYBUILD_EXECUTE_TESTALL'):
 	os.chdir(repository)
 
 # ----------------------------------------------------------------------
+#  Generate sprphys/Springhead HEAD commit-id file.
+#
+if check_exec('DAILYBUILD_COMMIT_RESULTLOG', unix_copyto_buildlog):
+	Print('generating sprphys/Springhead HEAD commit-id file')
+	logdir = '%s/log' % testdir
+	os.chdir(logdir)
+	#
+	cmnd = 'python ../bin/VersionControlSystem.py -G HEAD'
+	proc = Proc(verbose=verbose, dry_run=dry_run)
+	rc = proc.execute(cmnd, shell=shell,
+			  stdout=commit_id, stderr=Proc.STDOUT).wait()
+	os.chdir(repository)
+
+# ----------------------------------------------------------------------
+#  Commit and push log files commit-id file to test result repository.
+#
+if check_exec('DAILYBUILD_COMMIT_RESULTLOG', unix_copyto_buildlog):
+	Print('copying test result and commit-id to test result repository')
+	logdir = '%s/log' % testdir
+	os.chdir(logdir)
+	#
+	logfiles = ['result.log']
+	fop = FileOp()
+	for f in logfiles:
+		fop.cp(f, '%s/%s' % (result_repository, f))
+	fop.cp(commit_id, '%s/%s' % (result_repository, commit_id))
+	flush()
+	#
+	Print('committing files to test result repository.')
+	os.chdir(result_repository)
+	cmnds = [
+		'git config --global user.name "DailyBuild"',
+		'git commit --message="today\'s test result" %s %s' % \
+			(' '.join(logfiles), commit_id)
+	]
+	proc = Proc(verbose=verbose, dry_run=dry_run)
+	for cmnd in cmnds:
+		print('## %s' % cmnd)
+		flush()
+		rc = proc.execute(cmnd, shell=shell).wait()
+		if rc != 0:
+			break
+	if rc == 0:
+		user = get_username('../../hasegit.user')
+		cmnd = 'git push http://%s@git.haselab.net/DailyBuild/Result' % user
+		print('## %s' % cmnd)
+		rc = proc.execute(cmnd, shell=shell).wait()
+		if rc == 0:
+			Print('  commit and push OK.')
+	else:
+		Print('  -> nothing to commit!')
+	os.chdir(repository)
+
+# ----------------------------------------------------------------------
 #  Make history log file.
 #
 if check_exec('DAILYBUILD_GEN_HISTORY', unix_gen_history):
 	Print('making history log')
-	os.chdir('%s/bin' % testdir)
+	logdir = '%s/log' % testdir
+	os.chdir(logdir)
 	#
-	rslt_path = '../log/%s' % result_log
-	hist_path = '../log/%s' % history_log
-	cmnd = 'python VersionControlSystem.py -g -f %s all' % rslt_path
+	hist_path = '%s/%s' % (logdir, history_log)
+	extract = 'result.log'
+	cmnd = 'python ../bin/VersionControlSystem.py'
+	args = '-H -f %s all' % extract
 	proc = Proc(verbose=verbose, dry_run=dry_run)
-	proc.execute(cmnd, shell=shell, stdout=hist_path).wait()
+	proc.execute([cmnd, args], shell=shell, stdout=hist_path).wait()
 	flush()
 	os.chdir(repository)
 
@@ -291,56 +383,6 @@ if check_exec('DAILYBUILD_COPYTO_BUILDLOG', unix_copyto_buildlog):
 	#
 	copy_all(logdir, webbase, False, dry_run)
 	os.chdir(repository)
-
-"""
-# ----------------------------------------------------------------------
-#  Create commit.id which holds newest commit id on GitHub.
-#
-if check_exec('DAILYBUILD_COMMIT_RESULTLOG', unix_copyto_buildlog):
-	Print('creating "commit.id"')
-	logdir = '%s/log' % testdir
-	os.chdir(logdir)
-	#
-	proc = Proc(verbose=verbose, dry_run=dry_run)
-	cmnd = 'git log --abbrev-commit --oneline --max-count=1'
-	proc.execute(cmnd, shell=shell,
-			stdout=Proc.PIPE, stderr=Proc.STDOUT)
-	rc, out, err = proc.output()
-	if rc == 0:
-		commit_id = out.split()[0]
-		fio = TextFio('commit.id', 'w')
-		if fio.open() == 0:
-			fio.writeline(commit_id)
-			fio.close()
-	else:
-		Print('  ** extracting HEAD log from GitHub failed **')
-	#
-	os.chdir(repository)
-
-# ----------------------------------------------------------------------
-#  Commit result.log and commit.id to logal git server.
-#
-if check_exec('DAILYBUILD_COMMIT_RESULTLOG', unix_copyto_buildlog):
-	Print('committing result.log to local git server')
-	logdir = '%s/log' % testdir
-	os.chdir(logdir)
-	#
-	url = 'http://git/haselab.net/DailyBuild/log'
-	files = 'result.log commit.id'
-	#
-	proc = Proc(verbose=verbose, dry_run=dry_run)
-	cmnd = 'git commit --message="today\'s result %s' % files
-	rc = proc.execute(cmnd, shell=shell).wait()
-	if rc == 0:
-		cmnd = 'git push'
-		rc = proc.execute(cmnd, shell=shell).wait()
-		if rc != 0:
-			Print('  ** git push failed **')
-	else:
-		Print('  ** nothing to commit **')
-	#
-	os.chdir(repository)
-"""
 
 # ----------------------------------------------------------------------
 #  Make document (doxygen).
