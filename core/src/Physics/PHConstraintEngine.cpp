@@ -39,7 +39,7 @@ int		coltimePhase1;
 int		coltimePhase2;
 int		coltimePhase3;
 int		colcounter; //サポート探索回数カウントに使っている
-UTPreciseTimer *p_timer;
+UTPreciseTimer* p_timer;
 
 void PHSolidPairForLCP::OnDetect(PHShapePair* _sp, unsigned ct, double dt){
 	PHShapePairForLCP* sp = (PHShapePairForLCP*)_sp;
@@ -54,7 +54,7 @@ void PHSolidPairForLCP::OnContDetect(PHShapePair* _sp, unsigned ct, double dt){
 
 	//	交差する2つの凸形状を接触面で切った時の切り口の形を求める
 	sp->EnumVertex(ct, solid[0], solid[1]);
-	
+
 	//	HASE_REPORT
 /*	DSTR << "st:" << sp->state << " depth:" << sp->depth;
 	DSTR << " n:" << sp->normal;
@@ -687,23 +687,22 @@ void PHConstraintEngine::StepPart1(){
 		//交差を検知
 		points.clear();
 
-		if (bReport) {
-			ptimer.CountUS();
-			coltimePhase1 = 0;
-			coltimePhase2 = 0;
-			coltimePhase3 = 0;
-			colcounter = 0;
-			p_timer = &ptimer2;
-		}
 		PHSceneIf* scene = GetScene();
 		if(scene->IsContactDetectionEnabled()){
+//			if (bReport) {
+				coltimePhase1 = 0;
+				coltimePhase2 = 0;
+				coltimePhase3 = 0;
+				colcounter = 0;
+				p_timer = &ptimer2;
+				ptimer.CountUS();
+//			}
 			Detect(scene->GetCount(), scene->GetTimeStep(), scene->GetBroadPhaseMode(), scene->IsCCDEnabled());
-			if (renderContact) UpdateContactInfoQueue();
-		}
-
-		if(bReport){
 			timeCollision = ptimer.CountUS();
-			DSTR << " col:" << timeCollision;
+			if (bReport) {
+				DSTR << " col:" << timeCollision;
+			}
+			if (renderContact) UpdateContactInfoQueue();
 		}
 	}
 }
