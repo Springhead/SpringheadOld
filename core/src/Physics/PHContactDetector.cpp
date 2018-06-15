@@ -19,8 +19,8 @@ namespace Spr{;
 
 Spr::UTQPTimer ptimerForCd;
 Spr::UTQPTimer ptimerForGjk;
-UTLongLong& broadTime = UTPerformanceMeasure::Get("Collision")->Count("broad");
-UTLongLong& narrowTime = UTPerformanceMeasure::Get("Collision")->Count("narrow");
+UTLongLong& broadTime = UTPerformanceMeasure::GetInstance("Collision")->Count("broad");
+UTLongLong& narrowTime = UTPerformanceMeasure::GetInstance("Collision")->Count("narrow");
 extern UTLongLong& coltimePhase1;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
