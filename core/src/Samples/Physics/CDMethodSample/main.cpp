@@ -17,7 +17,7 @@ Boxstackベースで連続衝突判定の手法を切り替えて試せるサン
 
 std::string ftos(double d, char* fmt = "%2.3f") {
 	char buf[100];
-	snprintf(buf, sizeof(buf), fmt, d/1000);
+	snprintf(buf, sizeof(buf), fmt, d);
 	return std::string(buf);
 }
 
@@ -27,14 +27,8 @@ using namespace Spr;
 using namespace std;
 
 namespace Spr{
-	extern int		coltimePhase1;
-	extern int		coltimePhase2;
-	extern int		coltimePhase3;
 	extern int		colcounter;
 	extern int s_methodSW; //手法切り替えの変数
-	extern int narrowTime;
-	extern int broadTime;
-
 }
 
 class MyApp : public SampleApp{
@@ -87,6 +81,7 @@ public:
 		avePool = 0;
 		aveNarrow = 0;
 		aveBroad = 0;
+		if (GetPHScene()) GetPHScene()->GetPerformanceMeasure()->ClearCounts();
 		memset(avePhaseTime, 0, sizeof(avePhaseTime));
 	}
 	MyApp(){
@@ -145,7 +140,7 @@ public:
 		PHSceneDesc pd;
 		GetPHScene()->GetDesc(&pd);
 		pd.timeStep = 1.0 / 60;
-		pd.contactTolerance = 0.001 * 0.2;
+		pd.contactTolerance = 0.001 * 0.4;
 		pd.airResistanceRateForAngularVelocity = 0.98;
 		GetPHScene()->SetDesc(&pd);
 		PHConstraintEngineDesc ed;
@@ -159,7 +154,7 @@ public:
 		GetFWScene()->EnableRenderContact(false);
 		GetFWScene()->SetRenderMode();
 
-#if SMALLACCEL
+#if 0
 		GetPHScene()->SetGravity(Vec3d(0, -9.8, 0) * 0.1);
 #endif
 	}
@@ -226,24 +221,36 @@ public:
 			}
 		
 		}
+		for(int i=0; i<UTPerformanceMeasure::NInstance(); ++i){
+			UTPerformanceMeasure* m = UTPerformanceMeasure::GetInstance(i);
+			DSTR << m->GetName();
+			for (int j = 0; j < m->NCounter(); ++j) {
+				DSTR << " " << m->GetNameOfCounter(j) << ":" << m->Time(j);
+			}
+			DSTR << std::endl;
+		}
 
 		//時間表示
-		avePool += GetPHScene()->GetConstraintEngine()->GetCollisionTime();
-		aveNarrow += narrowTime; narrowTime = 0;
-		aveBroad += broadTime; broadTime = 0;
-		avePhaseTime[0] += coltimePhase1;
-		avePhaseTime[1] += coltimePhase2; 
-		avePhaseTime[2] += coltimePhase3; 
+		UTPerformanceMeasure* meScene = GetPHScene()->GetPerformanceMeasure();
+		avePool += meScene->Time("collision");
+		meScene->ClearCounts();
+		UTPerformanceMeasure* meCol = UTPerformanceMeasure::GetInstance("Collision");
+		aveNarrow += meCol->Time("narrow");
+		aveBroad += meCol->Time("broad");
+		avePhaseTime[0] += meCol->Time("P1");
+		avePhaseTime[1] += meCol->Time("P2"); 
+		avePhaseTime[2] += meCol->Time("P3"); 
+		meCol->ClearCounts();
 		aveCounter++;
 		if (aveCounter > 0) {
-			message = ftos(fps*1000) + "FPS  "
+			message = ftos(fps) + "FPS  "
 				+ " count" + to_string(aveCounter) 
 				+ "  Total:" + ftos(avePool / aveCounter)
 				+ "  Broad:" + ftos(aveBroad / aveCounter)
 				+ "  Narrow:" + ftos(aveNarrow / aveCounter)
-				+ "  Setup:" + ftos(avePhaseTime[0] / aveCounter * 0.001)
-				+ "  2D Search:" + ftos(avePhaseTime[1] / aveCounter * 0.001)
-				+ "  3D Refinement:" + ftos(avePhaseTime[2] / aveCounter * 0.001);
+				+ "  Setup:" + ftos(avePhaseTime[0] / aveCounter)
+				+ "  2D Search:" + ftos(avePhaseTime[1] / aveCounter)
+				+ "  3D Refinement:" + ftos(avePhaseTime[2] / aveCounter);
 		}
 	}
 
@@ -382,9 +389,10 @@ public:
 				}
 			}
 			if (id == ID_TOWER) {
-				double tower_radius = 0.032;
+				//				double tower_radius = 0.032;
+				double tower_radius = 0.021;
 				const int tower_height = 2;
-				const int numbox = 16;
+				const int numbox = 10;
 				double theta;
 				static int start = 0;
 				for (int i = start; i < start + tower_height; i++) {
