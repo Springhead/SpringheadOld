@@ -74,7 +74,7 @@ private:
 
 	UTPerformanceMeasureImp(const char* n):name(n), unit(1e-3){}
 public:
-	int UTPerformanceMeasureImp::NCounter() {
+	int NCounter() {
 		return (int)names.size();
 	}
 	const char* GetNameOfCounter(int id) {
