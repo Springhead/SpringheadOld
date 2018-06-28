@@ -193,7 +193,7 @@ UTPerformanceMeasure* UTPerformanceMeasure::CreateInstance(const char* n) {
 	return GetMeasures().back();
 }
 int UTPerformanceMeasure::NInstance() {
-	return GetMeasures().size();
+	return (int) GetMeasures().size();
 }
 
 int UTPerformanceMeasureImp::FindId(std::string name) {
