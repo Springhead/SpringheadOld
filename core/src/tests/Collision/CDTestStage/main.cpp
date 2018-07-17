@@ -95,9 +95,9 @@ int caseCount = 0;
 Vec2d lastMouse;
 
 namespace Spr {
-	extern int		coltimePhase1;
-	extern int		coltimePhase2;
-	extern int		coltimePhase3;
+	extern /*int*/ UTLongLong&		coltimePhase1;
+	extern /*int*/ UTLongLong&		coltimePhase2;
+	extern /*int*/ UTLongLong&		coltimePhase3;
 	extern int		colcounter;
 	extern double	biasParam;
 }
