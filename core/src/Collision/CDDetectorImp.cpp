@@ -9,19 +9,20 @@
 #include <Collision/CDConvexMesh.h>
 #include <Collision/CDBox.h>
 #include <Collision/CDSphere.h>
-#include <Foundation/UTPreciseTimer.h>
+#include <Foundation/UTQPTimer.h>
 
 namespace Spr {;
-const double epsilon = 1e-16;	//1e-8
+const double epsilon = 1e-16;
 const double epsilon2 = epsilon*epsilon;
 
-extern UTPreciseTimer* p_timer;
-extern int		coltimePhase1;
+UTQPTimer qpTimerForCollision;
+UTLongLong& coltimePhase1 = UTPerformanceMeasure::GetInstance("Collision")->Count("P1");
+UTLongLong& coltimePhase2 = UTPerformanceMeasure::GetInstance("Collision")->Count("P2");
+UTLongLong& coltimePhase3 = UTPerformanceMeasure::GetInstance("Collision")->Count("P3");
+bool bUseContactVolume = true;
 
-bool bUseContactVolume=true;
-
-int s_methodSW = 0; //0=通常,1=加速,2=Gino,3=GJK
-int s_accelThreshold = 24; //加速適用の頂点数閾値
+int s_methodSW = 0;			//	0=通常,1=加速,2=Gino
+int s_accelThreshold = 24;	//	加速適用の頂点数閾値
 //衝突判定メソッドのインターフェース
 int FindCommonPointInterface(const CDConvex* a, const CDConvex* b,
 	const Posed& a2w, const Posed& b2w, const Vec3d& dir, double start, double end,
@@ -43,6 +44,8 @@ int FindCommonPointInterface(const CDConvex* a, const CDConvex* b,
 		res = ContFindCommonPointGino(a, b, a2w, b2w, dir, start, end, normal, pa, pb, dist);
 		break;
 	case 3:	
+		assert(0);
+		qpTimerForCollision.CountNS();
 		res = FindCommonPoint(a, b, a2w, b2w, v, pa, pb);
 		if (res >= 1) {
 			v.clear();
@@ -57,11 +60,9 @@ int FindCommonPointInterface(const CDConvex* a, const CDConvex* b,
 	}
 	return res;
 }
-
 bool CDShapePair::Detect(unsigned ct, const Posed& pose0, const Posed& pose1){
 	shapePoseW[0] = pose0;
 	shapePoseW[1] = pose1;
-	
 	Vec3d sep;
 	bool rv = FindCommonPoint(shape[0], shape[1], shapePoseW[0], shapePoseW[1], sep, closestPoint[0], closestPoint[1]);
 	if (rv){
@@ -137,7 +138,7 @@ bool CDShapePair::ContDetect(unsigned ct, const Posed& pose0, const Posed& pose1
 				if (depth <= 0){
 					//	deltaの向きに進んで行って、接触した法線が normalだから、
 					//	normal * delta < 0になるはずだが、かする場合、計算誤差で>=0になることがある。
-					DSTR << "depth:" << depth << " delta * normal >= 0" << std::endl;
+//					DSTR << "depth:" << depth << " delta * normal >= 0" << std::endl;
 					return false;
 				}
 #ifdef HIT_COUNT
@@ -224,7 +225,7 @@ found:;
 
 	//	debug dump
 	if (depth > 5 || depth < 0){
-		DSTR << "depth=" << depth << std::endl;
+		//DSTR << "depth=" << depth << std::endl;
 		//assert(0);
 
 		// trueを返すと不正な接触が生成され数ステップ後に発散することが多いので，
@@ -237,6 +238,7 @@ found:;
 
 
 void CDShapePair::CalcNormal(){
+#if 0
 	if (state == NEW){
 		//	凸形状の中心を離す向きを仮法線にする．
 		normal = shapePoseW[1]*shape[1]->CalcCenterOfMass() - shapePoseW[0]*shape[0]->CalcCenterOfMass();
@@ -257,14 +259,13 @@ void CDShapePair::CalcNormal(){
 	}
 	//	前回の法線の向きに動かして，最近傍点を求める
 	Vec3d n = normal;
-
+#endif
+#if 0
 	// 前の方式　連続で判定している→動くがstaticでなくなる
-	/*
 	int res = FindCommonPointInterface(shape[0], shape[1], shapePoseW[0], shapePoseW[1], 
 		-normal, -DBL_MAX, 0, normal, closestPoint[0], closestPoint[1], depth);
-		*/
+#elif 0
 	//昔の方式　衝突を上手くとれない時があった
-	/*
 	if (state == NEW) {
 		//	新たな接触の場合は，法線を積分して初期値を求める
 		normal = iNormal;
@@ -288,31 +289,31 @@ void CDShapePair::CalcNormal(){
 	}
 	depth = depth - n.norm();			//	動かした距離 - 2点の距離
 	normal = n.unit();
-	//center += 0.5f*depth*normal;
-	*/
-
+	center += 0.5f*depth*normal;
+#else
 	//EPAで衝突法線を求める
-	int res = FindCommonPoint(shape[0], shape[1], shapePoseW[0], shapePoseW[1], n, closestPoint[0], closestPoint[1]);
-	if (res >= 1) {
-		p_timer->CountUS();
-
-		CalcEPA(n, shape[0], shape[1], shapePoseW[0], shapePoseW[1], closestPoint[0], closestPoint[1]);
-		depth = -1 * n.norm();
-		normal = n.unit();
-
-		coltimePhase1 += p_timer->CountUS();
+	qpTimerForCollision.CountNS();
+	Vec3d n = normal;
+	CalcEPA(n, shape[0], shape[1], shapePoseW[0], shapePoseW[1], closestPoint[0], closestPoint[1]);
+	depth = -1 * n.norm();
+	if (depth*depth > 0) {
+		normal = n / -depth;
 	}
-	
-	
-
+	else {
+		normal = (shapePoseW[1].Pos() - shapePoseW[0].Pos()).unit();
+	}
+	qpTimerForCollision.Accumulate(coltimePhase2);
+#if 0
 	if (res <= 0){
 		DSTR << "Error in CalcNormal(): res:" << res << "dist:" << depth << n << std::endl;
 		ContFindCommonPointSaveParam(shape[0], shape[1], shapePoseW[0], shapePoseW[1], 
 			-n, -DBL_MAX, 0, n, closestPoint[0], closestPoint[1], depth);
 	}
+#endif
 	depth *= -1;
 	center = shapePoseW[0] * closestPoint[0];
 	center -= 0.5f*depth*normal;				//	必ず、center *= -1なのか？なぜ？ 
+#endif	
 }
 
 

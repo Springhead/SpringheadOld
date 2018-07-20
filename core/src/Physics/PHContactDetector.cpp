@@ -6,7 +6,7 @@
  *  This license itself, Boost Software License, The MIT License, The BSD License.   
  */
 #include <Physics/PHContactDetector.h>
-#include <Foundation/UTPreciseTimer.h>
+#include <Foundation/UTQPTimer.h>
 
 #include <unordered_set>
 
@@ -17,9 +17,11 @@ using namespace std;
 
 namespace Spr{;
 
-#ifdef REPORT_TIME
-Spr::UTPreciseTimer ptimerForCd;
-#endif
+Spr::UTQPTimer ptimerForCd;
+Spr::UTQPTimer ptimerForGjk;
+UTLongLong& broadTime = UTPerformanceMeasure::GetInstance("Collision")->Count("broad");
+UTLongLong& narrowTime = UTPerformanceMeasure::GetInstance("Collision")->Count("narrow");
+extern UTLongLong& coltimePhase1;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // PHShapePair
@@ -65,11 +67,16 @@ bool PHSolidPair::Detect(unsigned int ct, double dt){
 	for(int i = 0; i < solid[0]->NShape(); i++)for(int j = 0; j < solid[1]->NShape(); j++){
 		sp = shapePairs.item(i, j);
 		//このshape pairの交差判定/法線と接触の位置を求める．
+		ptimerForGjk.Count();
 		if(sp->Detect(
 			ct,
 			solid[0]->GetPose() * solid[0]->GetShapePose(i), solid[1]->GetPose() * solid[1]->GetShapePose(j))){
 			found = true;
+			ptimerForGjk.Accumulate(coltimePhase1);
 			OnDetect(sp, ct, dt);
+		}
+		else {
+			ptimerForGjk.Accumulate(coltimePhase1);
 		}
 	}
 	return found;
@@ -115,12 +122,14 @@ bool PHSolidPair::ContDetect(unsigned int ct, double dt){
 	for(int i = 0; i < solid[0]->NShape(); i++)for(int j = 0; j < solid[1]->NShape(); j++){
 		sp = shapePairs.item(i, j);
 		//このshape pairの交差判定/法線と接触の位置を求める．
-		if(sp->ContDetect(ct, shapePose[0][i], shapePose[1][j], 
+		if (sp->ContDetect(ct, shapePose[0][i], shapePose[1][j],
 			//	剛体ではなく、形状の移動量なので、形状の中心位置で移動量を補正する。
 			delta[0] + (wt[0]^shapeCenter[0][i]),  delta[1] + (wt[1]^shapeCenter[1][j]), dt)){
+			ptimerForCd.Accumulate(narrowTime);
 			assert(0.9 < sp->normal.norm() && sp->normal.norm() < 1.1);
 			found = true;
 			OnContDetect(sp, ct, dt);
+			ptimerForCd.Count();
 		}
 	}
 	// フリーズの解除
@@ -537,9 +546,9 @@ bool PHContactDetector::DetectPair(
 
 bool PHContactDetector::Detect(unsigned ct, double dt, int mode, bool continuous){
 	if(NActiveSolidPairs() == 0) return false;
-
 	bool found = false;
 	
+	ptimerForCd.Count();
 	//	Sort and prune mode --------------------------------------------------------------------
 	if( mode >= PHSceneDesc::MODE_SORT_AND_SWEEP_X &&
 	    mode <= PHSceneDesc::MODE_SORT_AND_SWEEP_Z ){
@@ -570,14 +579,6 @@ bool PHContactDetector::Detect(unsigned ct, double dt, int mode, bool continuous
 		}				
 		std::sort(edges.begin(), edges.end());
 
-#ifdef REPORT_TIME
-		DSTR << "  assign:" << ptimerForCd.CountUS();
-		DSTR << endl;
-#endif
-
-#ifdef REPORT_TIME
-		ptimerForCd.CountUS();
-#endif
 		//端から見ていって，接触の可能性があるノードの判定をする．
 		typedef std::set<int> SolidSet;
 		SolidSet cur;							//	現在のSolidのセット
@@ -591,17 +592,13 @@ bool PHContactDetector::Detect(unsigned ct, double dt, int mode, bool continuous
 					int f2 = *itf;
 					if (f1 > f2) std::swap(f1, f2);
 					//2. SolidとSolidの衝突判定
-#ifdef REPORT_TIME
-					ptimerForCd.Stop();
-#endif
+					ptimerForCd.Accumulate(broadTime);
 					if (continuous){
 						found |= solidPairs.item(f1, f2)->ContDetect(ct, dt);
 					}else{
 						found |= solidPairs.item(f1, f2)->Detect(ct, dt);
 					}
-#ifdef REPORT_TIME
-					ptimerForCd.Start();
-#endif
+					ptimerForCd.Accumulate(narrowTime);
 				}
 				cur.insert(it->index);
 #ifdef _DEBUG
@@ -611,28 +608,15 @@ bool PHContactDetector::Detect(unsigned ct, double dt, int mode, bool continuous
 				cur.erase(it->index);			//	終端なので削除．
 			}
 		}
-#ifdef REPORT_TIME
-		DSTR << "  narrow:" << ptimerForCd.CountUS();
-#endif
+		ptimerForCd.Accumulate(broadTime);
 	//	Cell mode --------------------------------------------------------------------
 	}else{
-			// 各形状のAABBを計算
-#ifdef REPORT_TIME
-			ptimerForCd.CountUS();
-#endif
-			int nsolids = (int)solids.size();
-			for(int i = 0; i < nsolids; ++i){
-				PHSolid* solid = solids[i];
-				solid->CalcAABB();
-			}
-#ifdef REPORT_TIME
-			DSTR << "  aabb:" << ptimerForCd.CountUS();
-#endif
-
-#ifdef REPORT_TIME
-		ptimerForCd.CountUS();
-#endif
-
+		// 各形状のAABBを計算
+		int nsolids = (int)solids.size();
+		for(int i = 0; i < nsolids; ++i){
+			PHSolid* solid = solids[i];
+			solid->CalcAABB();
+		}
 		// 各形状を領域に分類
 		cellOutside.shapes.clear();
 		for(int c = 0; c < (int)cells.size(); c++)
@@ -688,14 +672,6 @@ bool PHContactDetector::Detect(unsigned ct, double dt, int mode, bool continuous
 				}
 			}
 		}
-#ifdef REPORT_TIME
-		DSTR << "  assign:" << ptimerForCd.CountUS();
-		DSTR << endl;
-#endif
-
-#ifdef REPORT_TIME
-		ptimerForCd.CountUS();
-#endif
 		nBroad  = 0;
 		nNarrow = 0;
 		// 各セルについて交差判定
@@ -717,10 +693,6 @@ bool PHContactDetector::Detect(unsigned ct, double dt, int mode, bool continuous
 		for(int s0 = 1; s0 < noutside; s0++)for(int s1 = 0; s1 < s0; s1++)
 			found |= DetectPair(cellOutside.shapes[s0], cellOutside.shapes[s1], ct, dt, continuous);
 	}
-#ifdef REPORT_TIME
-	DSTR << "  check:" << ptimerForCd.CountUS();
-	DSTR << "total: " << NActiveShapePairs() << " broad : " << nBroad << "  narrow: " << nNarrow << std::endl;
-#endif
 	return found;
 
 }

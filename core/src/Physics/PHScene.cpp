@@ -18,7 +18,7 @@
 #include <Physics/PHOpEngine.h>
 #include <sstream>
 
-#include <Foundation/UTPreciseTimer.h>
+#include <Foundation/UTQPTimer.h>
 
 namespace Spr{;
 
@@ -27,7 +27,8 @@ namespace Spr{;
 void PHSceneDesc::Init(){
 	PHSceneState::Init();
 	gravity				     = Vec3d(0.0, -9.8, 0.0);
-	airResistanceRate	     = 1.0;
+	airResistanceRateForVelocity	 = 1.0;
+	airResistanceRateForAngularVelocity	 = 1.0;
 	contactTolerance         = 0.002;
 	impactThreshold          = 10.0;
 	frictionThreshold        = 0.01;
@@ -52,9 +53,11 @@ PHScene::~PHScene() {
 PHScene::PHScene(const PHSceneDesc& desc):PHSceneDesc(desc){
 	Init();
 }
+
 void PHScene::Init(){
 	engines.scene = this;
 	Scene::Clear();
+	performanceMeasure = UTPerformanceMeasure::CreateInstance("PHScene");
 
 	// エンジン作成
 	solids = DBG_NEW PHSolidContainer;
@@ -69,7 +72,7 @@ void PHScene::Init(){
 	penaltyEngine = DBG_NEW PHPenaltyEngine;
 	engines.Add(penaltyEngine);
 	
-	constraintEngine = DBG_NEW PHConstraintEngine;
+	constraintEngine = DBG_NEW PHConstraintEngine(performanceMeasure);
 	engines.Add(constraintEngine);
 
 	ikEngine = DBG_NEW PHIKEngine;
@@ -309,19 +312,19 @@ void PHScene::SetTimeStep(double dt){
 	timeStepInv = 1.0/dt;
 }
 
-static UTPreciseTimer ptimer;
+static UTQPTimer ptimerSce;
 
 void PHScene::Step(){
 	int t0, t1, t2;
-	ptimer.CountUS();
+	ptimerSce.CountUS();
 	ClearForce();
-	t0 = ptimer.CountUS();
-	ptimer.CountUS();
+	t0 = ptimerSce.CountUS();
+	ptimerSce.CountUS();
 	GenerateForce();
-	t1 = ptimer.CountUS();
-	ptimer.CountUS();
+	t1 = ptimerSce.CountUS();
+	ptimerSce.CountUS();
 	Integrate();
-	t2 = ptimer.CountUS();
+	t2 = ptimerSce.CountUS();
 	//DSTR << "clear: " << t0 << " gen: " << t1 << " int: " << t2 << std::endl;
 }
 void PHScene::ClearForce(){

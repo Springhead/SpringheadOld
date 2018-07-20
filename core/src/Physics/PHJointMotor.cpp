@@ -532,8 +532,8 @@ Vec3d PHHumanBallJointResistance::GetCurrentResistance() {
 /// propVを計算する
 PTM::TVector<6,double> PHSpringMotor::GetPropV() {
 	Vec6d propV;
-	Quaterniond diff = joint->Xjrel.q.Inv();
-	propV.SUBVEC(0,3) = -joint->Xjrel.r;
+	Quaterniond diff = DCAST(PHSpring,joint)->targetOrientation * joint->Xjrel.q.Inv();
+	propV.SUBVEC(0,3) = DCAST(PHSpring, joint)->targetPosition - joint->Xjrel.r;
 	propV.SUBVEC(3,3) = diff.RotationHalf();
 	return propV;
 }
