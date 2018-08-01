@@ -227,8 +227,8 @@ public:
 			}
 		
 		}
-		for(int i=0; i<UTPerformanceMeasure::NInstance(); ++i){
-			UTPerformanceMeasure* m = UTPerformanceMeasure::GetInstance(i);
+		for(int i=0; i<UTPerformanceMeasureIf::NInstance(); ++i){
+			UTPerformanceMeasureIf* m = UTPerformanceMeasureIf::GetInstance(i);
 			DSTR << m->GetName();
 			for (int j = 0; j < m->NCounter(); ++j) {
 				DSTR << " " << m->GetNameOfCounter(j) << ":" << m->Time(j);
@@ -237,10 +237,10 @@ public:
 		}
 
 		//時間表示
-		UTPerformanceMeasure* meScene = GetPHScene()->GetPerformanceMeasure();
+		UTPerformanceMeasureIf* meScene = GetPHScene()->GetPerformanceMeasure();
 		avePool += meScene->Time("collision");
 		meScene->ClearCounts();
-		UTPerformanceMeasure* meCol = UTPerformanceMeasure::GetInstance("Collision");
+		UTPerformanceMeasureIf* meCol = UTPerformanceMeasureIf::GetInstance("Collision");
 		aveNarrow += meCol->Time("narrow");
 		aveBroad += meCol->Time("broad");
 		avePhaseTime[0] += meCol->Time("P1");
