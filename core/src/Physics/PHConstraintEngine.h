@@ -121,7 +121,7 @@ public:
 	UTLongLong& timeIterate;
 
 public:
-	PHConstraintEngine(UTPerformanceMeasure* pm = (UTPerformanceMeasure*)UTPerformanceMeasure::GetInstance("global"));
+	PHConstraintEngine(UTPerformanceMeasureIf* pm = UTPerformanceMeasureIf::GetInstance("global"));
 	~PHConstraintEngine();
 	
 	PHJoint*    CreateJoint(const IfInfo* ii, const PHJointDesc& desc, PHSolid* lhs = NULL, PHSolid* rhs = NULL);	///< 関節の追加する
