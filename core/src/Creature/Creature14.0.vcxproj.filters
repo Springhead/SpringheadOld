@@ -132,9 +132,7 @@
     <ClInclude Include="SprCRMinimumTorqueChangePlanner.h">
       <Filter>include</Filter>
     </ClInclude>
-    <ClInclude Include="SprCRMinimumJerkTrajectory.h">
-      <Filter>include</Filter>
-    </ClInclude>
+    <ClInclude Include="..\..\include\Creature\SprCRTimeSeries.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="include">

@@ -47,18 +47,20 @@ public:
 
 	PTM::TVector<6, T> coefficient;
 
+	void CompCoefficient();
+
 	// VecNd‚Å‚ ‚ê‚ÎŒW”Œˆ‚ß‘Å‚¿‚Ås‚¯‚é‚Ì‚ÅGet‚·‚é‚Æ‚«‚ÌŒvŽZ‚Ås‚¯‚é‚Í‚¸
 	CRNDMinimumJerkTrajectory() {};
 
-	virtual void SetStartPosition(T sp) { this->startPosition = sp; }
-	virtual void SetStartVelocity(T sv) { this->startVelocity = sv; }
-	virtual void SetStartAcceralation(T sa) { this->startAcceralation = sa; }
-	virtual void SetStartTime(float st) { this->startTime = st; }
+	virtual void SetStartPosition(T sp) { this->startPosition = sp; CompCoefficient(); }
+	virtual void SetStartVelocity(T sv) { this->startVelocity = sv; CompCoefficient(); }
+	virtual void SetStartAcceralation(T sa) { this->startAcceralation = sa; CompCoefficient(); }
+	virtual void SetStartTime(float st) { this->startTime = st; CompCoefficient(); }
 
-	virtual void SetGoalPosition(T gp) { this->goalPosition = gp; }
-	virtual void SetGoalVelocity(T gv) { this->goalVelocity = gv; }
-	virtual void SetGoalAcceralation(T ga) { this->goalAcceralation = ga; }
-	virtual void SetGoalTime(float gt) { this->goalTime = gt; }
+	virtual void SetGoalPosition(T gp) { this->goalPosition = gp; CompCoefficient(); }
+	virtual void SetGoalVelocity(T gv) { this->goalVelocity = gv; CompCoefficient(); }
+	virtual void SetGoalAcceralation(T ga) { this->goalAcceralation = ga; CompCoefficient(); }
+	virtual void SetGoalTime(float gt) { this->goalTime = gt; CompCoefficient(); }
 
 	virtual T GetPosition(float t);
 	virtual T GetVelocity(float t);
@@ -78,6 +80,12 @@ protected:
 	CREulerAngleMinimumJerkTrajectory velocityTrajectory;
 public:
 	Quaterniond startPosition, goalPosition;
+
+	CRQuaternionMinimumJerkTrajectory() {
+		positionCoefficient = CRNDMinimumJerkTrajectory<double>();
+		positionCoefficient.SetStartPosition(0.0);
+		positionCoefficient.SetGoalPosition(1.0);
+	}
 
 	virtual void SetStartPosition(Quaterniond sp) { this->startPosition = sp; }
 	virtual void SetStartVelocity(Vec3d sv) { this->velocityTrajectory.SetStartVelocity(sv); }
@@ -99,6 +107,9 @@ protected:
 	CRPositionMinimumJerkTrajectory positionTrajectory;
 	CRQuaternionMinimumJerkTrajectory orientationTrajectory;
 public:
+
+	CRPoseMinimumJerkTrajectory() {};
+
 	virtual void SetStartPosition(Posed sp) { this->positionTrajectory.SetStartPosition(sp.Pos()); this->orientationTrajectory.SetStartPosition(sp.Ori()); }
 	virtual void SetStartVelocity(SpatialVector sv) { this->positionTrajectory.SetStartVelocity(sv.v()); this->orientationTrajectory.SetGoalVelocity(sv.w()); }
 	virtual void SetStartAcceralation(SpatialVector sa) { this->positionTrajectory.SetStartAcceralation(sa.v()); this->orientationTrajectory.SetStartAcceralation(sa.w()); }

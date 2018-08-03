@@ -9,6 +9,24 @@
 #include <Creature/CRMinimumJerkTrajectory.h>
 
 namespace Spr { ; 
+
+template<class T>
+void CRNDMinimumJerkTrajectory<T>::CompCoefficient() {
+	double duration = goalTime - startTime;
+
+	coefficient[0] = startPosition;
+	coefficient[1] = startVelocity;
+	coefficient[2] = startAcceralation / 2;
+	coefficient[3] = ((-3 * startAcceralation + goalAcceralation) * pow(duration, 2) / 2
+		- (6 * startVelocity + 4 * goalVelocity) * duration
+		- 10 * (startPosition - goalPosition)) / pow(duration, 3);
+	coefficient[4] = ((3 * startAcceralation - 2 * goalAcceralation) * pow(duration, 2) / 2
+		+ (8 * startVelocity + 7 * goalVelocity) * duration
+		+ 15 * (startPosition - goalPosition)) / pow(duration, 4);
+	coefficient[5] = ((-startAcceralation + goalAcceralation) * pow(duration, 2) / 2
+		- 3 * (startVelocity + goalVelocity) * duration
+		- 6 * (startPosition - goalPosition)) / pow(duration, 5);
+}
 template<class T>
 T CRNDMinimumJerkTrajectory<T>::GetPosition(float t){
 	if (t < startTime) {
@@ -20,32 +38,26 @@ T CRNDMinimumJerkTrajectory<T>::GetPosition(float t){
 	double r = t - startTime;
 	double s = (t - startTime) / (goalTime - startTime);
 
-	double duration = goalTime - startTime;
-
-	coefficient[0] = startPosition;
-	coefficient[1] = startVelocity;
-	coefficient[2] = startAcceralation / 2;
-	coefficient[3] = ((-3 * startAcceralation + goalAcceralation) * pow(duration, 2) / 2
-		              - (6 * startVelocity + 4 * goalVelocity) * duration
-		              - 10 * (startPosition - goalPosition)) / pow(duration, 3);
-	coefficient[4] = ((3 * startAcceralation - 2 * goalAcceralation) * pow(duration, 2) / 2
-		              + (8 * startVelocity + 7 * goalVelocity) * duration
-		              + 15 * (startPosition - goalPosition)) / pow(duration, 4);
-	coefficient[5] = ((-startAcceralation + goalAcceralation) * pow(duration, 2) / 2
-		              - 3 * (startVelocity + goalVelocity) * duration
-		              - 6 * (startPosition - goalPosition)) / pow(duration, 5);
-
 	return coefficient * Vec6d(1, r, pow(r, 2), pow(r, 3), pow(r, 4), pow(r, 5));
 }
 
 template<class T>
 T CRNDMinimumJerkTrajectory<T>::GetVelocity(float t) {
-	return T();
+	if (t < startTime) {
+		return startPosition;
+	}
+	else if (goalTime < t) {
+		return goalPosition;
+	}
+	double r = t - startTime;
+	double s = (t - startTime) / (goalTime - startTime);
+
+	return coefficient * Vec6d(0, 1, 2 * r, 3 * pow(r, 2), 4 * pow(r, 3), 5 * pow(r, 4));
 }
 
 template<class T>
 T CRNDMinimumJerkTrajectory<T>::GetDeltaPosition(float t) {
-	return T();
+	return this->GetPosition(t) - startPosition;
 }
 
 Quaterniond CRQuaternionMinimumJerkTrajectory::GetPosition(float t) {
@@ -56,7 +68,7 @@ Quaterniond CRQuaternionMinimumJerkTrajectory::GetPosition(float t) {
 		return goalPosition;
 	}
 	double s = (double)(t - startTime) / (goalTime - startTime);
-	double sr = 10 * pow(s, 3) - 15 * pow(s, 4) + 6 * pow(s, 5);
+	double sr = positionCoefficient.GetPosition(t);
 	Quaterniond pos = interpolate(sr, startPosition, goalPosition);
 
 	Vec3d compVel = velocityTrajectory.GetPosition(t);
@@ -67,7 +79,10 @@ Quaterniond CRQuaternionMinimumJerkTrajectory::GetPosition(float t) {
 }
 
 Vec3d CRQuaternionMinimumJerkTrajectory::GetVelocity(float t) {
-	return Vec3d();
+	Quaterniond delta = GetPosition(t + 0.01) * GetPosition(t - 0.01).Inv();
+	Vec3d vel = Vec3d();
+	delta.ToEuler(vel);
+	return Vec3d(vel.z, vel.x, vel.y) * 50;
 }
 
 Quaterniond CRQuaternionMinimumJerkTrajectory::GetDeltaPosition(float t) {
