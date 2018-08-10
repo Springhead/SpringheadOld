@@ -404,6 +404,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\include\Creature\SprCRReachController.h" />
+    <ClInclude Include="..\..\include\Creature\SprCRTimeSeries.h" />
     <ClInclude Include="CRBody.h" />
     <ClInclude Include="CRBone.h" />
     <ClInclude Include="CRCreature.h" />
