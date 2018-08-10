@@ -95,10 +95,10 @@ public:
  */
 class FWApp : public FWAppBase {
 protected:
+	static FWApp* instance;			///<	唯一のFWAppインスタンス
 	bool bThread;					///<	GLUTを別スレッドで動かす場合 true
 	volatile bool bPostRedisplay;	///<	別スレッドに再描画の要求をするためのフラグ true で再描画
-	static FWApp* instance; ///< 唯一のFWAppインスタンス
-	
+
 	// ウィンドウ
 	typedef std::vector< UTRef<FWWinIf> > Wins;
 	Wins wins;
