@@ -31,4 +31,5 @@ Expected	-1
 [unix]
 Build		True
 Run		True
+Expected	255	# exit status value '-1' is out of range on unix.
 

@@ -28,7 +28,4 @@ Descend		False
 #[Windows]
 
 #[unix]
-#SolutionAlias	Makefile
-#OutputDir	.
-#BinaryOutName	a.out
 
