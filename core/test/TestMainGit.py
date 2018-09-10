@@ -34,8 +34,9 @@
 #	Ver 1.3  2018/08/16 F.Kanehori	Do not make documents on unix.
 #	Ver 1.4  2018/09/04 F.Kanehori	Test on unix released.
 #	Ver 1.41 2018/09/06 F.Kanehori	Bug fixed.
+#	Ver 1.42 2018/09/10 F.Kanehori	Bug fixed.
 # ======================================================================
-version = 1.41
+version = 1.42
 
 import sys
 import os
@@ -422,6 +423,7 @@ if check_exec('DAILYBUILD_COPYTO_BUILDLOG', unix_copyto_buildlog):
 		logdir = '%s/log' % testdir
 		#
 		copy_all(logdir, webbase, False, dry_run)
+	os.chdir(repository)
 
 # ----------------------------------------------------------------------
 #  Make document (doxygen).
