@@ -426,6 +426,7 @@ if check_exec('DAILYBUILD_COPYTO_BUILDLOG', unix_copyto_buildlog):
 		logdir = '%s/log' % testdir
 		#
 		copy_all(logdir, webbase, False, dry_run)
+	os.chdir(repository)
 
 # ----------------------------------------------------------------------
 #  Make document (doxygen).
