@@ -1,4 +1,4 @@
-﻿######################################################################
+######################################################################
 #  Makefile for processing tex source and convert dvi to pdf format.
 #
 #  Usage:
@@ -23,8 +23,7 @@ SRCS	=\
 	1.WhatIsDailyBuild.tex		\
 	2.RoutineWork.tex		\
 	3.WikiMaintenance.tex		\
-	4.VisualStudioVersion.tex	\
-	5.Task.tex			\
+	4.Task.tex			\
 	6.0.Script.tex			\
 	6.1.0.TestMain.tex		\
 	6.1.1.TestAll.tex		\
@@ -36,7 +35,7 @@ SRCS	=\
 	LastUpdate.tex
 
 TIMESTAMPFILE	= timestamp.tex
-CLEANS	= *.pdf *.dvi *.log *.aux *.toc *.ilg $(TIMESTAMPFILE)
+CLEANS	= *.pdf *.dvi *.log *.aux *.toc *.ilg *.bak *~ $(TIMESTAMPFILE)
 
 PLATEX	= platex
 MENDEF	= mendex

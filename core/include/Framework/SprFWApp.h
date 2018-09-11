@@ -94,11 +94,11 @@ public:
 	仮想関数をオーバライドすることによって独自機能を実装する．
  */
 class FWApp : public FWAppBase {
-	bool bThread;
-	bool bPostRedisplay;
 protected:
-	static FWApp* instance; ///< 唯一のFWAppインスタンス
-	
+	static FWApp* instance;			///<	唯一のFWAppインスタンス
+	bool bThread;					///<	GLUTを別スレッドで動かす場合 true
+	volatile bool bPostRedisplay;	///<	別スレッドに再描画の要求をするためのフラグ true で再描画
+
 	// ウィンドウ
 	typedef std::vector< UTRef<FWWinIf> > Wins;
 	Wins wins;

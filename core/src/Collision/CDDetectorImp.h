@@ -113,7 +113,7 @@ int FASTCALL ContFindCommonPointGino(const CDConvex* a, const CDConvex* b,
 ///	デバッグ用のツール。ファイルに引数を保存する。
 void FASTCALL ContFindCommonPointSaveParam(const CDConvex* a, const CDConvex* b,
 	const Posed& a2w, const Posed& b2w, const Vec3d& dir, double start, double end, 
-	Vec3d& normal, Vec3d& pa, Vec3d& pb, double& dist);
+	Vec3d& normal, Vec3d& pa, Vec3d& pb, double& dist, const char* exName="");
 ///	デバッグ用のツール。
 void ContFindCommonPointCall(std::istream& file, PHSdkIf* sdk);
 

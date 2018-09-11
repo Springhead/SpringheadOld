@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # ======================================================================
 #  SYNOPSIS:
-#	TestMainGit [options]
+#	TestMainGit [options] test-repository result-repository
 #	options:
 #	    -c CONF:	    Test configuration (Debug, Release or Trace).
 #	    -p PLAT:	    Test platform (x86 or x64)
@@ -13,10 +13,14 @@
 #	    -D:		    Show command but do not execute it.
 #	    -V:		    Show version.
 #
+#	test-repository, result-repository:
+#	    Relative to the directory where Springhead directory exists.
+#
 #  DESCRIPTION:
 #	Execute dailybuild test.
 #	On unix machine, some test steps' execution can be controlled by
 #	following parameters;
+#	    unix_commit_resultlog:  Commit "result.log" and "Springhead.commit.id".
 #	    unix_gen_history:	    Generate "History.log" and "Test.date".
 #	    unix_copyto_buildlog:   Copy log files to the server.
 #	    unix_execute_makedoc:   Make cocumentations.
@@ -27,12 +31,11 @@
 #	Ver 1.0  2018/03/05 F.Kanehori	First version.
 #	Ver 1.1  2018/04/26 F.Kanehori	Commit result.log to git server.
 #	Ver 1.2  2018/05/01 F.Kanehori	Git pull for DailyBuild/Result.
-#	Ver 1.21 2018/05/08 F.Kanehori	Change VersionControlSystem args.
-#	Ver 1.22 2018/05/10 F.Kanehori	Add git config.
-#	Ver 1.23 2018/05/14 F.Kanehori	Add snap message for debug.
-#	Ver 1.24 2018/05/17 F.Kanehori	Rewrite code about "git push" .
+#	Ver 1.3  2018/08/16 F.Kanehori	Do not make documents on unix.
+#	Ver 1.4  2018/09/04 F.Kanehori	Test on unix released.
+#	Ver 1.5  2018/09/10 F.Kanehori	RevisionInfo.py implemented.
 # ======================================================================
-version = 1.24
+version = 1.5
 
 import sys
 import os
@@ -57,9 +60,10 @@ from TextFio import *
 # ----------------------------------------------------------------------
 #  Control parameter for test on unix.
 #
-unix_gen_history	= Util.is_windows()
-unix_copyto_buildlog	= Util.is_windows()
-unix_execute_makedoc	= True
+unix_commit_resultlog	= True
+unix_gen_history	= True
+unix_copyto_buildlog	= True
+unix_execute_makedoc	= Util.is_windows()
 unix_copyto_webbase	= Util.is_windows()
 
 # ----------------------------------------------------------------------
@@ -70,6 +74,8 @@ result_log = 'result.log'
 history_log = 'History.log'
 date_record = 'Test.date'
 commit_id = 'Springhead.commit.id'
+log_user = 'demo'
+log_server = 'haselab.net'
 
 # ----------------------------------------------------------------------
 #  Local methods.
@@ -94,7 +100,7 @@ def check_exec(name, os_type=True):
 	# and its value is 'skip'.  Return True otherwise.
 	if not os_type:
 		os_name = 'unix' if Util.is_unix() else 'Windows'
-		print('do not exec ..%s.. by %s' % (name, os_name))
+		print('do not exec ..%s.. on %s' % (name, os_name))
 		return False
 	#
 	val = os.getenv(name)
@@ -239,6 +245,15 @@ if not os.path.exists('core/test/bin'):
 	Error(prog).abort(msg)
 
 # ----------------------------------------------------------------------
+#  Remove log files.
+#
+Print('clearing log files')
+os.chdir('%s/log' % testdir)
+fop = FileOp(info=1, dry_run=dry_run, verbose=verbose)
+fop.rm('*')
+os.chdir(repository)
+
+# ----------------------------------------------------------------------
 #  Test Go!
 #
 if check_exec('DAILYBUILD_EXECUTE_TESTALL'):
@@ -282,12 +297,12 @@ if check_exec('DAILYBUILD_EXECUTE_TESTALL'):
 # ----------------------------------------------------------------------
 #  Generate sprphys/Springhead HEAD commit-id file.
 #
-if check_exec('DAILYBUILD_COMMIT_RESULTLOG', unix_copyto_buildlog):
+if check_exec('DAILYBUILD_COMMIT_RESULTLOG', unix_commit_resultlog):
 	Print('generating sprphys/Springhead HEAD commit-id file')
 	logdir = '%s/log' % testdir
 	os.chdir(logdir)
 	#
-	cmnd = 'python ../bin/VersionControlSystem.py -G HEAD'
+	cmnd = 'python ../bin/RevisionInfo.py -S HEAD'
 	proc = Proc(verbose=verbose, dry_run=dry_run)
 	rc = proc.execute(cmnd, shell=shell,
 			  stdout=commit_id, stderr=Proc.STDOUT).wait()
@@ -296,24 +311,34 @@ if check_exec('DAILYBUILD_COMMIT_RESULTLOG', unix_copyto_buildlog):
 # ----------------------------------------------------------------------
 #  Commit and push log files commit-id file to test result repository.
 #
-if check_exec('DAILYBUILD_COMMIT_RESULTLOG', unix_copyto_buildlog):
+if check_exec('DAILYBUILD_COMMIT_RESULTLOG', unix_commit_resultlog):
 	Print('copying test result and commit-id to test result repository')
+	if Util.is_unix():
+		target_dir = '%s/unix' % result_repository
+		cert_dir = '../../..'
+		aux_msg = '(unix)'
+	else:
+		target_dir = result_repository
+		cert_dir = '../..'
+		aux_msg = '(Windows)'
 	logdir = '%s/log' % testdir
 	os.chdir(logdir)
 	#
 	logfiles = ['result.log']
 	fop = FileOp()
 	for f in logfiles:
-		fop.cp(f, '%s/%s' % (result_repository, f))
-	fop.cp(commit_id, '%s/%s' % (result_repository, commit_id))
+		fop.cp(f, '%s/%s' % (target_dir, f))
+	fop.cp(commit_id, '%s/%s' % (target_dir, commit_id))
 	flush()
 	#
 	Print('committing files to test result repository.')
-	os.chdir(result_repository)
+	os.chdir(target_dir)
 	cmnds = [
+		'git config --global push.default simple',
 		'git config --global user.name "DailyBuild"',
-		'git commit --message="today\'s test result" %s %s' % \
-			(' '.join(logfiles), commit_id)
+		'git pull',
+		'git commit --message="today\'s test result %s" %s %s' % \
+			(aux_msg, ' '.join(logfiles), commit_id)
 	]
 	proc = Proc(verbose=verbose, dry_run=dry_run)
 	for cmnd in cmnds:
@@ -323,7 +348,7 @@ if check_exec('DAILYBUILD_COMMIT_RESULTLOG', unix_copyto_buildlog):
 		if rc != 0:
 			break
 	if rc == 0:
-		user = get_username('../../hasegit.user')
+		user = get_username('%s/hasegit.user' % cert_dir)
 		cmnd = 'git push http://%s@git.haselab.net/DailyBuild/Result' % user
 		print('## %s' % cmnd)
 		rc = proc.execute(cmnd, shell=shell).wait()
@@ -343,8 +368,11 @@ if check_exec('DAILYBUILD_GEN_HISTORY', unix_gen_history):
 	#
 	hist_path = '%s/%s' % (logdir, history_log)
 	extract = 'result.log'
-	cmnd = 'python ../bin/VersionControlSystem.py'
-	args = '-H -f %s all' % extract
+	cmnd = 'python ../bin/RevisionInfo.py'
+	if Util.is_unix():
+		args = '-R -u -f %s all' % extract
+	else:
+		args = '-R -f %s all' % extract
 	proc = Proc(verbose=verbose, dry_run=dry_run)
 	proc.execute([cmnd, args], shell=shell, stdout=hist_path).wait()
 	flush()
@@ -377,11 +405,27 @@ if check_exec('DAILYBUILD_GEN_HISTORY', unix_gen_history):
 if check_exec('DAILYBUILD_COPYTO_BUILDLOG', unix_copyto_buildlog):
 	Print('copying log files to web')
 	#
-	docroot = '//haselab/HomeDirs/WWW/docroots'
-	webbase = '%s/springhead/dailybuild/log' % docroot
-	logdir = '%s/log' % testdir
-	#
-	copy_all(logdir, webbase, False, dry_run)
+	if Util.is_unix():
+		tohost = '%s@%s' % (log_user, log_server)
+		todir = '/home/WWW/docroots/springhead/dailybuild/log.unix'
+		fmdir = os.path.abspath('%s/log' % testdir)
+		proc = Proc(verbose=verbose, dry_run=dry_run)
+		pkey = '%s/.ssh/id_rsa' % os.environ['HOME']
+		opts = '-i %s -o "StrictHostKeyChecking=no"' % pkey
+		cmnd = 'scp %s %s/* %s:%s' % (opts, fmdir, tohost, todir)
+		print('## %s' % cmnd)
+		rc = proc.execute(cmnd, shell=True).wait()
+		if rc == 0:
+			print('cp %s -> %s:%s' % (fmdir, tohost, todir))
+		else:
+			print('cp %s failed' % fmdir)
+	else:
+		dirname = 'log'
+		docroot = '//haselab/HomeDirs/WWW/docroots'
+		webbase = '%s/springhead/dailybuild/%s' % (docroot, dirname)
+		logdir = '%s/log' % testdir
+		#
+		copy_all(logdir, webbase, False, dry_run)
 	os.chdir(repository)
 
 # ----------------------------------------------------------------------

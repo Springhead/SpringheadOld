@@ -57,11 +57,11 @@
 #	Ver 1.2  2017/11/16 F.Kanehori	Python library path の変更.
 #	Ver 1.3  2017/12/20 F.Kanehori	GitHub 版実装.
 #	Ver 1.4  2018/01/18 F.Kanehori	Add get_file_content().
-#	Ver 1.41 2018/02/19 F.Kanehori	Bug fixed.
-#	Ver 1.42 2018/03/14 F.Kanehori	Dealt with new Proc class.
-#	Ver 1.43 2018/03/19 F.Kanehori	Dealt with Proc.output() change.
 #	Ver 1.5  2018/05/08 F.Kanehori	Code reviewd.
 #	Ver 1.6  2018/05/14 F.Kanehori	Use sprphys's commit id.
+#	Ver 1.61 2018/08/21 F.Kanehori	Bug fixed.
+#	Ver 1.62 2018/08/30 F.Kanehori	Bug fixed.
+#	Ver 1.63 2018/08/30 F.Kanehori	Buf fixed: history log on unix.
 # ======================================================================
 import sys
 import os
@@ -87,7 +87,7 @@ class VersionControlSystem:
 	#
 	def __init__(self, system, url, wrkdir='.', verbose=0):
 		self.clsname = self.__class__.__name__
-		self.version = 1.6
+		self.version = 1.62
 		#
 		self.system = system
 		self.url = Util.upath(url)
@@ -228,7 +228,8 @@ class VersionControlSystem:
 					info = [short_id, long_id, date]
 					if commit_id in [short_id, 'HEAD']:
 						return info
-					infos.append(info)
+					if commit_id == 'all':
+						infos.append(info)
 			return infos
 
 		def get_file_content(self, path, commit_id):
@@ -242,12 +243,15 @@ class VersionControlSystem:
 
 		def __exec(self, url, cmnd):
 			cmnd1 = cmnd
-			cmnd2 = 'nkf -s'
+			cmnd2 = 'nkf -w' if Util.is_unix() else 'nkf -s'
+			shell = True if Util.is_unix() else False
 			proc1 = Proc(verbose=self.verbose)	# git
 			proc2 = Proc(verbose=self.verbose)	# nkf
-			proc1.execute(cmnd1, stdout=Proc.PIPE, stderr=Proc.STDOUT)
+			proc1.execute(cmnd1, stdout=Proc.PIPE, stderr=Proc.STDOUT,
+					     shell=shell)
 			proc2.execute(cmnd2, stdin=proc1.proc.stdout,
-					     stdout=Proc.PIPE, stderr=Proc.STDOUT)
+					     stdout=Proc.PIPE, stderr=Proc.STDOUT,
+					     shell=shell)
 			status, out, err = proc2.output()
 			return status, out, err
 
@@ -302,6 +306,9 @@ if __name__ == '__main__':
 	parser.add_option('-f', '--fname', dest='fname',
 				action='store', default=None,
 				help='get file content')
+	parser.add_option('-u', '--unix', dest='unix',
+				action='store_true', default=False,
+				help='run on unix')
 	parser.add_option('-v', '--verbose', dest='verbose',
 				action='count', default=0,
 				help='set verbose mode')
@@ -320,6 +327,7 @@ if __name__ == '__main__':
 	repo_sub = options.subversion
 	repo_git = options.github
 	repo_hlb = options.haselab
+	fname = options.fname
 	verbose = options.verbose
 	revision = args[0]
 
@@ -397,6 +405,9 @@ if __name__ == '__main__':
 	repository = repository_def[system]
 	url = repository['url']
 	wrkdir = repository['dir']
+	if options.unix:
+		wrkdir += '/unix'
+		fname = 'unix/' + fname
 
 	if system == 'Subversion':
 		test(system, url, srkdir, verbose)
@@ -407,7 +418,7 @@ if __name__ == '__main__':
 			if not isinstance(revs[0], list):
 				revs = [revs]
 			for rev in revs:
-				contents(wrkdir, options.fname, rev)
+				contents(wrkdir, fname, rev)
 		else:
 			revisions = info(system, url, wrkdir, revision)
 
