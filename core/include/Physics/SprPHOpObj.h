@@ -359,6 +359,8 @@ struct PHOpHapticControllerIf : public SceneObjectIf{
 	void setC_ObstacleRadius(float r);
 	Vec3f GetUserPos();
 	Vec3f GetHCPosition();
+	void SetHCReady(bool flag);
+	bool GetHCReady();
 	void SetHCPosition(Vec3f pos);
 	void SetHCPose(Posef pose);
 	Posef GetHCPose();
