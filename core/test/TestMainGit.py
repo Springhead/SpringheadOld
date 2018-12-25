@@ -34,8 +34,9 @@
 #	Ver 1.3  2018/08/16 F.Kanehori	Do not make documents on unix.
 #	Ver 1.4  2018/09/04 F.Kanehori	Test on unix released.
 #	Ver 1.5  2018/09/10 F.Kanehori	RevisionInfo.py implemented.
+#	Ver 1.51 2018/12/25 F.Kanehori	Bug fixed.
 # ======================================================================
-version = 1.5
+version = 1.51
 
 import sys
 import os
@@ -224,7 +225,7 @@ shell = True if Util.is_unix() else False
 
 print('Test parameters:')
 if Util.is_windows():
-	print('   toolset id:      [%s]' % toolset)
+	print('   toolset id:        [%s]' % toolset)
 print('   platform:          [%s]' % plat)
 print('   configuration:     [%s]' % conf)
 print('   test repository:   [%s]' % repository)
@@ -289,7 +290,7 @@ if check_exec('DAILYBUILD_EXECUTE_TESTALL'):
 		stat = proc.wait()
 		if (stat != 0):
 			msg = 'test failed (%d)' % stat
-			Error(proc).abort(msg, exitcode=stat)
+			Error(prog).abort(msg, exitcode=stat)
 		flush()
 	#
 	os.chdir(repository)
