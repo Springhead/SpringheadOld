@@ -10,6 +10,7 @@
 #endif
 #include <Physics/PHOpParticle.h>
 #include <Physics/PHOpGroup.h>
+#include <Physics/PHOpHapticController.h>
 #include <Physics/PHOpDecompositionMethods.h>
 
 
@@ -19,6 +20,7 @@ using namespace PTM;
 
 namespace Spr{
 	;
+	class PHOpHapticController;
 
 	class PHOpObj : public SceneObject, public PHOpObjDesc {
 	
@@ -275,6 +277,7 @@ namespace Spr{
 
 		void positionPredict();
 
+		void positionPredictFriction(PHOpHapticController* myHc); //摩擦あり
 
 		void positionProject();
 

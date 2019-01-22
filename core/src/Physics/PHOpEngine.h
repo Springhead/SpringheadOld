@@ -58,6 +58,7 @@ namespace Spr{
 		PHOpHapticRenderer* opHpRender;
 		PHOpHapticController *myHc;
 		bool useHaptic;
+		bool useFriction;
 
 
 		PHOpEngine();
@@ -88,6 +89,8 @@ namespace Spr{
 		void InitialHapticRenderer(int objId);
 		void SetUseHaptic(bool hapticUsage);
 		bool GetUseHaptic();
+		void SetUseFriction(bool frictionUsage);
+		bool GetUseFriction();
 		
 		void SetHapticSolveEnable(bool enable);
 		bool IsHapticSolve();
