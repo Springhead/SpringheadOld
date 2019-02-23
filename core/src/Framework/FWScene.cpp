@@ -477,7 +477,8 @@ void FWScene::DrawBBox(GRRenderIf* render, PHBBox* bbox){
 void FWScene::DrawShape(GRRenderIf* render, CDShapeIf* shape, bool solid_or_wire){
 	CDBoxIf*		box		= DCAST(CDBoxIf, shape);
 	CDSphereIf*		sphere	= DCAST(CDSphereIf, shape);
-	CDCapsuleIf*	cap		= DCAST(CDCapsuleIf, shape);
+	CDEllipsoidIf*	ell = shape->Cast();
+	CDCapsuleIf*	cap = DCAST(CDCapsuleIf, shape);
 	CDRoundConeIf*	rc		= DCAST(CDRoundConeIf, shape);
 	CDConvexMeshIf* mesh	= DCAST(CDConvexMeshIf, shape);
 
@@ -488,6 +489,7 @@ void FWScene::DrawShape(GRRenderIf* render, CDShapeIf* shape, bool solid_or_wire
 		render->DrawBox(sz.x, sz.y, sz.z, solid_or_wire);
 	}
 	if(sphere)	render->DrawSphere(sphere->GetRadius(), slice, slice, solid_or_wire);
+	if (ell)	render->DrawEllipsoid(ell->GetRadius(), slice, slice, solid_or_wire);
 	if(cap)		render->DrawCapsule(cap->GetRadius(), cap->GetLength(), slice, solid_or_wire);
 	if(rc){
 		Vec2f r = rc->GetRadius();
@@ -849,8 +851,8 @@ void FWScene::DrawHaptic(GRRenderIf* render, PHHapticEngineIf* hapticEngine) {
 			for (int j = 0; j < nNeighbors; j++) {
 				int solidID = pointer->neighborSolidIDs[j];
 				PHSolidPairForHaptic* solidPair = (PHSolidPairForHaptic*)he->GetSolidPairTemp(solidID, i);
-				for (int k = 0; k < solidPair->solid[0]->NShape(); k++) {
-					for (int l = 0; l < solidPair->solid[1]->NShape(); l++) {
+				for (int k = 0; k < solidPair->body[0]->NShape(); k++) {
+					for (int l = 0; l < solidPair->body[1]->NShape(); l++) {
 						PHShapePairForHaptic* sp = (PHShapePairForHaptic*)solidPair->GetShapePair(k, l);
 						for (int m = 0; m < 2; m++) {
 							// 近傍点対		・白点
@@ -1089,7 +1091,7 @@ void FWScene::DrawOp(GRRenderIf* render, PHOpEngineIf* opEngineif)
 				Spr::TQuaternion<float> elliRotQ; elliRotQ.FromMatrix(dp.pCurrOrint.Inv() * dp.ellipRotMatrix);
 
 				DrawEllipsoid drawEll;
-				drawEll.drawOval(ra * opEngine->radiusCoe, rb * opEngine->radiusCoe, rc* opEngine->radiusCoe, 8, elliRotQ);//dp.pCurrOrint.Inv());
+				drawEll.drawOval(ra * opEngine->radiusCoe, rb * opEngine->radiusCoe, rc* opEngine->radiusCoe, 18, elliRotQ);//dp.pCurrOrint.Inv());
 
 				render->PopModelMatrix();
 

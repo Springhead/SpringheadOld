@@ -57,7 +57,7 @@ PHScene::PHScene(const PHSceneDesc& desc):PHSceneDesc(desc){
 void PHScene::Init(){
 	engines.scene = this;
 	Scene::Clear();
-	performanceMeasure = UTPerformanceMeasure::CreateInstance("PHScene");
+	performanceMeasure = UTPerformanceMeasureIf::CreateInstance("PHScene");
 
 	// エンジン作成
 	solids = DBG_NEW PHSolidContainer;
@@ -124,10 +124,18 @@ PHSolidIf* PHScene::CreateSolid(const PHSolidDesc& desc){
 int PHScene::NSolids()const{
 	return (int)solids->solids.size();
 }
+PHSolidIf* PHScene::GetSolid(int idx){
+	return solids->solids[idx]->Cast();
+}
 PHSolidIf** PHScene::GetSolids(){
 	return solids->solids.empty() ? NULL : (PHSolidIf**)&*solids->solids.begin();
 }
-
+int PHScene::GetSolidIndex(PHSolidIf* s) {
+	for (int i = 0; i != (int)(solids->solids.size()); ++i) {
+		if (solids->solids[i]->Cast() == s) return i;
+	}
+	return -1;
+}
 CDShapeIf* PHScene::CreateShape(const IfInfo* ii, const CDShapeDesc& desc){
 	return GetSdk()->CreateShape(ii, desc);
 }

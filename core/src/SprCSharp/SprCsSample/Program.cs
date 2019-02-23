@@ -14,7 +14,11 @@ namespace SprCsSample {
 
         static void Main(string[] args) {
 
-            var dllDirectory = @"..\..\..\..\..\..\..\libs\bin\win64";
+            //var dllDirectory = @"..\..\..\..\..\..\..\libs\bin\win64";
+            var dllDirectory = @"..\..\..\..\..\..\..\generated\bin\win64"
+                + @";..\..\..\..\..\..\..\generated\bin\win32"
+                + @";..\..\..\..\..\..\..\dependency\bin\win64"
+                + @";..\..\..\..\..\..\..\dependency\bin\win32";
             var dllPath = Environment.GetEnvironmentVariable("PATH") + ";" + dllDirectory;
             Environment.SetEnvironmentVariable("PATH", dllPath);
 
@@ -75,7 +79,7 @@ namespace SprCsSample {
             descScene.numIteration = 123;        put("int   ", "123  ", descScene.numIteration);
             descScene.bCCDEnabled = true;        put("bool  ", "True ", descScene.bCCDEnabled);
             raycastHit.distance = 0.123F;        put("float ", "0.123", raycastHit.distance);
-            // descScene.airResistanceRate = 0.123; put("double", "0.123", descScene.airResistanceRate);
+            descScene.contactTolerance = 0.123; put("double", "0.123", descScene.contactTolerance);
             // nested
             descScene.gravity.x = 0;
             descScene.gravity.y = 0;

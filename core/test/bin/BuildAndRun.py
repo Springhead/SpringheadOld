@@ -43,6 +43,7 @@
 #		exefile:    Executable file path.
 #		args:	    Run time arguments.
 #		logfile:    Log file path (log will be appended).
+#		errlogfile: Error log file path (log will be appended).
 #		addpath:    Additional path to execute program.
 #		timeout:    Time out value in sec (num).
 #		pipeproc:   Process name whose output is piped to
@@ -58,11 +59,9 @@
 # ----------------------------------------------------------------------
 #  VERSION:
 #	Ver 1.0  2018/02/08 F.Kanehori	First version.
-#	Ver 1.01 2018/03/14 F.Kanehori	Dealt with new Error class.
 #	Ver 1.1  2018/03/15 F.Kanehori	Bug fixed (for unix).
-#	Ver 1.11 2018/03/26 F.Kanehori	Bug fixed (for unix).
-#	Ver 1.12 2018/04/05 F.Kanehori	Bug fixed (shell param at run).
-#	Ver 1.13 2018/04/12 F.Kanehori	Bug fixed (encodinig check).
+#	Ver 1.2  2018/08/07 F.Kanehori	Execute binary directly (unix).
+#	Ver 1.21 2018/08/23 F.Kanehori	Bug fixed
 # ======================================================================
 import sys
 import os
@@ -90,7 +89,7 @@ class BuildAndRun:
 	#
 	def __init__(self, ccver, verbose=0, dry_run=False):
 		self.clsname = self.__class__.__name__
-		self.version = 1.1
+		self.version = 1.21
 		#
 		self.ccver = ccver
 		self.dry_run = dry_run
@@ -195,10 +194,6 @@ class BuildAndRun:
 		# prepare log file (append mode).
 		logf = self.__open_log(logfile, 'a', RST.RUN)
 		errlogf = self.__open_log(errlogfile, 'a', RST.RUN)
-
-		# add target to Makefile.
-		if Util.is_unix():
-			exefile = 'make -f %s test' % exefile
 
 		# execute program.
 		shell= True if Util.is_unix() else False
@@ -366,7 +361,7 @@ class BuildAndRun:
 		lines = fobj.read()
 		fobj.close()
 
-		patt = re.compile(' error ', re.I)
+		patt = re.compile(' error', re.I)
 		errors = []
 		for line in lines:
 			if patt.search(line):

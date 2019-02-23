@@ -46,6 +46,7 @@ public:
 		ID_CAPSULE,
 		ID_ROUNDCONE,
 		ID_SPHERE,
+		ID_ELLIPSOID,
 		ID_ROCK,
 		ID_BLOCK,
 		ID_TOWER,
@@ -60,6 +61,7 @@ public:
 		ID_COINSTACK,
 		ID_SPHERESHOOT,
 		ID_FENCEDROP,
+		ID_ROTATION,
 	};
 	UTString state;
 
@@ -113,6 +115,8 @@ public:
 		AddHotKey(MENU_MAIN, ID_ROUNDCONE, 'r');
 		AddAction(MENU_MAIN, ID_SPHERE, "drop sphere");
 		AddHotKey(MENU_MAIN, ID_SPHERE, 's');
+		AddAction(MENU_MAIN, ID_ELLIPSOID, "drop Ellipsoid");
+		AddHotKey(MENU_MAIN, ID_ELLIPSOID, 'E');
 		AddAction(MENU_MAIN, ID_SPHERESHOOT, "shoot sphere");
 		AddHotKey(MENU_MAIN, ID_SPHERESHOOT, 'p');
 		AddAction(MENU_MAIN, ID_TOWER, "drop tower");
@@ -127,6 +131,8 @@ public:
 		AddHotKey(MENU_MAIN, ID_CLEARTIME, 'l');
 		AddAction(MENU_MAIN, ID_MEASURE, "measure");
 		AddHotKey(MENU_MAIN, ID_MEASURE, 'm');
+		AddAction(MENU_MAIN, ID_ROTATION, "rotation test");
+		AddHotKey(MENU_MAIN, ID_ROTATION, 'R');
 	}
 	~MyApp(){}
 
@@ -146,8 +152,8 @@ public:
 		PHConstraintEngineDesc ed;
 		GetPHScene()->GetConstraintEngine()->GetDesc(&ed);
 		ed.freezeThreshold = 0;
-		//ed.contactCorrectionRate = 0.8;
-		ed.contactCorrectionRate = 0.2;
+		ed.contactCorrectionRate = 0.8;
+		//ed.contactCorrectionRate = 0.2;
 		ed.numIter = 500;
 		GetPHScene()->GetConstraintEngine()->SetDesc(&ed);
 		GetFWScene()->EnableRenderAxis(false, false, false);
@@ -221,8 +227,8 @@ public:
 			}
 		
 		}
-		for(int i=0; i<UTPerformanceMeasure::NInstance(); ++i){
-			UTPerformanceMeasure* m = UTPerformanceMeasure::GetInstance(i);
+		for(int i=0; i<UTPerformanceMeasureIf::NInstance(); ++i){
+			UTPerformanceMeasureIf* m = UTPerformanceMeasureIf::GetInstance(i);
 			DSTR << m->GetName();
 			for (int j = 0; j < m->NCounter(); ++j) {
 				DSTR << " " << m->GetNameOfCounter(j) << ":" << m->Time(j);
@@ -231,10 +237,10 @@ public:
 		}
 
 		//時間表示
-		UTPerformanceMeasure* meScene = GetPHScene()->GetPerformanceMeasure();
+		UTPerformanceMeasureIf* meScene = GetPHScene()->GetPerformanceMeasure();
 		avePool += meScene->Time("collision");
 		meScene->ClearCounts();
-		UTPerformanceMeasure* meCol = UTPerformanceMeasure::GetInstance("Collision");
+		UTPerformanceMeasureIf* meCol = UTPerformanceMeasureIf::GetInstance("Collision");
 		aveNarrow += meCol->Time("narrow");
 		aveBroad += meCol->Time("broad");
 		avePhaseTime[0] += meCol->Time("P1");
@@ -420,6 +426,10 @@ public:
 				Drop(SHAPE_SPHERE, GRRenderIf::YELLOW, v, w, p, q);
 				state = "sphere dropped.";
 			}
+			if (id == ID_ELLIPSOID) {
+				Drop(SHAPE_ELLIPSOID, GRRenderIf::LIGHTGREEN, v, w, p, q);
+				state = "ellipsoid dropped.";
+			}
 			if (id == ID_SPHERESHOOT) {
 				static int ct = 0;
 				Drop(SHAPE_SPHERE, GRRenderIf::YELLOW, Vec3d(-1 - ct*0.2, 0, 0), w, Vec3d(0.3, shapeSphere->GetRadius()*3, 0), q);
@@ -524,6 +534,20 @@ public:
 					win->GetTrackball()->SetTarget(eyeTgt);
 					win->GetTrackball()->SetPosition(eyePos); 
 				}
+			}
+			if (id == ID_ROTATION) {
+				CDBoxDesc bd(Vec3d(0.01, 0.04, 0.01));
+				CDShapeIf* sh = GetSdk()->GetPHSdk()->CreateShape(bd);
+				PHSolidDesc sd;
+				sd.pose.Pos() = Vec3d(-0.01, 0.1, 0);
+				PHSolidIf * s = GetPHScene()->CreateSolid(sd);
+				s->AddShape(sh);
+				sd.pose.Pos() = Vec3d(0.01, 0.1, 0);
+				sd.velocity = Vec3d(0.01, 0, 0);
+				sd.angVelocity = Vec3d(0, 0, 10);
+				s = GetPHScene()->CreateSolid(sd);
+				s->AddShape(sh);
+				GetPHScene()->SetGravity(Vec3d(0, 0, 0));
 			}
 		}
 		SampleApp::OnAction(menu, id);

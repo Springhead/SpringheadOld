@@ -2,13 +2,22 @@
 # -*- coding: utf-8 -*-
 # ======================================================================
 #  SYNOPSIS:
-#	DailyBuild [options] test-repository
+#	DailyBuild [options] test-repository result-repository
 #	options:
 #	  -c conf:	Configurations (Debug | Release).
 #	  -p plat:	Platform (x86 | x64).
 #	  -t tool:	Visual Studio toolset ID. (Windows only)
 #
 #  DESCRIPTION:
+#	テストの環境を整えてから TestMainGit.py を呼び出す.
+#
+#  NOTE:
+#	****************************************************************
+#	新しい Visual Studio に対応するには、"bin/visualStudio.py" の
+#	  (1) __get_vsibnfo() に新しいバージョンの情報を追加する.
+#	  (2) __get_vs_path() に devenv のパスを設定する.
+#	必要がある.
+#	****************************************************************
 #
 #  VERSION:
 #	Ver 1.0  2017/12/03 F.Kanehori	アダプタとして新規作成.
@@ -17,8 +26,9 @@
 #	Ver 1.3  2018/03/19 F.Kanehori	Proc.output() changed.
 #	Ver 1.4  2018/03/22 F.Kanehori	Change git pull/clone step.
 #	Ver 1.5  2018/05/01 F.Kanehori	Add: Result repository.
+#	Ver 1.51 2018/08/02 F.Kanehori	Bug fixed.
 # ======================================================================
-version = 1.21
+version = 1.51
 
 import sys
 import os
@@ -91,7 +101,7 @@ if options.version:
 	sys.exit(0)
 if len(args) != 2:
 	Error(prog).error('incorrect number of arguments\n')
-	Proc().execute('python %s.py -h' % prog).wait()
+	Proc().execute('python %s.py -h' % prog, shell=True).wait()
 	sys.exit(-1)
 
 # get test repository name
@@ -163,10 +173,10 @@ print('%s: start: %s' % (prog, Util.now(format=date_format)))
 #  1st step: Make Springhead up-to-date.
 #
 if check_exec('DAILYBUILD_UPDATE_SPRINGHEAD') and not skip_update:
-	pwd()
 	print('updating "Springhead"')
 	flush()
 	os.chdir(spr_topdir)
+	pwd()
 	cmnd = 'git pull --all'
 	proc.execute(cmnd, stdout=Proc.PIPE, stderr=Proc.STDOUT, shell=True)
 	rc, outstr, errstr = proc.output()
@@ -180,6 +190,7 @@ if check_exec('DAILYBUILD_UPDATE_SPRINGHEAD') and not skip_update:
 	print('updating "DailyBuild/Result"')
 	flush()
 	os.chdir('../%s' % result_repository)
+	pwd()
 	cmnd = 'git pull --all'
 	proc.execute(cmnd, stdout=Proc.PIPE, stderr=Proc.STDOUT, shell=True)
 	rc, outstr, errstr = proc.output()

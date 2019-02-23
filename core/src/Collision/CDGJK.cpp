@@ -24,13 +24,13 @@
 #include <Physics/SprPHSdk.h>
 #include <Physics/SprPHEngine.h>
 #include <fstream>
+#include <iomanip>
 
 #include <string.h>  // strcmp
 
 
 namespace Spr{
 bool bGJKDebug;
-
 
 void SaveMaterial(std::ostream& file, PHMaterial& m){
 	file << m.e << " ";
@@ -131,21 +131,52 @@ CDConvex* LoadShape(std::istream& file, PHSdkIf* sdk){
 	return rv;
 }
 
+template <class T>
+void LoadP(std::istream& is, T& t) {
+	unsigned char* p = (unsigned char*)&t;
+	unsigned int d;
+	for (int i = 0; i < sizeof(t); ++i) {
+		is >> std::setbase(16) >> d;
+		p[i]=d;
+	}
+}
+template <class T>
+void SaveP(std::ostream& os, const T& t) {
+	const unsigned char* p = (const unsigned char*)&t;
+	for (int i = 0; i < sizeof(t); ++i) {
+		os << " " << std::setbase(16) << (unsigned int)p[i];
+	}
+	os << std::endl;
+}
+
+/**	ConfFindPointのデバッグのため、引数をファイルに保存する関数。ループを抜けないなどの場合にパラメータを保存する。
+	doubleを10進に変換すると再現しないので、バイナリを１６進数で保存するように変更。
+	ShapeDescは小数点のままなので、ShapeDescに10進数で桁数が多くなる数を書くと再現しない。	2018.08.16
+*/
 void FASTCALL ContFindCommonPointSaveParam(const CDConvex* a, const CDConvex* b,
 	const Posed& a2w, const Posed& b2w, const Vec3d& dir, double start, double end,
-	Vec3d& normal, Vec3d& pa, Vec3d& pb, double& dist){
-	std::ofstream file("ContFindCommonPointSaveParam.txt");
+	Vec3d& normal, Vec3d& pa, Vec3d& pb, double& dist, const char* exName){
+	std::string base = std::string("ContFindCommonPointSaveParam") + exName;
+	std::ofstream file;
+	for (int i = 0;; ++i) {
+		std::string fname = base + std::to_string(i) + ".txt";
+		std::ifstream ifs(fname);
+		if (!ifs.is_open()) {
+			file.open(fname);
+			break;
+		}
+	}
 	SaveShape(file, (CDConvex*)a);
 	SaveShape(file, (CDConvex*)b);
-	file << a2w << std::endl;
-	file << b2w << std::endl;
-	file << dir << std::endl;
-	file << start << std::endl;
-	file << end << std::endl;
-	file << normal << std::endl;
-	file << pa << std::endl;
-	file << pb << std::endl;
-	file << dist << std::endl;
+	SaveP(file, a2w);
+	SaveP(file, b2w);
+	SaveP(file, dir);
+	SaveP(file, start);
+	SaveP(file, end);
+	SaveP(file, normal);
+	SaveP(file, pa);
+	SaveP(file, pb);
+	SaveP(file, dist);
 }
 void ContFindCommonPointCall(std::istream& file, PHSdkIf* sdk){
 	bGJKDebug = true;
@@ -156,15 +187,15 @@ void ContFindCommonPointCall(std::istream& file, PHSdkIf* sdk){
 	double dist, start, end;
 	a = LoadShape(file, sdk);
 	b = LoadShape(file, sdk);
-	file >> a2w;
-	file >> b2w;
-	file >> dir;
-	file >> start;
-	file >> end;
-	file >> normal;
-	file >> pa;
-	file >> pb;
-	file >> dist;
+	LoadP(file, a2w);
+	LoadP(file, b2w);
+	LoadP(file, dir);
+	LoadP(file, start);
+	LoadP(file, end);
+	LoadP(file, normal);
+	LoadP(file, pa);
+	LoadP(file, pb);
+	LoadP(file, dist);
 
 	Vec3f capdir = b2w.Ori() * Vec3f(0,0,1);
 	DSTR << "dir of capsule = " << capdir << std::endl;
@@ -274,20 +305,24 @@ inline Vec3d TriDecompose(Vec2d p1, Vec2d p2, Vec2d p3){
 	w[n] = b2z * ((Vec3d)q[n]) - a2z * ((Vec3d)p[n]);						\
 	colcounter++;
 
+
+int contFindCommonPoint3DRefinementCount;
+
+/**	並進のみの連続時間衝突判定のアルゴリズム
+*/
 int FASTCALL ContFindCommonPoint(const CDConvex* a, const CDConvex* b,
 	const Posed& a2w, const Posed& b2w, const Vec3d& dir, double start, double end,
 	Vec3d& normal, Vec3d& pa, Vec3d& pb, double& dist){
 	qpTimerForCollision.Count();
 
 	nSupport = 0;
-	//	range が+Zになるような座標系を求める．
-	Quaterniond w2z;
+	Quaterniond w2z;	//	range が+Zになるような座標系
 	Vec3d u = -dir;	//	u: 物体ではなく原点の速度の向きなので - がつく．
 	if (u.Z() < -1+epsilon){
 		w2z = Quaterniond::Rot(Rad(180), 'x');
-	}else if (u.Z() < 1-epsilon){
+	}else if (u.Z() < 1-epsilon){	//	TODO:直接Quaternionを求めるべき
 		Matrix3d matW2z = Matrix3d::Rot(u, Vec3f(0,0,1), 'z');
-		w2z.FromMatrix(matW2z);
+		w2z.FromMatrix(matW2z);		
 		w2z = w2z.Inv();
 	}
 	Posed a2z;
@@ -296,9 +331,8 @@ int FASTCALL ContFindCommonPoint(const CDConvex* a, const CDConvex* b,
 	Posed b2z;
 	b2z.Ori() = w2z * b2w.Ori();
 	b2z.Pos() = w2z * b2w.Pos();
-
 	
-	//	GJKと似た方法で，交点を求める
+	//	GJKと似た方法で，原点とCSO(Configuration Space Obstacle)の交点を求める
 	//	まず、2次元で見たときに、原点が含まれるような三角形または線分を作る
 	//	w0を求める
 	v[0] = Vec3d(0,0,1);
@@ -344,23 +378,47 @@ int FASTCALL ContFindCommonPoint(const CDConvex* a, const CDConvex* b,
 	ids[0] = 1;	//	新しい頂点
 	ids[1] = 0;	//	もとの線分
 	ids[2] = 0;	//	もとの線分
+	int count = 0;
 	while(1){
-		double s;
+		count++;
+		if (count > 1000) {
+			DSTR << "Too many loop in 2D tri search of CCDGJK." << std::endl;
+			ContFindCommonPointSaveParam(a, b, a2w, b2w, dir, start, end, normal, pa, pb, dist, "2DS");
+			bGJKDebug = true;
+		}
+#ifdef _DEBUG
+		if (bGJKDebug) {
+			DSTR << "ids:";
+			for (int i = 0; i < 3; ++i) {
+				DSTR << ids[i];
+			}
+			DSTR << " w:" << std::endl;
+			for (int i = 0; i < 4; ++i) {
+				for (int j = 0; j < 2; ++j) {
+					DSTR << "\t" << w[i % 3][j];
+				}
+				DSTR << std::endl;
+			}
+		}
+#endif
 		Vec3d vNew;
-		if ((s = w[(int)ids[0]].XY() ^ w[(int)ids[1]].XY()) > epsilon){
-			//	点Oが、線分1-0から、三角形の外にはみ出している場合  
-			//		... epsilon=1e-8だと無限ループ，1e-7でも稀に無限ループ
+		double s1, s2, s;
+		s1 = w[(int)ids[0]].XY() ^ w[(int)ids[1]].XY();
+		s2 = w[(int)ids[2]].XY() ^ w[(int)ids[0]].XY();
+		if (s1 >= s2 && s1 > epsilon) {	//	両方から見て外にある場合、より大きい方を取る。小さい方を使うと、スレスレの場合に無限ループに陥る場合がある。epsilon = 1e-12. 2018.08.16 hase 
+			s = s1;
 			//	1-0の法線の向きvNewでsupport pointを探し、新しい三角形にする。
 			Vec2d l = w[(int)ids[1]].XY() - w[(int)ids[0]].XY();
 			assert(l.square() >= epsilon2);		//	w0=w1ならば，すでに抜けているはず．
-			double ll_inv = 1/l.square();
+			double ll_inv = 1 / l.square();
 			vNew.XY() = (w[(int)ids[1]].XY()*l*ll_inv) * w[(int)ids[0]].XY()
-				   - (w[(int)ids[0]].XY()*l*ll_inv) * w[(int)ids[1]].XY();
+				- (w[(int)ids[0]].XY()*l*ll_inv) * w[(int)ids[1]].XY();
 			vNew.Z() = 0;
 			ids[2] = ids[0];
 			ids[0] = FindVacantId(ids[1], ids[2]);
-		}else if ((s = w[(int)ids[2]].XY() ^ w[(int)ids[0]].XY()) > epsilon){
-			//	点Oが、線分2-0から、三角形の外にはみ出している場合
+			//		}else if ((s = w[(int)ids[2]].XY() ^ w[(int)ids[0]].XY()) > epsilon){
+		} else if (s2 > epsilon) {
+			s = s2;
 			//	2-0の法線の向きvでsupport pointを探し、新しい三角形にする。
 			Vec2d l = w[(int)ids[2]].XY() - w[(int)ids[0]].XY();
 			assert(l.square() >= epsilon2);		//	w0=w1ならば，すでに抜けているはず．
@@ -370,7 +428,7 @@ int FASTCALL ContFindCommonPoint(const CDConvex* a, const CDConvex* b,
 			vNew.Z() = 0;
 			ids[1] = ids[0];
 			ids[0] = FindVacantId(ids[1], ids[2]);
-		}else{
+		} else {
 			//	点Oは三角形の内側にある。
 			if (ids[1] == ids[2]){
 				//	1と2が同じ点=最初からonlineだったため、3角形ができなかった。
@@ -385,6 +443,11 @@ int FASTCALL ContFindCommonPoint(const CDConvex* a, const CDConvex* b,
 			break;
 		}
 		v[ids[0]] = vNew;
+#ifdef _DEBUG
+		if (bGJKDebug) {
+			DSTR << "v:" << vNew << std::endl;
+		}
+#endif
 		CalcSupport(ids[0]);	//	法線の向きvNewでサポートポイントを探す
 		if (w[ids[0]].XY() * v[ids[0]].XY() > -epsilon2){	//	0の外側にoがあるので触ってない
 			qpTimerForCollision.Accumulate(coltimePhase2);
@@ -397,6 +460,7 @@ int FASTCALL ContFindCommonPoint(const CDConvex* a, const CDConvex* b,
 			qpTimerForCollision.Accumulate(coltimePhase2);
 			return 0;
 		}
+		if (count > 1000) return 0;
 	}
 	ids[3] = 3;
 	//	三角形 ids[0-1-2] の中にoがある．ids[0]が最後に更新した頂点w
@@ -404,19 +468,16 @@ int FASTCALL ContFindCommonPoint(const CDConvex* a, const CDConvex* b,
 	qpTimerForCollision.Accumulate(coltimePhase2);
 	//	三角形を小さくしていく
 	int notuse = -1;
-	int count = 0;
+	count = 0;
 	Vec3d lastV;
 	double lastZ = DBL_MAX;
 	int lastVid = -1;
 	while(1){
 		count ++;
 		if (count > 1000) {
-#if 1
-			DSTR << "Too many loop in CCDGJK." << std::endl;
-			ContFindCommonPointSaveParam(a, b, a2w, b2w, dir, start, end, normal, pa, pb, dist);			
-			//DebugBreak();
+			DSTR << "Too many loop in 3D refinement of CCDGJK." << std::endl;
+			ContFindCommonPointSaveParam(a, b, a2w, b2w, dir, start, end, normal, pa, pb, dist, "3DR");
 			bGJKDebug = true;
-#endif
 		}
 		Vec3d s;		//	三角形の有向面積
 		s = (w[ids[1]]-w[ids[0]]) % (w[ids[2]]-w[ids[0]]);
@@ -425,13 +486,17 @@ int FASTCALL ContFindCommonPoint(const CDConvex* a, const CDConvex* b,
 				std::swap(ids[1], ids[2]);
 				s *= -1;
 			}
+#ifdef _DEBUG
 			if (bGJKDebug) DSTR << "TRI ";
+#endif
 			//	三角形になる場合
 			notuse = -1;
 			//lastTriV = 
 			v[ids[3]] = s.unit();	//	3角形の法線を使う
 		}else{
+#ifdef _DEBUG
 			if (bGJKDebug) DSTR << "LINE";
+#endif
 			int id0, id1;
 			if (notuse >= 0){	
 				//	前回も線分だった場合。新しい点と古い線分のどちらかの頂点で新たな線分を作る。
@@ -506,6 +571,7 @@ int FASTCALL ContFindCommonPoint(const CDConvex* a, const CDConvex* b,
 #endif
 		//	新しい w w[3] を求める
 		CalcSupport(ids[3]);
+#ifdef _DEBUG
 		if (bGJKDebug){
 			DSTR << "v:" << v[ids[3]];
 			for(int i=0; i<4; ++i){
@@ -526,6 +592,7 @@ int FASTCALL ContFindCommonPoint(const CDConvex* a, const CDConvex* b,
 			DSTR << "notuse:" << notuse;
 			for(int i=0; i<4; ++i) DSTR << " " << ids[i];
 		}
+#endif
 		lastVid = ids[3];
 		if (notuse>=0){	//	線分の場合、使った2点と新しい点で三角形を作る
 			int nid[3];
@@ -534,9 +601,11 @@ int FASTCALL ContFindCommonPoint(const CDConvex* a, const CDConvex* b,
 			nid[2] = ids[3];
 			Vec3d dec = TriDecompose(w[nid[0]].XY(), w[nid[1]].XY(), w[nid[2]].XY());
 			double newZ = w[nid[0]].z * dec[0] + w[nid[1]].z * dec[1] + w[nid[2]].z * dec[2];
+#ifdef _DEBUG
 			if (bGJKDebug){
 				DSTR << " newZ:" << newZ << "  dec:"<< dec << std::endl;
 			}
+#endif
 #if 1
 			//			if (newZ > lastZ + epsilon) {
 			if (newZ >= lastZ) {
@@ -571,9 +640,11 @@ int FASTCALL ContFindCommonPoint(const CDConvex* a, const CDConvex* b,
 			int nid2 = ids[3];
 			Vec3d dec = decs[i];
 			double newZ = w[nid0].z * dec[0] + w[nid1].z * dec[1] + w[nid2].z * dec[2];
+#ifdef _DEBUG
 			if (bGJKDebug){
 				DSTR << " newZ:" << newZ << std::endl;
 			}
+#endif
 			if (newZ >= lastZ - epsilon) {
 				//goto final;	//	Zだけでは打ち切らない
 				double progress = -DBL_MAX;
@@ -619,8 +690,9 @@ final:
 	qpTimerForCollision.Accumulate(coltimePhase3);
 	static bool bSave = false;
 	if (bSave){
-		ContFindCommonPointSaveParam(a, b, a2w, b2w, dir, start, end, normal, pa, pb, dist);
+		ContFindCommonPointSaveParam(a, b, a2w, b2w, dir, start, end, normal, pa, pb, dist, "bSave");
 	}
+	contFindCommonPoint3DRefinementCount = count;
 	if (dist > end) return -1;
 	if (dist < start) return -2;
 	return 1;
@@ -828,9 +900,9 @@ qpTimerForCollision.Accumulate(coltimePhase2);
 	while (1) {
 		count++;
 		if (count > 1000) {
-#if 1	//	USERNAME==hase	//	長谷川専用デバッグコード。現在当たり判定Debug中。			
+#if 1
 			DSTR << "Too many loop in CCDGJK." << std::endl;
-			ContFindCommonPointSaveParam(a, b, a2w, b2w, dir, start, end, normal, pa, pb, dist);
+			ContFindCommonPointSaveParam(a, b, a2w, b2w, dir, start, end, normal, pa, pb, dist, "3DRA");
 			//DebugBreak();
 			bGJKDebug = true;
 #endif
@@ -842,7 +914,9 @@ qpTimerForCollision.Accumulate(coltimePhase2);
 				std::swap(ids[1], ids[2]);
 				s *= -1;
 			}
+#ifdef _DEBUG
 			if (bGJKDebug) DSTR << "TRI ";
+#endif
 			//	三角形になる場合
 			notuse = -1;
 			lastTriV = s.unit();
@@ -873,7 +947,9 @@ qpTimerForCollision.Accumulate(coltimePhase2);
 			CalcSupport(ids[3]);
 		}
 		else {
+#ifdef _DEBUG
 			if (bGJKDebug) DSTR << "LINE";
+#endif
 			int id0, id1;
 			if (notuse >= 0) {
 				//	前回も線分だった場合。新しい点と古い線分のどちらかの頂点で新たな線分を作る。
@@ -968,6 +1044,7 @@ qpTimerForCollision.Accumulate(coltimePhase2);
 			}
 			CalcSupport(ids[3]);
 		}
+#ifdef _DEBUG
 		if (bGJKDebug) {
 			DSTR << "v:" << v[ids[3]];
 			for (int i = 0; i < 4; ++i) {
@@ -988,6 +1065,7 @@ qpTimerForCollision.Accumulate(coltimePhase2);
 			DSTR << "notuse:" << notuse;
 			for (int i = 0; i < 4; ++i) DSTR << " " << ids[i];
 		}
+#endif
 		if (notuse >= 0) {	//	線分の場合、使った2点と新しい点で三角形を作る
 			int nid[3];
 			nid[0] = ids[(notuse + 1) % 3];
@@ -995,9 +1073,11 @@ qpTimerForCollision.Accumulate(coltimePhase2);
 			nid[2] = ids[3];
 			Vec3d dec = TriDecompose(w[nid[0]].XY(), w[nid[1]].XY(), w[nid[2]].XY());
 			double newZ = w[nid[0]].z * dec[0] + w[nid[1]].z * dec[1] + w[nid[2]].z * dec[2];
+#ifdef _DEBUG
 			if (bGJKDebug) {
 				DSTR << " newZ:" << newZ << "  dec:" << dec << std::endl;
 			}
+#endif
 			if (newZ + epsilon >= lastZ) {
 				notuse = -1;
 				goto final2;
@@ -1032,9 +1112,11 @@ qpTimerForCollision.Accumulate(coltimePhase2);
 			int amariID = ids[(i + 2) % 3];
 			Vec3d dec = decs[i];
 			double newZ = w[nid0].z * dec[0] + w[nid1].z * dec[1] + w[nid2].z * dec[2];
+#ifdef _DEBUG
 			if (bGJKDebug) {
 				DSTR << " newZ:" << newZ << std::endl;
 			}
+#endif
 
 			if (newZ + epsilon >= lastZ) {
 #if NORM_BIAS >= 1		
@@ -1104,7 +1186,7 @@ qpTimerForCollision.Accumulate(coltimePhase2);
 	qpTimerForCollision.Accumulate(coltimePhase3);
 	static bool bSave = false;
 	if (bSave) {
-		ContFindCommonPointSaveParam(a, b, a2w, b2w, dir, start, end, normal, pa, pb, dist);
+		ContFindCommonPointSaveParam(a, b, a2w, b2w, dir, start, end, normal, pa, pb, dist, "bSaveA");
 	}
 	if (dist > end) return -1;
 	if (dist < start) return -2;
@@ -1154,20 +1236,22 @@ inline void CalcDet() {
 	dotp[lastId][lastId] = p_q[lastId] * p_q[lastId];
 
 	det[lastBit][lastId] = 1;
-	for (int j = 0, sj = 1; j < 4; ++j, sj <<= 1) {
-		if (usedBits & sj) {		
-			int s2 = sj|lastBit;	//	新しく増えた点について係数の計算
+
+
+	for (int j = 0, jBit = 1; j < 4; ++j, jBit <<= 1) {
+		if (usedBits & jBit) {		
+			int s2 = jBit|lastBit;	//	新しく増えた点について係数の計算
 			det[s2][j] = dotp[lastId][lastId] - dotp[lastId][j];	//	a^2-ab
 			det[s2][lastId] = dotp[j][j] - dotp[j][lastId];			//	b^2-ab
-			for (int k = 0, sk = 1; k < j; ++k, sk <<= 1) {	//	3点の場合
-				if (usedBits & sk) {
-					int s3 = sk|s2;
+			for (int k = 0, kBit = 1; k < j; ++k, kBit <<= 1) {	//	3点の場合
+				if (usedBits & kBit) {
+					int s3 = kBit|s2;
 					det[s3][k] = det[s2][j] * (dotp[j][j] - dotp[j][k]) + 
 						det[s2][lastId] * (dotp[lastId][j] - dotp[lastId][k]);
-					det[s3][j] = det[sk|lastBit][k] * (dotp[k][k] - dotp[k][j]) + 
-						det[sk|lastBit][lastId] * (dotp[lastId][k] - dotp[lastId][j]);
-					det[s3][lastId] = det[sk|sj][k] * (dotp[k][k] - dotp[k][lastId]) + 
-						det[sk|sj][j] * (dotp[j][k] - dotp[j][lastId]);
+					det[s3][j] = det[kBit|lastBit][k] * (dotp[k][k] - dotp[k][j]) + 
+						det[kBit|lastBit][lastId] * (dotp[lastId][k] - dotp[lastId][j]);
+					det[s3][lastId] = det[kBit|jBit][k] * (dotp[k][k] - dotp[k][lastId]) + 
+						det[kBit|jBit][j] * (dotp[j][k] - dotp[j][lastId]);
 				}
 			}
 		}
@@ -1188,6 +1272,58 @@ inline void CalcDet() {
 	}
 }
 
+///	detの計算＝垂線の足が頂点を何:何に内分するかを計算
+inline void CalcDetAll() {
+	static double dotp[4][4];	//	p_q[i] * p_q[j] 
+	//	全部の点について，内積を計算
+	for (int i = 0, iBit = 1; i < 4; ++i, iBit <<= 1) {
+		for (int j = i + 1, jBit = iBit << 1; j < 4; ++j, jBit <<= 1) {
+			if (allUsedBits & iBit && allUsedBits && jBit) {
+				dotp[i][j] = dotp[j][i] = p_q[i] * p_q[j];
+			}
+		}
+		dotp[i][i] = p_q[i] * p_q[i];
+	}
+	
+	//	detの計算
+	det[lastBit][lastId] = 1;	//	これはいつも変わらないので、新しい点ができたときに計算
+
+	//	こっちは変わる
+	for (int i = 0, iBit = 1; i < 4; ++i, iBit <<= 1) {
+		for (int j = i+1, jBit = iBit << 1; j < 4; ++j, jBit <<= 1) {
+			if (allUsedBits & iBit && allUsedBits & jBit) {
+				int s2 = iBit | jBit;		//	異なる２頂点から辺s2を作る
+				det[s2][i] = dotp[j][j] - dotp[j][i];	//	b^2-ab
+				det[s2][j] = dotp[i][i] - dotp[i][j];	//	a^2-ab
+				for (int k = j+1, kBit = jBit << 1; k < 4; ++k, kBit <<= 1) {	//	3点の場合
+					if (allUsedBits & kBit) {
+						int s3 = kBit | s2;
+						det[s3][k] = det[s2][j] * (dotp[j][j] - dotp[j][k]) +
+							det[s2][i] * (dotp[i][j] - dotp[i][k]);
+						det[s3][j] = det[kBit | iBit][k] * (dotp[k][k] - dotp[k][j]) +
+							det[kBit | iBit][i] * (dotp[i][k] - dotp[i][j]);
+						det[s3][i] = det[kBit | jBit][k] * (dotp[k][k] - dotp[k][i]) +
+							det[kBit | jBit][j] * (dotp[j][k] - dotp[j][i]);
+					}
+				}
+			}
+		}
+	}
+	if (allUsedBits == 15) {	//	4点の場合
+		det[15][0] = det[14][1] * (dotp[1][1] - dotp[1][0]) +
+			det[14][2] * (dotp[2][1] - dotp[2][0]) +
+			det[14][3] * (dotp[3][1] - dotp[3][0]);
+		det[15][1] = det[13][0] * (dotp[0][0] - dotp[0][1]) +
+			det[13][2] * (dotp[2][0] - dotp[2][1]) +
+			det[13][3] * (dotp[3][0] - dotp[3][1]);
+		det[15][2] = det[11][0] * (dotp[0][0] - dotp[0][2]) +
+			det[11][1] * (dotp[1][0] - dotp[1][2]) +
+			det[11][3] * (dotp[3][0] - dotp[3][2]);
+		det[15][3] = det[7][0] * (dotp[0][0] - dotp[0][3]) +
+			det[7][1] * (dotp[1][0] - dotp[1][3]) +
+			det[7][2] * (dotp[2][0] - dotp[2][3]);
+	}
+}
 
 //	係数から，最近傍点 v を計算
 inline void CalcVector(int usedBits, Vec3d& v) {
@@ -1224,16 +1360,15 @@ inline void CalcPoints(int usedBits, Vec3d& p1, Vec3d& p2) {
 	}
 }
 
-//	最近傍点を返す．
+//	最近傍点を返す．CalcDet()を呼んでおく必要あり
 inline bool CalcClosest(Vec3d& v) {
-	CalcDet();
 	if (!usedBits){
 		usedBits = lastBit;
 		v = p_q[lastId];
 		return true;
 	}
 	int simplex[5][4];
-	int nSimplex[5];
+	int nSimplex[5] = {};
 	const char numVertices[] = {
 		0, 1, 1, 2, 1, 2, 2, 3,
 		1, 2, 2, 3, 2, 3, 3, 4
@@ -1248,7 +1383,7 @@ inline bool CalcClosest(Vec3d& v) {
 			nSimplex[nVtx-1]=0;
 			for(int i = 0; i!=4; ++i){
 				int bit = 1<<i;
-				if ((s&bit) && det[s][i] <= 0){
+				if ((s&bit) && det[s][i] < -1e-5){	//	ここが0でよいか謎
 					simplex[nVtx-1][nSimplex[nVtx-1]] = s & ~bit;
 					++ nSimplex[nVtx-1];
 				}
@@ -1262,7 +1397,6 @@ inline bool CalcClosest(Vec3d& v) {
 	}
 	return false;
 }
-
 //	新しい点wが，今までの点と等しい場合
 inline bool HasSame(const Vec3d& w) {
 	for (int i = 0; i < 4; ++i){
@@ -1293,6 +1427,7 @@ bool FASTCALL FindCommonPoint(const CDConvex* a, const CDConvex* b,
 		if (HasSame(w)) return false;		//	supportが1点に集中＝原点は外にある．
 		p_q[lastId] = w;					//	新しい点を代入
 		allUsedBits = usedBits|lastBit;//	使用中頂点リストに追加
+		CalcDet();
 		if (!CalcClosest(v)) return false;
 
 		count ++;
@@ -1349,22 +1484,22 @@ bool FASTCALL FindCommonPoint(const CDConvex* a, const CDConvex* b,
 
 inline bool IsDegenerate(const Vec3d& w) {
 	for (int i = 0, curPoint = 1; i < 4; ++i, curPoint <<= 1){
-//		if ((allUsedBits & curPoint) && (p_q[i]-w).square() < 1e-6){
 		if ((allUsedBits & curPoint) && (p_q[i]-w).square() < threshold2){
 			return true;
 		}
 	}
 	return false;
 }
+
 double FASTCALL FindClosestPoints(const CDConvex* a, const CDConvex* b,
-					  const Posed& a2w, const Posed& b2w,
-					  Vec3d& v, Vec3d& pa, Vec3d& pb) {
+	const Posed& a2w, const Posed& b2w,
+	Vec3d& v, Vec3d& pa, Vec3d& pb) {
 	Vec3f p_0, q_0;
 	a->Support(p_0, Vec3d());
 	b->Support(q_0, Vec3d());
-	v = a2w * p_0 - b2w * q_0;	
-	double dist = v.norm();	
-	Vec3d w;				
+	v = a2w * p_0 - b2w * q_0;
+	double dist = v.norm();
+	Vec3d w;
 	double maxSupportDist = 0.0f;
 
 	usedBits = 0;
@@ -1372,33 +1507,34 @@ double FASTCALL FindClosestPoints(const CDConvex* a, const CDConvex* b,
 
 	int count = 0;
 	while (usedBits < 15 && dist > threshold) {
-		lastId = 0;
-		lastBit = 1;
-		while (usedBits & lastBit) { ++lastId; lastBit <<= 1; }
+		lastId = VacantIdFromBits(usedBits);
+		lastBit = 1 << lastId;
 		p_id[lastId] = a->Support(p[lastId], a2w.Ori().Conjugated() * (-v));
 		q_id[lastId] = b->Support(q[lastId], b2w.Ori().Conjugated() * v);
 		colcounter++;
 		lastNormal = v;
-		w = a2w * p[lastId]  -  b2w * q[lastId];
-		double supportDist = w*v/dist;
+		w = a2w * p[lastId] - b2w * q[lastId];
+		double supportDist = w*v / dist;
 		if (maxSupportDist < supportDist) maxSupportDist = supportDist;
 		//if (dist - maxSupportDist <= dist * threshold) break;
 		if (dist - maxSupportDist <= threshold) break;
 		if (IsDegenerate(w)) break;
 		p_q[lastId] = w;
-		allUsedBits = usedBits|lastBit;
+		allUsedBits = usedBits | lastBit;
+		CalcDet();
 		if (!CalcClosest(v)) break;
 		dist = v.norm();
 
 		count++;
-		if(count == 100){
-//			DSTR << "Too many loop in FindClosestPoints!!" << std::endl;		
+		if (count == 100) {
+			//			DSTR << "Too many loop in FindClosestPoints!!" << std::endl;		
 			break;
 		}
 	}
 	CalcPoints(usedBits, pa, pb);
 	return dist;
 }
+
 #endif
 #endif
 
@@ -1700,10 +1836,411 @@ int FASTCALL ContFindCommonPointGino(const CDConvex* a, const CDConvex* b,
 	if (normal.square() < epsilon2) return 0;
 	static bool bSave = false;
 	if (bSave) {
-		ContFindCommonPointSaveParam(a, b, a2w, b2w, dir, start, end, normal, pa, pb, dist);
+		ContFindCommonPointSaveParam(a, b, a2w, b2w, dir, start, end, normal, pa, pb, dist, "bSaveA");
 	}
 		return ret;
 }
 
+//Ginoの手法2（GJKRaycast改良版＝非繰り返し版）
+#if 0
+int FASTCALL ContFindCommonPointGinoNew(const CDConvex* a, const CDConvex* b,
+	const Posed& a2wOrg, const Posed& b2wOrg, const Vec3d& dir, double start, double end,
+	Vec3d& normal, Vec3d& pa, Vec3d& pb, double& dist)
+{
+	qpTimerForCollision.Count();
+	double shift = 0;
+	Posed a2l = a2wOrg;
+	Posed b2l = b2wOrg;
+	if (start < -10e+3) start = -10e+3;
+	b2l.Pos() += dir*start;
+
+	usedBits = 0;
+	allUsedBits = 0;
+
+	//近づくまで繰り返し
+	int count = 0;
+	int ret = 1;
+	Vec3d v = dir;
+	dist = v.norm();
+	Vec3d w;
+	int stopCount = 0;
+	while (usedBits < 15) {
+		lastId = VacantIdFromBits(usedBits);
+		lastBit = 1 << lastId;
+		p_id[lastId] = a->Support(p[lastId], a2l.Ori().Conjugated() * (-v));
+		q_id[lastId] = b->Support(q[lastId], b2l.Ori().Conjugated() * v);
+		colcounter++;
+		Vec3d pw = a2l * p[lastId];
+		Vec3d qw = b2l * q[lastId];
+		w = pw - qw;
+		p_q[lastId] = w;
+		allUsedBits = usedBits | lastBit;
+		normal = v / dist;
+		double supportDist = w * normal;
+		if (supportDist > 0) {	// 原点を進める
+			double dirNormal = dir*normal;
+			double dirDist = supportDist / dirNormal - threshold / 2;
+			//DSTR << "sd:" << supportDist << " dd:" << dirDist << " dir*v:" << dir * v << " dist:" << dist << std::endl;
+			shift += dirDist;
+			if (shift > (end - start)) {
+				return -1;
+			}
+			b2l.Pos() += dirDist * dir;
+			for (int i = 0, iBit = 1; i < 4; ++i, iBit <<= 1) {
+				if (iBit & allUsedBits) {
+					p_q[i] -= dirDist * dir;
+				}
+			}
+			stopCount = 0;
+		}
+		else {
+			stopCount++;
+			if (stopCount > 10) {
+				ret = 0;
+				break;
+			}
+		}
+
+		CalcDetAll();
+		if (!CalcClosest(v)) {
+			CalcClosest(v);
+			break;
+		}
+		dist = v.norm();
+		if (dist < threshold) break;
+		count++;
+		if (count == 100) {
+			DSTR << "Too many loop in FindClosestPoints!!" << std::endl;		
+			break;
+		}
+	}
+	if (dist > 1e-20) {
+		normal = v/dist;
+	}
+	CalcPoints(usedBits, pa, pb);
+	qpTimerForCollision.Accumulate(coltimePhase1);
+	double d = dist;
+	dist = start + shift;
+	normal *= -1;
+//	DSTR << "GRDist:" << dist << " start:"<<start << " shift:"<< shift << " d:" << d << 
+//		" pd:" << (b2l.Pos()-b2wOrg.Pos()).norm() << std::endl;
+	return ret;
+}
+#endif
+
+const int vertexIds1[16] = {
+	-1, 0, 1, -1,  2, -1, -1, -1,   3, -1, -1, -1,  -1, -1, -1, -1
+};
+const int vertexIds2[16][2] = {
+	{ -1,-1 },{ -1,-1 },{ -1,-1 },{ 0,1 },{ -1,-1 },{ 0,2 },{ 1,2 },{ -1,-1 },
+	{ -1,-1 },{ 0,3 },{ 1,3 },{ -1,-1 },{ 2,3 },{ -1,-1 },{ -1,-1 },{ -1,-1 }
+};
+const int vertexIds3[16][3] = {
+	{ -1,-1,-1 },{ -1,-1,-1 },{ -1,-1,-1 },{ -1,-1 - 1 },{ -1,-1,-1 },{ -1,-1,-1 },{ -1,-1,-1 },{ 0,1,2 },
+	{ -1,-1,-1 },{ -1,-1,-1 },{ -1,-1,-1 },{ 0,1,3 },{ -1,-1,-1 },{ 0,2,3 },{ 1,2,3 },{ -1,-1,-1 }
+};
+const char numVertices[16] = {
+	0, 1, 1, 2, 1, 2, 2, 3,
+	1, 2, 2, 3, 2, 3, 3, 4
+};
+
+//	3点がつくる三角形と原点と2点が作る三角形の面積の比から、内分比を求める。
+//	内分比が正の頂点の数を返す。
+int CalcTriAreas(int bits, double* areas) {
+	assert(numVertices[bits] == 3);
+	int unusedBit = ~bits & 0xF;
+	int unusedId = -1;
+	if (unusedBit & allUsedBits) {
+		unusedId = vertexIds1[unusedBit];
+	}
+	const int* vids = vertexIds3[bits];
+	Vec3d n = (p_q[vids[1]] - p_q[vids[0]]) ^ (p_q[vids[2]] - p_q[vids[0]]);
+	double sign = 1;
+	if (unusedId >= 0) {
+		double dp = n * (p_q[unusedId] - p_q[vids[0]]);
+		if (dp > 0) {
+			n = -n;
+			sign = -1;
+		}
+		double forthDist = n*p_q[vids[0]];
+		if (forthDist > -1e-8) {	//	内部
+			return 0;
+		}
+	}
+	areas[3] = n.norm();
+	int nPlus;
+	if (areas[3] > 0) {
+		n /= areas[3];
+		areas[0] = (p_q[vids[1]] ^ p_q[vids[2]]) * n * sign / areas[3];
+		areas[1] = (p_q[vids[2]] ^ p_q[vids[0]]) * n * sign / areas[3];
+		areas[2] = (p_q[vids[0]] ^ p_q[vids[1]]) * n * sign / areas[3];
+		nPlus = (areas[0] >= 0 ? 1 : 0) + (areas[1] >= 0 ? 1 : 0) + (areas[2] >= 0 ? 1 : 0);
+	}
+	else {
+		areas[0] = areas[1] = areas[2] = 1.0 / 3;
+		nPlus = 3;
+	}
+	return nPlus;
+}
+
+
+
+//Ginoの手法2（GJKRaycast改良版＝非繰り返し版）
+int FASTCALL ContFindCommonPointGinoPrec(const CDConvex* a, const CDConvex* b,
+	const Posed& a2wOrg, const Posed& b2wOrg, const Vec3d& dir, double start, double end,
+	Vec3d& normal, Vec3d& pa, Vec3d& pb, double& dist)
+{
+	qpTimerForCollision.Count();
+	double shift = 0;
+	Posed a2l = a2wOrg;
+	Posed b2l = b2wOrg;
+	if (start < -10e+3) start = -10e+3;
+	b2l.Pos() += dir*start;
+
+	usedBits = 0;
+	allUsedBits = 0;
+
+	//近づくまで繰り返し
+	int count = 0;
+	int ret = 1;
+	Vec3d v = dir;
+	dist = v.norm();
+	int stopCount = 0;
+	int weightBit;
+	double lineWeight[2];
+	double* triArea;
+	double areas[4][4];
+	triArea = areas[0];
+	while (1) {
+		usedBits = allUsedBits;
+		lastId = VacantIdFromBits(usedBits);
+		lastBit = 1 << lastId;
+		p_id[lastId] = a->Support(p[lastId], a2l.Ori().Conjugated() * (-v));
+		q_id[lastId] = b->Support(q[lastId], b2l.Ori().Conjugated() * v);
+		colcounter++;
+		Vec3d pw = a2l * p[lastId];
+		Vec3d qw = b2l * q[lastId];
+		p_q[lastId] = pw - qw;
+		allUsedBits = usedBits | lastBit;
+		normal = v / dist;
+		double supportDist = p_q[lastId] * normal;
+		if (supportDist > 0) {	// 原点を進める
+			double dirNormal = dir*normal;
+			if (dirNormal < 0) {
+				return 0;
+			}
+			double dirDist = supportDist / dirNormal * (1.0 - 1e-4);
+			shift += dirDist;
+			if (shift > (end - start)) {
+				return -1;
+			}
+			b2l.Pos() += dirDist * dir;
+			for (int i = 0, iBit = 1; i < 4; ++i, iBit <<= 1) {
+				if (iBit & allUsedBits) {
+					p_q[i] -= dirDist * dir;
+				}
+			}
+			stopCount = 0;
+		}
+		else {
+			stopCount++;
+			if (stopCount > 10) {
+				ret = 0;
+				break;
+			}
+		}
+		int nVtx = numVertices[allUsedBits];
+		int theTriangle;	//	原点が上にのる三角形
+		int theLine;	//	原点が上にのる辺
+		int thePoint;	//	原点が上にのる頂点
+		int triNPlus;
+		if (nVtx == 4) {
+			//	４点の場合、最後の１点と他のどの２点で作った三角形が一番近くなるか調べる。
+			//	外向きの法線があれば、
+			int nPlus[4];
+			int nPlusMax=0;
+			const int linesFromTri[16][3] = {
+				{0,0,0}, {0,0,0}, {0,0,0}, {0,0,0},  {0,0,0}, {0,0,0}, {0,0,0}, {3,5,6},
+				{0,0,0}, {0,0,0}, {0,0,0}, {3,9,10}, {0,0,0}, {5,9,12},{6,10,12}, {0,0,0},
+			};
+			const int* lines = linesFromTri[usedBits];
+			int tris[3] = { lines[0] | lastBit, lines[1] | lastBit, lines[2] | lastBit };
+			nPlus[0] = CalcTriAreas(tris[0], areas[0]);
+			if (nPlus[0] > nPlusMax) { nPlusMax = nPlus[0]; }
+			nPlus[1] = CalcTriAreas(tris[1], areas[1]);
+			if (nPlus[1] > nPlusMax) { nPlusMax = nPlus[1]; }
+			nPlus[2] = CalcTriAreas(tris[2], areas[2]);
+			if (nPlus[2] > nPlusMax) { nPlusMax = nPlus[2]; }
+			nPlus[3] = CalcTriAreas(usedBits, areas[3]);
+			if (nPlus[3] > nPlusMax) { nPlusMax = nPlus[3]; }
+			if (nPlus[0] == 0 || nPlus[1] == 0 || nPlus[2] == 0 || nPlus[3] == 0) {
+				//	すでに原点がSimplexの内側→近づきすぎ→すぐ抜ける
+				goto HitExit;
+			}
+			if (nPlusMax == 3) {	//	三角形の上に原点がある
+				int i;
+				for (i = 0; i < 4; ++i) {
+					if (nPlus[i] == 3) {
+						if (i < 3) {
+							theTriangle = tris[i];
+							triArea = areas[i];
+							triNPlus = nPlus[i];
+						} else {
+							theTriangle = usedBits;
+							triArea = areas[3];
+							triNPlus = nPlus[3];
+						}
+						allUsedBits = theTriangle;
+						goto TriCase;
+					}
+				}
+				assert(0);
+			}else if (nPlusMax == 2){		//	辺の上に原点
+				theLine = 0xF;
+				int triCount = 0;
+				for (int i = 0; i < 3 && triCount < 2; ++i) {
+					if (nPlus[i] == 2) {
+						theLine &= tris[i];
+						triCount ++;
+					}
+				}
+				if (nPlus[3] == 2 && triCount < 2) {
+					theLine &= usedBits;
+				}
+				if (numVertices[theLine] != 2){
+					assert(numVertices[theLine] == 2);
+				}
+				allUsedBits = theLine;
+				goto LineCase;
+			}
+			else if (nPlusMax == 1) {
+				thePoint = 0xF;
+				for (int i = 0; i < 3; ++i) {
+					if (nPlus[i] == 1) {
+						thePoint &= tris[i];
+					}
+				}
+				if (nPlus[3] == 1) {
+					thePoint &= usedBits;
+				}
+				assert(numVertices[thePoint] == 1);
+				allUsedBits = thePoint;
+				goto PointCase;
+			}else {	//	四面体の中に原点がある
+				assert(0);	//	近づけすぎ。あってはならない。
+			}
+		}else if (nVtx == 3){	//	三角形
+			theTriangle = allUsedBits;
+			triArea = areas[0];
+			triNPlus = CalcTriAreas(theTriangle, triArea);
+			if (triNPlus == 3) {	//三角形上
+			TriCase:;
+				const int* vids = vertexIds3[theTriangle];
+				v = triArea[0] * p_q[vids[0]] + triArea[1] * p_q[vids[1]] + triArea[2] * p_q[vids[2]];
+				weightBit = theTriangle;
+			}else if (triNPlus == 2){	//辺上
+				const int* vids = vertexIds3[theTriangle];
+				int ids[2];
+				int j = 0;
+				for (int i = 0; i < 3; ++i) {
+					if (triArea[i] >= 0) {
+						ids[j] = vids[i];
+						j++;
+					}
+				}
+				theLine = (1 << ids[0]) | (1 << ids[1]);
+				allUsedBits = theLine;
+				if (j!=2){		
+					assert(j == 2);
+				}
+				goto LineCase;
+			}else if (triNPlus == 1){
+				const int* vids = vertexIds3[theTriangle];
+				for (int i = 0; i < 3; ++i) {
+					if (triArea[i] >= 0) {
+						thePoint = 1 << vids[i];
+						goto PointCase;
+					}
+				}
+				assert(0);
+			}else {
+				triNPlus = CalcTriAreas(theTriangle, triArea);
+				assert(0);	//	inside -> 近すぎ
+			}
+		}
+		else if (nVtx == 2) {
+			theLine = allUsedBits;
+			LineCase:
+			const int* ids = vertexIds2[theLine];
+			Vec3d line = p_q[ids[1]] - p_q[ids[0]];
+			double len = line.norm();
+			line /= len;
+			double h0 = p_q[ids[0]] * line;
+			double h1 = p_q[ids[1]] * line;
+			if (h0 > 0) {
+				thePoint = 1 << ids[0];
+				goto PointCase;
+			}
+			else if (h1 > 0) {
+				lineWeight[0] = h1 / (h1 - h0);
+				lineWeight[1] = -h0 / (h1 - h0);
+				v = p_q[ids[0]] * lineWeight[0] + p_q[ids[1]] * lineWeight[1];
+				//v = (p_q[ids[0]] * h1 + p_q[ids[1]] * (-h0)) / (h1 - h0);
+				weightBit = theLine;
+			}
+			else {
+				thePoint = 1 << ids[1];
+				goto PointCase;
+			}
+		}
+		else if (nVtx == 1) {
+			thePoint = allUsedBits;
+			PointCase:
+			int id = vertexIds1[thePoint];
+			v = p_q[id];
+			weightBit = thePoint;
+		}
+		dist = v.norm();
+		if (dist < threshold) break;
+		count++;
+		if (count == 100) {
+			DSTR << "Too many loop in FindClosestPoints!!" << std::endl;
+			break;
+		}
+	}
+	if (dist > 1e-8) {
+		normal = v / dist;
+	}
+	HitExit:
+	CalcPoints(usedBits, pa, pb);
+	
+	double d = dist;
+	dist = start + shift;
+	normal = -normal;
+
+	Vec3d pl, ql;
+	int nVtx = numVertices[weightBit];
+	if (nVtx == 3) {
+		const int* ids = vertexIds3[weightBit];
+		pl = p[ids[0]] * triArea[0] + p[ids[1]] * triArea[1] + p[ids[2]] * triArea[2];
+		ql = q[ids[0]] * triArea[0] + q[ids[1]] * triArea[1] + q[ids[2]] * triArea[2];
+	}
+	else if (nVtx == 2) {
+		const int* ids = vertexIds2[weightBit];
+		pl = p[ids[0]] * lineWeight[0] + p[ids[1]] * lineWeight[1];
+		ql = q[ids[0]] * lineWeight[0] + q[ids[1]] * lineWeight[1];
+	}
+	else {
+		int id = vertexIds1[weightBit];
+		pl = p[id];
+		ql = q[id];
+	}
+	pa = a2l * pl;
+	pb = b2l * ql;
+	qpTimerForCollision.Accumulate(coltimePhase1);
+	//	DSTR << "GRDist:" << dist << " start:"<<start << " shift:"<< shift << " d:" << d << 
+	//		" pd:" << (b2l.Pos()-b2wOrg.Pos()).norm() << std::endl;
+	return ret;
+}
 
 }

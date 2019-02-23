@@ -30,7 +30,7 @@
     <ProjectGuid>{8C62959E-9E67-4439-836E-25BE57501463}</ProjectGuid>
     <RootNamespace>Collision</RootNamespace>
     <ProjectName>Collision</ProjectName>
-    <WindowsTargetPlatformVersion>10.0.16299.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.17763.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -406,6 +406,7 @@
     <ClCompile Include="CDConvexMeshInterpolate.cpp" />
     <ClCompile Include="CDCutRing.cpp" />
     <ClCompile Include="CDDetectorImp.cpp" />
+    <ClCompile Include="CDEllipsoid.cpp" />
     <ClCompile Include="CDGJK.cpp" />
     <ClCompile Include="CDRegisterTypeDesc.cpp" />
     <ClCompile Include="CDRoundCone.cpp" />
@@ -425,6 +426,7 @@
     <ClInclude Include="CDConvexMeshInterpolate.h" />
     <ClInclude Include="CDCutRing.h" />
     <ClInclude Include="CDDetectorImp.h" />
+    <ClInclude Include="CDEllipsoid.h" />
     <ClInclude Include="CDQuickHull2D.h" />
     <ClInclude Include="CDQuickHull2DImp.h" />
     <ClInclude Include="CDQuickHull3D.h" />
@@ -437,7 +439,7 @@
     <ClInclude Include="..\..\include\Collision\SprCDShape.h" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Foundation\Foundation14.0.vcxproj">
+    <ProjectReference Include="..\Foundation\Foundation15.0.vcxproj">
       <Project>{916bf063-5a94-4652-b355-62220ef17768}</Project>
     </ProjectReference>
   </ItemGroup>

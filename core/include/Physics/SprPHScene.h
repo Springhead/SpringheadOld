@@ -160,6 +160,16 @@ public:
 	int NSolids()const;
 
 	/** @brief Solidを取得する
+		@return Solidのインタフェースへのポインタ
+	 */
+	PHSolidIf* GetSolid(int idx);
+
+	/** @brief Solidのインデックスを取得する
+		@return Solidのインデックス
+	 */
+	int GetSolidIndex(PHSolidIf* s);
+
+	/** @brief Solidを取得する
 		@return Solidのインタフェースの配列へのポインタ
 	 */
 	PHSolidIf** GetSolids();
@@ -591,7 +601,7 @@ public:
 
 	/** @brief 計算時間の計測結果を取得する。
 	*/
-	UTPerformanceMeasure* GetPerformanceMeasure();
+	UTPerformanceMeasureIf* GetPerformanceMeasure();
 };
 
 //@}

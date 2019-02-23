@@ -10,6 +10,7 @@
 #pragma once
 
 #include <Foundation/SprUTQPTimer.h>
+#include <Foundation/Object.h>
 
 #include <vector>
 #include <sstream>
@@ -60,7 +61,9 @@ public:
 };
 
 /// UTQPTimerを使い、アルゴリズムの所要時間を測定するためのクラス
-class UTPerformanceMeasureImp : public UTPerformanceMeasure, public UTRefCount{
+class SPR_DLL UTPerformanceMeasure : public Object{
+public:
+	SPR_OBJECTDEF(UTPerformanceMeasure);
 private:
 	std::string name;
 	double unit;	// 出力時の単位(1でsec, 1e-3でmsec)
@@ -71,14 +74,18 @@ private:
 		std::string name;		// 計測場所の名前
 	};
 	std::vector< Name > names;
+	UTPerformanceMeasure(const char* n) :name(n), unit(1e-3) {}
 
-	UTPerformanceMeasureImp(const char* n):name(n), unit(1e-3){}
 public:
+	UTPerformanceMeasure() :name(""), unit(1e-3) {
+		assert(0);
+		//	should not create independently.
+	}
 	int NCounter() {
 		return (int)names.size();
 	}
 	const char* GetNameOfCounter(int id) {
-		if (0<= id && id < names.size()) return names[id].name.c_str();
+		if (0<= id && id < (int)names.size()) return names[id].name.c_str();
 		return NULL;
 	}
 	const char* GetName() { return name.c_str(); }
@@ -106,11 +113,11 @@ public:
 	void SetUnit(double u) { unit = u; }
 	double GetUnit() { return unit; }
 	void ClearCounts() {
-		for (int i = 0; i < names.size(); ++i) {
+		for (int i = 0; i < (int)names.size(); ++i) {
 			counts[i] = 0;
 		}
 	}
-	friend class UTPerformanceMeasure;
+	friend class UTPerformanceMeasureIf;
 };
 
 

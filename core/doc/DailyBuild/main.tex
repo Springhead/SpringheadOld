@@ -1,10 +1,11 @@
 % main.tex
-%	Last update: 2017/03/13 F.Kanehori
+%	Last update: 2018/12/25 F.Kanehori
 %
 \documentclass[a4j,12pt]{jsarticle}
 \usepackage{dirtree}
 \usepackage{setspace}
 \usepackage{longtable}
+\usepackage{comment}
 
 \setlength{\textheight}{\paperheight}   % 紙面縦幅を本文領域にする（BOTTOM=-TOP）
 \setlength{\topmargin}{4.6truemm}       % 上の余白を30mm（=1inch+4.6mm）に
@@ -21,7 +22,7 @@
 \input{macro}
 
 \begin{center}
-  \Large{DailyBuild} \\
+  \Large{DailyBuildメンテナンスマニュアル} \\
   {\normalsize\input{LastUpdate}} \\
 \end{center}
 
@@ -29,24 +30,36 @@
 本ドキュメントでは、Springheadの日々のメンテナンス作業(dailybuildの結果の確認、
 Wikiページのメンテナンス等)およびそれらに関わるスクリプトについて説明する。
 
-\vfil
-%\vspace{2cm}
+\vfill
+\begin{center}\small{%
+  改 訂 履 歴\\
+  \medskip
+  \begin{tabular}{ll}
+    第2.1版 & Visual Studio新バージョンへの対応方法追加 \\
+    第2.0版 & スクリプトのpython化に伴う変更 \\
+    第1.0版 & 初版 \\
+  \end{tabular}
+}\end{center}
+\vspace{1.5cm}
+
+\newpage
 \setcounter{tocdepth}{3}
 \tableofcontents
 %-------------------------------
-\input{1.WhatIsDailyBuild}
-\input{2.RoutineWork}
-\input{3.WikiMaintenance}
-\input{4.VisualStudioVersion}
-\input{5.Task}
-\input{6.0.Script}
-\input{6.1.0.TestMain}
-\input{6.1.1.TestAll}
-\input{6.1.2.BuildVC}
-\input{6.2.0.MakeReport}
-\input{6.2.1.BuildMonitor}
-\input{6.2.2.BaseLib}
-\input{6.2.3.DailybuildLib}
+\input{1.0.WhatIsDailyBuild}
+\input{2.0.RoutineWork}
+\input{3.0.WikiMaintenance}
+\input{4.0.Task}
+\input{5.0.DailyBuildScript}
+\input{5.1.DailyBuildScriptTree}
+\input{5.2.DailyBuildEnvironmentVariable}
+\input{5.3.DailyBuildDirectoryStructure}
+\input{5.4.0.DailyBuildScriptSpec}
+\input{5.5.DailyBuildScriptMaintenance}
+\input{6.0.MakeReportScript}
+\input{6.1.MakeReportScriptTree}
+\input{6.2.MakeReportDirectoryStructure}
+\input{6.3.0.MakeReportScriptSpec}
 % ---------------------------
 
 \end{document}

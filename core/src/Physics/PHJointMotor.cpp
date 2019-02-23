@@ -197,8 +197,8 @@ bool PHNDJointMotor<NDOF>::Iterate(){
 		int i = axes[n];
 		int j = joint->movableAxes[i];
 
-		joint->dv[j] = joint->J[0].row(j) * (joint->solid[0]->dv /*+ joint->solid[0]->ddv*/)
-			         + joint->J[1].row(j) * (joint->solid[1]->dv /*+ joint->solid[1]->ddv*/);
+		joint->dv[j] = joint->J[0].row(j) * joint->solid[0]->dv
+			         + joint->J[1].row(j) * joint->solid[1]->dv;
 		dv  [i] = joint->dv[j];
 		res [i] = b[i] + db[i] + dA[i]*f[i] + dv[i];
 		fnew[i] = f[i] - joint->engine->accelSOR * Ainv[i] * res[i];
@@ -457,11 +457,11 @@ void PHBallJointMotor::SetParams(PHNDJointMotorParam<3>& p) {
 
 void PHBallJointNonLinearMotor::SetFuncFromDatabaseN(int n, int i, int j, void* sparam, void* dparam){
 	if (n >= 0 && n < 3){
-		if (!(i < 0 || i > sizeof(PH1DJointFunc) / sizeof(PH1DJointFunc[0]))) {
+		if (!(i < 0 || i > sizeof(PHBallJointFunc) / sizeof(PHBallJointFunc[0]))) {
 			springFunc[n] = i;
 			this->springParam[n] = sparam;
 		}
-		if (!(j < 0 || j > sizeof(PH1DJointFunc) / sizeof(PH1DJointFunc[0]))) {
+		if (!(j < 0 || j > sizeof(PHBallJointFunc) / sizeof(PHBallJointFunc[0]))) {
 			damperFunc[n] = j;
 			this->damperParam[n] = dparam;
 		}
@@ -469,7 +469,9 @@ void PHBallJointNonLinearMotor::SetFuncFromDatabaseN(int n, int i, int j, void* 
 }
 
 void PHBallJointNonLinearMotor::SetFuncFromDatabase(Vec3i i, Vec3i j, void* sparam[], void* dparam[]){
-
+	for (int n = 0; n < 3; n++) {
+		SetFuncFromDatabaseN(n, i[n], j[n], sparam[n], dparam[n]);
+	}
 }
 
 /// propVを計算する

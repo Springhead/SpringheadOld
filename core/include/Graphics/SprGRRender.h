@@ -161,7 +161,7 @@ struct GRCameraDesc : GRVisualDesc{
 		ORTHO,
 		PERSPECTIVE,
 	};
-	Vec2f size;				///<	スクリーンのサイズ
+	Vec2f size;				///<	スクリーンのサイズ。x, yどちらを0にしておくと、スクリーンサイズからアスペクト比を保つように自動計算する。
 	Vec2f center;			///<	カメラからのスクリーンのずれ
 	float front, back;		///<	視点からクリップ面までの相対距離（正の値で指定）
 	int   type;             ///<    投影変換
@@ -376,7 +376,9 @@ struct GRRenderBaseIf: public ObjectIf{
 	/// 直方体を描画
 	void	DrawBox(float sx, float sy, float sz, bool solid=true);
 	/// 球体を描画
-	void	DrawSphere(float radius, int slices, int stacks, bool solid=true);
+	void	DrawSphere(float radius, int slices, int stacks, bool solid = true);
+	/// 楕円体を描画
+	void	DrawEllipsoid(Vec3f radius, int slices, int stacks, bool solid = true);
 	/// 円錐の描画
 	void	DrawCone(float radius, float height, int slice, bool solid=true);
 	/// 円筒の描画

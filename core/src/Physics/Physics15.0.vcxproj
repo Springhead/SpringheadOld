@@ -30,7 +30,7 @@
     <ProjectGuid>{A2B91F83-DF0A-473D-9C3B-059673CD2046}</ProjectGuid>
     <RootNamespace>Physics</RootNamespace>
     <ProjectName>Physics</ProjectName>
-    <WindowsTargetPlatformVersion>10.0.16299.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.17763.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -406,12 +406,14 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="PHBallJoint.cpp" />
+    <ClCompile Include="PHBody.cpp" />
     <ClCompile Include="PHConstraint.cpp" />
     <ClCompile Include="PHConstraintEngine.cpp" />
     <ClCompile Include="PHContactDetector.cpp" />
     <ClCompile Include="PHContactPoint.cpp" />
     <ClCompile Include="PHContactSurface.cpp" />
     <ClCompile Include="PHFemEngine.cpp" />
+    <ClCompile Include="PHFemEngineHeatTransfer.cpp" />
     <ClCompile Include="PHForceField.cpp" />
     <ClCompile Include="PHGear.cpp" />
     <ClCompile Include="PHGenericJoint.cpp" />
@@ -469,6 +471,7 @@
     <ClInclude Include="..\..\include\Physics\SprPHSkeleton.h" />
     <ClInclude Include="PHAxisIndex.h" />
     <ClInclude Include="PHBallJoint.h" />
+    <ClInclude Include="PHBody.h" />
     <ClInclude Include="PHConstraint.h" />
     <ClInclude Include="PHConstraintEngine.h" />
     <ClInclude Include="PHContactDetector.h" />
@@ -539,10 +542,10 @@
     <Text Include="lcpnote.txt" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Collision\Collision14.0.vcxproj">
+    <ProjectReference Include="..\Collision\Collision15.0.vcxproj">
       <Project>{8c62959e-9e67-4439-836e-25be57501463}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\Foundation\Foundation14.0.vcxproj">
+    <ProjectReference Include="..\Foundation\Foundation15.0.vcxproj">
       <Project>{916bf063-5a94-4652-b355-62220ef17768}</Project>
     </ProjectReference>
   </ItemGroup>
