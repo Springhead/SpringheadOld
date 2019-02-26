@@ -8,10 +8,11 @@ if "%1" equ "" (
 )
 set ARGS=%2 %3 %4 %5 %6 %7 %8 %9
 
-set ADDPATH=.
-if "%1" equ "pdf"  (set ADDPATH=F:\C-Drive-Save\texlive\2014\bin\win32)
-if "%1" equ "html" (set ADDPATH=C:\texlive\2018\bin\win32)
-set path=%ADDPATH%;%path%
+rem set ADDPATH=.
+rem if "%1" equ "pdf"  (set ADDPATH=F:\C-Drive-Save\texlive\2014\bin\win32)
+rem if "%1" equ "pdf"  (set ADDPATH=C:\texlive\2014\bin\win32)
+rem if "%1" equ "html" (set ADDPATH=C:\texlive\2018\bin\win32)
+rem set path=%ADDPATH%;%path%
 
 if "%1" equ "pdf" (
     cmd /c make clean
@@ -25,7 +26,8 @@ if "%1" equ "pdf" (
     if "!OPT!" equ "-S" (cd ..)
 
     echo test start at "%CD%"
-    python buildhtml.py -v -E -K -R -c -t !OPT! %ARGS% main_html.tex
+    rem python buildhtml.py -v -E -H -K -R -c -t !OPT! %ARGS% main_html.tex
+    python buildhtml.py -E -H -K -R -c -t !OPT! %ARGS% main_html.tex
 
     if "!OPT!" equ "-S" (cd tmp)
     echo test end at "%CD%"
