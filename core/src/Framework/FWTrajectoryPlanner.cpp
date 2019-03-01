@@ -184,7 +184,7 @@ void FWTrajectoryPlanner::HingeJoint::TrajectoryCorrection(int k, bool s) {
 	//終端の到達および停止保証部
 	int stime = (int)(movetime * 0.0);
 
-	for (int i = 0; i < angleLPF.width(); i++) {
+	for (int i = 0; i < (int) angleLPF.width(); i++) {
 		DSTR << k << " " << i << " " << angleLPF[k][i] << std::endl;
 	}
 	double end = angleLPF[k][angleLPF.width() - 1];
@@ -207,7 +207,7 @@ void FWTrajectoryPlanner::HingeJoint::ApplyLPF(int count) {
 		torqueLPF = LPF::centerNSMAv(torque, 3, 1, initialTorque);
 	}
 	if (count > 0) {
-		for (int i = 0; i < torqueLPF.size(); i++) {
+		for (int i = 0; i < (int) torqueLPF.size(); i++) {
 			torqueLPF[i] = rateLPF * torqueLPF[i] + (1 - rateLPF) * torque[i];
 		}
 	}
@@ -250,7 +250,7 @@ double FWTrajectoryPlanner::HingeJoint::CalcTotalTorqueChangeLPF() {
 double FWTrajectoryPlanner::HingeJoint::CalcTorqueChangeInSection(int n) {
 	//n = 0, ..., nVia - 1(経由点としては最後), nVia(目標点だけど経由点同様に扱う)
 	double total = 0;
-	if (n >= 0 && n < viatimes.size()) {
+	if (n >= 0 && n < (int) viatimes.size()) {
 		int start = (n == 0) ? 0 : viatimes[n - 1];
 		int end = viatimes[n];
 		for (int i = start; i < end; i++) {
@@ -261,11 +261,11 @@ double FWTrajectoryPlanner::HingeJoint::CalcTorqueChangeInSection(int n) {
 	return total;
 }
 double FWTrajectoryPlanner::HingeJoint::GetBestTorqueChangeInSection(int n) {
-	if (n < 0 || n >= viatimes.size()) return 0;
+	if (n < 0 || n >= (int) viatimes.size()) return 0;
 	return tChanges[n];
 }
 void FWTrajectoryPlanner::HingeJoint::SetBestTorqueChange() {
-	for (int n = 0; n < viatimes.size(); n++) {
+	for (int n = 0; n < (int) viatimes.size(); n++) {
 		tChanges[n] = CalcTorqueChangeInSection(n);
 	}
 }
@@ -496,7 +496,7 @@ void FWTrajectoryPlanner::BallJoint::ApplyLPF(int count) {
 		torqueLPF = LPF::centerNSMAv(torque, 3, 1, initialTorque);
 	}
 	if (count > 0) {
-		for (int i = 0; i < torqueLPF.size(); i++) {
+		for (int i = 0; i < (int) torqueLPF.size(); i++) {
 			torqueLPF[i] = rateLPF * torqueLPF[i] + (1 - rateLPF) * torque[i];
 		}
 	}
@@ -543,7 +543,7 @@ double FWTrajectoryPlanner::BallJoint::CalcTotalTorqueChangeLPF() {
 }
 double FWTrajectoryPlanner::BallJoint::CalcTorqueChangeInSection(int n) {
 	double total = 0;
-	if (n >= 0 && n < viatimes.size()) {
+	if (n >= 0 && n < (int) viatimes.size()) {
 		int start = (n == 0) ? 0 : viatimes[n - 1];
 		int end = viatimes[n];
 		for (int i = start; i < end; i++) {
@@ -557,11 +557,11 @@ double FWTrajectoryPlanner::BallJoint::CalcTorqueChangeInSection(int n) {
 	return total * weight;
 }
 double FWTrajectoryPlanner::BallJoint::GetBestTorqueChangeInSection(int n) {
-	if (n < 0 || n >= viatimes.size()) return 0;
+	if (n < 0 || n >= (int) viatimes.size()) return 0;
 	return tChanges[n];
 }
 void FWTrajectoryPlanner::BallJoint::SetBestTorqueChange() {
-	for(int n = 0; n < viatimes.size(); n++) {
+	for(int n = 0; n < (int) viatimes.size(); n++) {
 		tChanges[n] = CalcTorqueChangeInSection(n);
 	}
 }
@@ -625,7 +625,7 @@ FWTrajectoryPlanner::Joints::Joints() { joints.clear(); joints.shrink_to_fit(); 
 FWTrajectoryPlanner::Joints::~Joints() { RemoveAll();  std::vector<Joint*>().swap(joints); }
 void FWTrajectoryPlanner::Joints::RemoveAll() {
 	// 各要素でnewしているためこう？
-	for (int i = 0; i < joints.size(); i++) {
+	for (int i = 0; i < (int) joints.size(); i++) {
 		delete joints[i];
 	}
 	joints.clear();  joints.shrink_to_fit();
@@ -1097,7 +1097,7 @@ void FWTrajectoryPlanner::OutputTrajectory(std::string filename) {
 	// 手先軌道をファイル出力出力
 	std::ofstream outfile(filename + ".csv");
 	for (int i = 0; i < maxIterate + 1; i++) {
-		for (int j = 0; j < trajData.width(); j++) {
+		for (int j = 0; j < (int) trajData.width(); j++) {
 			outfile << trajData[i][j].Pos().x << "," << trajData[i][j].Pos().y << "," << trajData[i][j].Pos().z << "," << std::endl;
 		}
 	}

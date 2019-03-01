@@ -8,7 +8,6 @@
 
 #include "PHOpDemo.h"
 #include "Physics/PHOpSpHashColliAgent.h"
-//#include "Framework/FWOpHapticHandler.h"
 #include "Physics/PHOpEngine.h"
 #include <Foundation/UTClapack.h>
 #include "Graphics/GRMesh.h"
@@ -16,7 +15,7 @@
 
 #define USE_SPRFILE
 #define ESC 27
-#define USE_AVG_RADIUS
+//#define USE_AVG_RADIUS
 #define COLLISION_DEMO
 
 #ifndef COLLISION_DEMO
@@ -63,15 +62,11 @@ void PHOpDemo::Init(int argc, char* argv[]){
 	GRInit(argc, argv);		// ウィンドウマネジャ初期化
 	CreateWin();			// ウィンドウを作成
 	CreateTimer();			// タイマを作成
-
 	InitCameraView();		// カメラビューの初期化
 	GetSdk()->SetDebugMode(false);						// デバックモードの無効化
 	GetSdk()->GetScene()->EnableRenderAxis(true);		// 座標軸の表示
 	GetSdk()->GetScene()->EnableRenderContact(true);	// 接触領域の表示
-
 	HISdkIf* hisdk = GetSdk()->GetHISdk();
-	
-	
 	
 	//initial op objects
 	FWOpObjIf *tmp = GetSdk()->GetScene()->FindObject("fwSLBunny")->Cast();
@@ -79,7 +74,7 @@ void PHOpDemo::Init(int argc, char* argv[]){
 	tmp->CreateOpObjWithRadius(0.5f);
 //#endif
 	
-	PHOpEngineIf* opEngine = GetSdk()->GetScene()->GetPHScene()->GetOpEngine()->Cast();
+	PHOpEngineIf* opEngineif = GetSdk()->GetScene()->GetPHScene()->GetOpEngine()->Cast();
 #ifdef HAPTIC_DEMO
 	//initial for haptic
 	
@@ -103,7 +98,7 @@ void PHOpDemo::Init(int argc, char* argv[]){
 	//opObjIf->InitialObjUsingLocalBuffer(0.5f);
 #ifdef _6DOF
 	
-	opEngine->InitialHapticRenderer(0);//6DOF haptic renderer
+	opEngineif->InitialHapticRenderer(0);//6DOF haptic renderer
 #endif
 #ifdef _3DOF
 	opEngine->InitialNoMeshHapticRenderer();
@@ -112,9 +107,9 @@ void PHOpDemo::Init(int argc, char* argv[]){
 	InitInterface();
 	opHapticHandler->SetHumanInterface(spg);
 	
-	PHOpHapticControllerIf* opHc = (PHOpHapticControllerIf*)opEngine->GetOpHapticController();
+	PHOpHapticControllerIf* opHc = (PHOpHapticControllerIf*)opEngineif->GetOpHapticController();
 	opHc->setC_ObstacleRadius(0.2f);
-	PHOpHapticRendererIf* opHr = (PHOpHapticRendererIf*)opEngine->GetOpHapticRenderer();
+	PHOpHapticRendererIf* opHr = (PHOpHapticRendererIf*)opEngineif->GetOpHapticRenderer();
 	
 	//for clip
 	//opEngine->InitialHapticRenderer(1, hisdk);
@@ -129,7 +124,7 @@ void PHOpDemo::Init(int argc, char* argv[]){
 	//{
 	//	opAnimator->AddAnimationP(1, pi, Vec3f(0, -300, 0), 100);
 	//}
-	PHOpObjIf *opObjIf = opEngine->GetOpObjIf(0);
+	PHOpObjIf *opObjIf = opEngineif->GetOpObjIf(0);
 	opObjIf->SetBound(3);
 
 	opHrDesc = DCAST(PHOpHapticRenderer, opHr);
@@ -158,14 +153,36 @@ void PHOpDemo::Init(int argc, char* argv[]){
 	spIf->EnableCollisionDetection(false);
 #endif
 	
-	PHOpEngine* opEnginedesc = DCAST(PHOpEngine, opEngine);
-	
+	PHOpEngine* opEngine = DCAST(PHOpEngine, opEngineif);
 
-	PHOpObjDesc* dp1 = opEnginedesc->opObjs[0];
-	cout << "obji = 0" << "pNum" << dp1->assPsNum << "gNum" << dp1->assGrpNum << endl;
+
+	PHOpObjDesc* obj1 = opEngine->opObjs[0];
+	cout << "obji = 0" << "pNum" << obj1->assPsNum << "gNum" << obj1->assGrpNum << endl;
+	obj1->objAverRadius *= 0.5f;
 #ifdef COLLISION_DEMO
-	PHOpObjDesc* dp2 = opEnginedesc->opObjs[1];
-	cout << "obji = 1" << "pNum" << dp2->assPsNum << "gNum" << dp2->assGrpNum << endl;
+	PHOpObjDesc* obj2 = opEngine->opObjs[1];
+	cout << "obji = 1" << "pNum" << obj2->assPsNum << "gNum" << obj2->assGrpNum << endl;
+	obj2->objAverRadius *= 0.5f;
+#endif
+
+#ifdef COLLISION_DEMO
+	//define general ellipsoid radius to make stable collision result(not the radius calculated from PCA)
+	for (int pi = 0; pi < obj1->assPsNum; pi++)
+	{
+		PHOpParticle* dp1 = &opEngine->opObjs[0]->objPArr[pi];
+
+		dp1->pMainRadius = 0.4f;
+		dp1->pSecRadius = 0.4f;
+		dp1->pThrRadius = 0.2f;
+	}
+	for (int pi = 0; pi < obj2->assPsNum; pi++)
+	{
+		PHOpParticle* dp1 = &opEngine->opObjs[1]->objPArr[pi];
+
+		dp1->pMainRadius = 0.4f;
+		dp1->pSecRadius = 0.4f;
+		dp1->pThrRadius = 0.2f;
+	}
 #endif
 
 	DrawHelpInfo = true;
@@ -688,6 +705,20 @@ void PHOpDemo::Keyboard(int key, int x, int y){
 		drawVertex = !drawVertex;
 		DSTR << "drawVertex = " << drawVertex << std::endl;
 		break;
+	case '%':
+		if (spIf->GetCollisionCstrStiffness() <= 1.0f)
+		{
+			spIf->SetCollisionCstrStiffness(spIf->GetCollisionCstrStiffness() + 0.05f);
+			DSTR << "CollisionConstraintStiffness Added to" << spIf->GetCollisionCstrStiffness() << std::endl;
+		}
+		break;
+	case '&':
+		if (spIf->GetCollisionCstrStiffness() >= 0.0f)
+		{
+			spIf->SetCollisionCstrStiffness(spIf->GetCollisionCstrStiffness() - 0.05f);
+			DSTR << "CollisionConstraintStiffness Reduced to" << spIf->GetCollisionCstrStiffness() << std::endl;
+		}
+		break;
 	case 'z':
 		//step debugger
 		runByStep = !runByStep;
@@ -846,6 +877,9 @@ void PHOpDemo::Display()
 		sstr << "Enable Collision: 'c'";
 		render->DrawFont(Vec2f(0, ++Ycor * 10), sstr.str());
 		sstr.str("");
+		sstr << "Edit Collision Constraint Stiffness: '%' to ++, '&' to --";
+		render->DrawFont(Vec2f(0, ++Ycor * 10), sstr.str());
+		sstr.str("");
 		sstr << "Enable Haptic: 't'";
 		render->DrawFont(Vec2f(0, ++Ycor * 10), sstr.str());
 		sstr.str("");
@@ -928,46 +962,6 @@ void PHOpDemo::Display()
 		}
 	}
 	
-	//if (drawPs)
-	//{
-	//	for (int obji = 0; obji < (int)opEngineif->GetOpObjNum(); obji++)
-	//	{
-	//		PHOpObj& drawObj = *opEngine->opObjs[obji];
-	//		{
-	//			for (int j = 0; j < drawObj.assPsNum; j++)
-	//			{
-	//				PHOpParticle &dp = drawObj.objPArr[j];
-	//				Vec3f &spCtr = dp.pCurrCtr;
-	//				Affinef affpos; affpos.Pos() = spCtr;
-	//				float radius = drawObj.objAverRadius;
-	//				if (dp.hitedByMouse)
-	//					render->SetMaterial(GRRenderIf::YELLOW);
-	//				else if (dp.isColliedSphashSolved)
-	//					render->SetMaterial(GRRenderIf::RED);
-	//				else if (dp.isColliedSphashSolvedReady)
-	//					render->SetMaterial(GRRenderIf::DEEPPINK);
-	//				else if (dp.isColliedbySphash)
-	//					render->SetMaterial(GRRenderIf::GREEN);
-	//				else if (dp.isColliedbyColliCube)
-	//					;
-	//				else render->SetMaterial(GRRenderIf::CADETBLUE);
-
-	//				render->PushModelMatrix();//相対座標で使う
-	//				render->MultModelMatrix(affpos);
-	//				//render->DrawSphere(radius, 10, 10, false);
-
-	//				float ra = drawObj.objAverRadius, rb = ra, rc = ra / 2;
-	//				Spr::TQuaternion<float> elliRotQ; elliRotQ.FromMatrix(dp.pCurrOrint.Inv() * dp.ellipRotMatrix);
-	//				//Spr::TQuaternion<float> elliRotQ = dp.pCurrOrint.Inv();//with no ellip orint
-	//				//TPose<float> ta; ta= TPose<float>(pos1,elliRotQ); 
-	//				DrawEllipsoid drawEll;
-	//				drawEll.drawOval(ra * radiusCoe, rb * radiusCoe, rc* radiusCoe, 8, elliRotQ);//dp.pCurrOrint.Inv());
-
-	//				render->PopModelMatrix();
-	//			}
-	//		}
-	//	}
-	//}
 	for (int obji = 0; obji < (int) opEngineif->GetOpObjNum(); obji++)
 	{
 		PHOpObj& drawObj = *opEngine->opObjs[obji];
@@ -995,7 +989,7 @@ void PHOpDemo::Display()
 				PHOpParticle &dp = drawObj.objPArr[i];
 				Vec3f pos1 = dp.pCurrCtr;
 				dp.hitedByMouse = false;
-				float detectSphereRadiu;
+				float detectSphereRadiu = dp.pMainRadius;
 #ifdef USE_AVG_RADIUS
 				detectSphereRadiu = drawObj.objAverRadius * opEngine->radiusCoe;
 #endif

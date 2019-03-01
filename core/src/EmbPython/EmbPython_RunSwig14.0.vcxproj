@@ -29,6 +29,7 @@
   <PropertyGroup Label="Globals">
     <ProjectGuid>{59C4D972-C917-4F20-B8E7-9E5D22169F33}</ProjectGuid>
     <Keyword>MakeFileProj</Keyword>
+    <ProjectName>EmbPython_RunSwig</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
