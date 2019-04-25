@@ -21,8 +21,10 @@
 #	Ver 1.4  2017/11/08 F.Kanehori	Python library path の変更.
 #	Ver 1.5  2017/11/29 F.Kanehori	Python library path の変更.
 #	Ver 1.6  2018/07/03 F.Kanehori	空白を含むユーザ名に対応.
+#	Ver 1.7  2019/02/26 F.Kanehori	Cmake環境に対応.
+#	Ver 1.8  2019/04/01 F.Kanehori	Python library path 検索方法変更.
 # ==============================================================================
-version = 1.6
+version = 1.8
 
 import sys
 import os
@@ -41,6 +43,9 @@ prog = sys.argv[0].split(os.sep)[-1].split('.')[0]
 sys.path.append('../RunSwig')
 from FindSprPath import *
 spr_path = FindSprPath(prog)
+if spr_path.top is None:
+	if os.environ.get('SPR_TOP_DIR', None) is not None:
+		spr_path.top = os.environ.get('SPR_TOP_DIR')
 libdir = spr_path.abspath('pythonlib')
 sys.path.append(libdir)
 from TextFio import *
@@ -58,9 +63,12 @@ unix = util.is_unix()
 #  Directories
 #
 sprtop = spr_path.abspath()
-bindir = spr_path.relpath('bin')
-incdir = spr_path.relpath('inc')
-srcdir = spr_path.relpath('src')
+##bindir = spr_path.relpath('bin')
+##incdir = spr_path.relpath('inc')
+##srcdir = spr_path.relpath('src')
+bindir = spr_path.abspath('bin')
+incdir = spr_path.abspath('inc')
+srcdir = spr_path.abspath('src')
 swigdir = '%s/%s' % (bindir, 'swig')
 
 incdir_rel = util.pathconv(os.path.relpath(incdir), 'unix')
