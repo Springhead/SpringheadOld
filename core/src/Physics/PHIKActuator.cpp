@@ -327,21 +327,26 @@ void PHIKBallActuator::CalcPullbackVelocity() {
 
 void PHIKBallActuator::Move(){
 	if (!bEnabled) { return; }
+	
 	/*
 	Vec3d dir = (jointTempOri.RotationHalf() - jointTempOriIntp);
 	double limit = DCAST(PHSceneIf,GetScene())->GetIKEngine()->GetMaxActuatorVelocity();
 	if (dir.norm() > limit) { dir = dir.unit() * limit; }
 	jointTempOriIntp += dir;
 	if (jointVelocity.norm() > limit) { jointVelocity = jointVelocity.unit() * limit; }
+	DCAST(PHBallJoint,joint)->SetTargetPosition(Quaterniond::Rot(jointTempOriIntp));
+	DCAST(PHBallJoint, joint)->SetTargetVelocity(jointVelocity);
+	
+	int intpRate = DCAST(PHSceneIf, GetScene())->GetIKEngine()->GetIntpRate();
+	if (intpRate > 0) {
+		if (intpRate == 50) jointTempOriIntp = DCAST(PHBallJoint, joint)->GetTargetPosition().RotationHalf();
+		float s = intpRate / 50;
+		jointTempOri = Quaterniond::Rot(s * jointTempOriIntp + (1 - s) * jointTempOri.RotationHalf());
+	}
 	*/
-	//DCAST(PHBallJoint,joint)->SetTargetPosition(Quaterniond::Rot(jointTempOriIntp));
+
 	DCAST(PHBallJoint, joint)->SetTargetPosition(jointTempOri);
 	DCAST(PHBallJoint,joint)->SetTargetVelocity(jointVelocity);
-
-	/*
-	DCAST(PHBallJoint,joint)->SetTargetPosition(jointTempOri);
-	DCAST(PHBallJoint,joint)->SetTargetVelocity(jointVelocity);
-	*/
 
 	return;
 }
@@ -514,7 +519,7 @@ void PHIKHingeActuator::CalcPullbackVelocity() {
 void PHIKHingeActuator::Move(){
 	if (!bEnabled) { return; }
 	PHHingeJointIf* hj = joint->Cast();
-	/*
+	
 	double limit = DCAST(PHSceneIf,GetScene())->GetIKEngine()->GetMaxActuatorVelocity();
 	double diff = jointTempAngle - jointTempAngleIntp;
 	if (abs(diff) > limit) { diff = diff / abs(diff) * limit; }
@@ -522,15 +527,19 @@ void PHIKHingeActuator::Move(){
 	jointVelocity = std::max(-limit, std::min(jointVelocity, limit));
 	
 	hj->SetTargetPosition(jointTempAngleIntp);
-	*/
-	hj->SetTargetPosition(jointTempAngle);
 	hj->SetTargetVelocity(jointVelocity);
+	/*/
 
-	/*
+	int intpRate = DCAST(PHSceneIf, GetScene())->GetIKEngine()->GetIntpRate();
+	if (intpRate > 0) {
+		if (intpRate == 50) jointTempAngleIntp = hj->GetTargetPosition();
+		float s = intpRate / 50;
+		jointTempAngle = (1 - s) * jointTempAngle + s * jointTempAngleIntp;
+	}
+
 	hj->SetTargetPosition(jointTempAngle);
 	hj->SetTargetVelocity(jointVelocity);
 	*/
-	
 	return;
 }
 
