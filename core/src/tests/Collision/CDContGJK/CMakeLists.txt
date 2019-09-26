@@ -63,11 +63,13 @@ set(ADDITIONAL_LIBDIR
 
 #  Additional library name(s) required.
 #	Replace '${EMPTY}' with file name(s).
-set(ADDITIONAL_LIBS ${EMPTY})
+#set(ADDITIONAL_LIBS ${EMPTY})
+set(ADDITIONAL_LIBS XINPUT9_1_0.LIB)
 
 #  Default library name(s) to EXCLUDE from linking.
 #	Replace '${EMPTY}' with file name(s).
-set(EXCLUDE_LIBS ${EMPTY})
+#set(EXCLUDE_LIBS ${EMPTY})
+set(EXCLUDE_LIBS XINPUT.LIB)
 
 # ******************************************************************************
 #  End of customization section.
@@ -80,19 +82,29 @@ set(EXCLUDE_LIBS ${EMPTY})
 #	Otherwise, "${CMAKE_SOURCE_DIR}/CMakeTopdir.txt" SHOULD contain the
 #	definition of top directory like;
 #	    set(TOPDIR "<absolute-dir-path>")
+#	For DailyBuild:
+#	    Cmake option "-D TOPDIR_FILE=<absolute-file-path>" specifies
+#	    the definition file instead of default one.
 #
-set(TOPDIR_FILE "CMakeTopdir.txt")
 if(DEFINED TOPDIR)
-    if(NOT EXISTS "${TOPDIR}")
-	message("Error: File \"${TOPDIR}\" not found")
-	return()
-    endif()
-else()
-    if(NOT EXISTS "${CMAKE_SOURCE_DIR}/${TOPDIR_FILE}")
+    # ok
+elseif(DEFINED TOPDIR_FILE)
+    if(NOT EXISTS ${TOPDIR_FILE})
 	message("Error: File \"${TOPDIR_FILE}\" not found")
 	return()
     endif()
     include(${TOPDIR_FILE})
+else()
+    set(TOPDIR_FILE "${CMAKE_SOURCE_DIR}/CMakeTopdir.txt")
+    if(NOT EXISTS ${TOPDIR_FILE})
+	message("Error: File \"${TOPDIR_FILE}\" not found")
+	return()
+    endif()
+    include(${TOPDIR_FILE})
+endif()
+if(NOT EXISTS "${TOPDIR}")
+    message("Error: Directory \"${TOPDIR}\" not found")
+    return()
 endif()
 
 set(SPR_TOP_DIR  "${TOPDIR}")
@@ -138,19 +150,23 @@ include_file(OPTS ${OPTS_FILE} ${OPTS_DEFAULT_FILE})
 if(${Windows})
     message(STATUS "Host System: Windows")
     set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT ${ProjectName})
-    set(CMAKE_CXX_FLAGS		${WIN_COPT_COMMON})
-    set(CMAKE_CXX_FLAGS_DEBUG	${WIN_COPT_DEBUG})
-    set(CMAKE_CXX_FLAGS_RELEASE	${WIN_COPT_RELEASE})
-    set(CMAKE_CXX_FLAGS_TRACE	${WIN_COPT_TRACE})
+    set(CMAKE_CXX_FLAGS		"${WIN_COPT_COMMON}")
+    set(CMAKE_CXX_FLAGS_DEBUG	"${WIN_COPT_DEBUG}")
+    set(CMAKE_CXX_FLAGS_RELEASE	"${WIN_COPT_RELEASE}")
+    set(CMAKE_CXX_FLAGS_TRACE	"${WIN_COPT_TRACE}")
     foreach(macros IN ITEMS ${WIN_COPT_MACROS})
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /D ${macros}")
     endforeach()
+    set(CMAKE_EXE_LINKER_FLAGS		"${WIN_LINK_COMMON}")
+    set(CMAKE_EXE_LINKER_FLAGS_DEBUG	"${WIN_LINK_DEBUG}")
+    set(CMAKE_EXE_LINKER_FLAGS_RELEASE	"${WIN_LINK_RELEASE}")
+    set(CMAKE_EXE_LINKER_FLAGS_TRACE	"${WIN_LINK_TRACE}")
 elseif(${Linux})
     message(STATUS "Host System: Linux")
     set(LIB_DIR	"${SPR_CORE_DIR}/lib")
-    set(CMAKE_CXX_FLAGS		${LINUX_COPT_COMMON})
-    set(CMAKE_CXX_FLAGS_DEBUG	${LINUX_COPT_DEBUG})
-    set(CMAKE_CXX_FLAGS_RELEASE	${LINUX_COPT_RELEASE})
+    set(CMAKE_CXX_FLAGS		"${LINUX_COPT_COMMON}")
+    set(CMAKE_CXX_FLAGS_DEBUG	"${LINUX_COPT_DEBUG}")
+    set(CMAKE_CXX_FLAGS_RELEASE	"${LINUX_COPT_RELEASE}")
     foreach(macros IN ITEMS ${WIN_COPT_MACROS})
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D ${macros}")
     endforeach()
@@ -301,7 +317,7 @@ foreach(proj IN ITEMS ${SPR_PROJS})
     #message("   dependencies: ${proj} => ${DEP_LIST}")
 endforeach()
 add_dependencies(RunSwig ${SYNC})
-add_dependencies(${Target} ${SPR_PROJS})
+add_dependencies(${Target} ${SPR_PROJS} ${SYNC})
 
 # ------------------------------------------------------------------------------
 #  Include directories.
@@ -343,6 +359,13 @@ target_link_libraries(${Target}
 if(DEFINED EXCLUDE_LIBS)
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /NODEFAULTLIB:\"${EXCLUDE_LIBS}\"")
 endif()
+
+# ------------------------------------------------------------------------------
+#  Set working directory to VS debugger.
+#
+set_target_properties(${Target}
+    PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+)
 
 # ------------------------------------------------------------------------------
 #  Clean (only for RunSwig).
