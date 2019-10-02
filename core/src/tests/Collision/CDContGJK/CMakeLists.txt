@@ -34,7 +34,7 @@ set(CMAKE_CONFIGURATION_TYPES Debug Release Trace)
 
 #  Source/include file names to incorporate to the application program.
 #
-file(GLOB SRCS *.cpp *.h)
+file(GLOB SRCS RELATIVE ${CMAKE_SOURCE_DIR} *.cpp *.h)
 
 #  Source/include file name(s) to EXCLUDE from compilation.
 #	Replace '${EMPTY}' with file name(s).
@@ -47,27 +47,37 @@ set(EXCLUDE_SRCS ${EMPTY})
 #	Remove unneccessary project name(s).
 #	Do not include 'RunSwig' in the list.
 set(SPR_PROJS Base Collision Foundation HumanInterface Physics)
+#set(SPR_PROJS ${SPR_PROJS} EmbPython)
 
 #  Additional include path(s).
 #	Replace '${EMPTY}' with absolute path(s).
 #	Current directory can be refered as '${CMAKE_SOURCE_DIR}'.
-#set(ADDITIONAL_INCDIR ${EMPTY})
-set(ADDITIONAL_INCDIR "F:/Project/ExternalPackage/glui-2.37/include")
+set(ADDITIONAL_INCDIR ${EMPTY})
+#set(ADDITIONAL_INCDIR "F:/Project/ExternalPackage/glui-2.37/include")
 
 #  Additional library path(s).
 #	Replace '${EMPTY}' with absolute path(s).
-#set(ADDITIONAL_LIBDIR ${EMPTY})
-set(ADDITIONAL_LIBDIR
-	"F:/Project/ExternalPackage/freeglut/lib/x64"
-	"F:/Project/Springhead/dependency/lib/win64")
+set(ADDITIONAL_LIBDIR ${EMPTY})
+#set(ADDITIONAL_LIBDIR
+#	"F:/Project/ExternalPackage/freeglut/lib/x64"
+#	"F:/Project/Springhead/dependency/lib/win64")
 
 #  Additional library name(s) required.
 #	Replace '${EMPTY}' with file name(s).
-set(ADDITIONAL_LIBS ${EMPTY})
+set(ADDITIONAL_LIBS XINPUT9_1_0.LIB)
 
 #  Default library name(s) to EXCLUDE from linking.
 #	Replace '${EMPTY}' with file name(s).
-set(EXCLUDE_LIBS ${EMPTY})
+set(EXCLUDE_LIBS XINPUT.LIB)
+
+#  Visual Studio Debugger settings.
+#	DEBUGGER_WORKING_DIRECTORY:
+#		Debugger working directory. Default is ${CMAKE_SOURCE_DIR},
+#		i.e. the directory where this file (CMakeLists.txt) is.
+#	DEBUGGER_COMMAND_ARGUMENTS:
+#		Debugger command line arguments.
+set(DEBUGGER_WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+set(DEBUGGER_COMMAND_ARGUMENTS ${EMPTY})
 
 # ******************************************************************************
 #  End of customization section.
@@ -80,19 +90,29 @@ set(EXCLUDE_LIBS ${EMPTY})
 #	Otherwise, "${CMAKE_SOURCE_DIR}/CMakeTopdir.txt" SHOULD contain the
 #	definition of top directory like;
 #	    set(TOPDIR "<absolute-dir-path>")
+#	For DailyBuild:
+#	    Cmake option "-D TOPDIR_FILE=<absolute-file-path>" specifies
+#	    the definition file instead of default one.
 #
-set(TOPDIR_FILE "CMakeTopdir.txt")
 if(DEFINED TOPDIR)
-    if(NOT EXISTS "${TOPDIR}")
-	message("Error: File \"${TOPDIR}\" not found")
-	return()
-    endif()
-else()
-    if(NOT EXISTS "${CMAKE_SOURCE_DIR}/${TOPDIR_FILE}")
+    # ok
+elseif(DEFINED TOPDIR_FILE)
+    if(NOT EXISTS ${TOPDIR_FILE})
 	message("Error: File \"${TOPDIR_FILE}\" not found")
 	return()
     endif()
     include(${TOPDIR_FILE})
+else()
+    set(TOPDIR_FILE "${CMAKE_SOURCE_DIR}/CMakeTopdir.txt")
+    if(NOT EXISTS ${TOPDIR_FILE})
+	message("Error: File \"${TOPDIR_FILE}\" not found")
+	return()
+    endif()
+    include(${TOPDIR_FILE})
+endif()
+if(NOT EXISTS "${TOPDIR}")
+    message("Error: Directory \"${TOPDIR}\" not found")
+    return()
 endif()
 
 set(SPR_TOP_DIR  "${TOPDIR}")
@@ -128,7 +148,7 @@ include("${SPR_CORE_DIR}/make.func.cmake")
 #	(3) Default file: "${SPR_SRC_DIR}/CMakeOpts.txt.dist".
 #
 set(OPTS_FILE_NAME "CMakeOpts.txt")
-set(OPTS_FILE "${CMAKE_SOURCE_DIR}/${OPTS_FILE_NAME}")
+set(OPTS_FILE "${CMAKE_CURRENT_SOURCE_DIR}/${OPTS_FILE_NAME}")
 set(OPTS_DEFAULT_FILE "${SPR_SRC_DIR}/${OPTS_FILE_NAME}.dist")
 include_file(OPTS ${OPTS_FILE} ${OPTS_DEFAULT_FILE})
 
@@ -138,19 +158,23 @@ include_file(OPTS ${OPTS_FILE} ${OPTS_DEFAULT_FILE})
 if(${Windows})
     message(STATUS "Host System: Windows")
     set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT ${ProjectName})
-    set(CMAKE_CXX_FLAGS		${WIN_COPT_COMMON})
-    set(CMAKE_CXX_FLAGS_DEBUG	${WIN_COPT_DEBUG})
-    set(CMAKE_CXX_FLAGS_RELEASE	${WIN_COPT_RELEASE})
-    set(CMAKE_CXX_FLAGS_TRACE	${WIN_COPT_TRACE})
+    set(CMAKE_CXX_FLAGS		"${WIN_COPT_COMMON}")
+    set(CMAKE_CXX_FLAGS_DEBUG	"${WIN_COPT_DEBUG}")
+    set(CMAKE_CXX_FLAGS_RELEASE	"${WIN_COPT_RELEASE}")
+    set(CMAKE_CXX_FLAGS_TRACE	"${WIN_COPT_TRACE}")
     foreach(macros IN ITEMS ${WIN_COPT_MACROS})
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /D ${macros}")
     endforeach()
+    set(CMAKE_EXE_LINKER_FLAGS		"${WIN_LINK_COMMON}")
+    set(CMAKE_EXE_LINKER_FLAGS_DEBUG	"${WIN_LINK_DEBUG}")
+    set(CMAKE_EXE_LINKER_FLAGS_RELEASE	"${WIN_LINK_RELEASE}")
+    set(CMAKE_EXE_LINKER_FLAGS_TRACE	"${WIN_LINK_TRACE}")
 elseif(${Linux})
     message(STATUS "Host System: Linux")
     set(LIB_DIR	"${SPR_CORE_DIR}/lib")
-    set(CMAKE_CXX_FLAGS		${LINUX_COPT_COMMON})
-    set(CMAKE_CXX_FLAGS_DEBUG	${LINUX_COPT_DEBUG})
-    set(CMAKE_CXX_FLAGS_RELEASE	${LINUX_COPT_RELEASE})
+    set(CMAKE_CXX_FLAGS		"${LINUX_COPT_COMMON}")
+    set(CMAKE_CXX_FLAGS_DEBUG	"${LINUX_COPT_DEBUG}")
+    set(CMAKE_CXX_FLAGS_RELEASE	"${LINUX_COPT_RELEASE}")
     foreach(macros IN ITEMS ${WIN_COPT_MACROS})
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D ${macros}")
     endforeach()
@@ -249,9 +273,9 @@ endif()
 # ------------------------------------------------------------------------------
 #  Main target.
 #
-list(LENGTH EXCLUDE_SRCS LEN_EXCLUDE_SRCS)
-if(${LEN_EXCLUDE_SRCS} GREATER 0)
-	list(REMOVE_ITEM SRCS ${EXCLUDE_SRCS})
+if(EXCLUDE_SRCS)
+    message("++ exclude: ${EXCLUDE_SRCS}")
+    list(REMOVE_ITEM SRCS ${EXCLUDE_SRCS})
 endif()
 if(${Windows})
     if("${ARCHITECTURE}" STREQUAL "x64")
@@ -284,6 +308,7 @@ add_custom_target(${SYNC}
 set(DEP_Base)
 set(DEP_Collision Foundation)
 set(DEP_Creature Foundation Framework Physics)
+set(DEP_EmbPython)
 set(DEP_FileIO Foundation)
 set(DEP_Foundation Base)
 set(DEP_Framework FileIO Foundation Graphics Physics)
@@ -301,7 +326,7 @@ foreach(proj IN ITEMS ${SPR_PROJS})
     #message("   dependencies: ${proj} => ${DEP_LIST}")
 endforeach()
 add_dependencies(RunSwig ${SYNC})
-add_dependencies(${Target} ${SPR_PROJS})
+add_dependencies(${Target} ${SPR_PROJS} ${SYNC})
 
 # ------------------------------------------------------------------------------
 #  Include directories.
@@ -341,31 +366,18 @@ target_link_libraries(${Target}
 #  Exclude default libraries.
 #
 if(DEFINED EXCLUDE_LIBS)
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /NODEFAULTLIB:\"${EXCLUDE_LIBS}\"")
+    set(CMAKE_EXE_LINKER_FLAGS
+	"${CMAKE_EXE_LINKER_FLAGS} /NODEFAULTLIB:\"${EXCLUDE_LIBS}\"")
 endif()
 
 # ------------------------------------------------------------------------------
-#  Clean (only for RunSwig).
+#  Set working directory to VS debugger.
 #
-if ("${CMAKE_GENERATOR_PLATFORM}" STREQUAL "x64")
-    set(LIBDIR ${SPR_TOP_DIR}/generated/lib/win64)
-else ()
-    set(LIBDIR ${SPR_TOP_DIR}/generated/lib/win32)
-endif()
-set(LIBPATH_DEBUG   ${LIBDIR}/Springhead${LIBNAME_DEBUG}.lib)
-set(LIBPATH_RELEASE ${LIBDIR}/Springhead${LIBNAME_RELEASE}.lib)
-set(LIBPATH_TRACE   ${LIBDIR}/Springhead${LIBNAME_TRACE}.lib)
-set(CLEAN ${Python} ${CMAKE_SOURCE_DIR}/RunSwig/Clean.py ${CMAKE_SOURCE_DIR})
-
-if(${Windows})
-    add_custom_target(RunSwig_Clean
-	COMMAND if "'$(Configuration)'" equ "'Debug'"   ${CLEAN} ${LIBPATH_DEBUG}
-	COMMAND if "'$(Configuration)'" equ "'Release'" ${CLEAN} ${LIBPATH_RELEASE}
-	COMMAND if "'$(Configuration)'" equ "'Trace'"   ${CLEAN} ${LIBPATH_TRACE}
-	COMMENT [[  clearing RunSwig generated files and Springhead Library... ]]
-    )
-elseif(${Linux})
-endif()
+foreach(_prop DEBUGGER_WORKING_DIRECTORY DEBUGGER_COMMAND_ARGUMENTS)
+    if(DEFINED ${_prop})
+	set_target_properties(${Target} PROPERTIES VS_${_prop} ${${_prop}})
+    endif()
+endforeach()
 
 # ------------------------------------------------------------------------------
 #  Install.

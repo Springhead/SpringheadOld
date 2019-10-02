@@ -139,20 +139,24 @@ public:
 		app->CheckAndPostRedisplay();
 	}
 };
-void FWApp::InitInNewThread() {
-	unsigned long thread;
-#ifdef _WIN32
-	CreateThread(NULL, 0, FWAppThreadCall::MainLoop, this, 0, &thread);
-#else
-#warning Please implement thread creation for other platform 
-#endif
-}
-
 void FWApp::CheckAndPostRedisplay() {
-	if (bThread && bPostRedisplay) {
+	if (!bThread) return;
+	if (bEndThread) {
+		bEndThread = false;
+		FWGraphicsHandler::instance->EndMainLoop();
+	}
+	if (bPostRedisplay) {
 		bPostRedisplay = false;
 		FWGraphicsHandler::instance->PostRedisplay();
 	}
+}
+void FWApp::InitInNewThread() {
+	unsigned long threadId;
+#ifdef _WIN32
+	CreateThread(NULL, 0, FWAppThreadCall::MainLoop, this, 0, &threadId);
+#else
+	#warning Please implement thread creation for the platform
+#endif
 }
 void FWApp::StartInThread() {
 	bThread = true;
@@ -162,11 +166,12 @@ void FWApp::StartInThread() {
 	GetSdk()->CreateScene();
 	// ウィンドウマネジャ初期化
 	GRInit(0, NULL);
-	EnableIdleFunc(false);
 	// ウィンドウを作成
 	FWWinDesc wd;
 	wd.title = "FWApp::StartInThread";
-	CreateWin();
+	CreateWin(wd);
+
+	EnableIdleFunc(false);
 
 	UTTimerIf* grTimer = CreateTimer(UTTimerIf::FRAMEWORK);
 	grTimer->SetCallback(FWAppThreadCall::RedisplayCheck, this);
@@ -174,9 +179,24 @@ void FWApp::StartInThread() {
 	grTimer->Start();
 	FWGraphicsHandler::instance->StartMainLoop();
 }
+void FWApp::EndThread() {
+#ifdef _WIN32
+	bEndThread = true;
+#else
+	#warning Please implement thread creation for other platform
+#endif
+}
 
 void FWApp::Display(){
-	GetCurrentWin()->Display();
+	UTAutoLock LOCK(displayLock);
+
+	if (bEndThread) {
+		bEndThread = false;
+		FWGraphicsHandler::instance->EndMainLoop();
+	}
+	else {
+		GetCurrentWin()->Display();
+	}
 }
 
 void FWApp::TimerFunc(int id){
@@ -190,6 +210,9 @@ void FWApp::EnableIdleFunc(bool on){
 }
 void FWApp::StartMainLoop() {
 	FWGraphicsHandler::instance->StartMainLoop();
+}
+void FWApp::EndMainLoop() {
+	FWGraphicsHandler::instance->EndMainLoop();
 }
 
 
@@ -345,6 +368,16 @@ GRDeviceIf* FWApp::GRInit(int argc, char* argv[], int type){
 		SetGRHandler(type);
 	FWGraphicsHandler::instance->Init(argc, argv);
 	return FWGraphicsHandler::instance->GetGRDevice();
+}
+
+// ----- ----- -----
+// ロック処理
+void FWApp::GetDisplayLock() {
+	displayLock.Enter();
+}
+
+void FWApp::ReleaseDisplayLock() {
+	displayLock.Leave();
 }
 
 // ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- -----

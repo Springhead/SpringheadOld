@@ -5,11 +5,13 @@ cmake_minimum_required(VERSION 3.1)
 # ------------------------------------------------------------------------------
 #  Definition of project.
 #
-set(ProjectName "EmbPython")
+set(ProjectName "SprPythonDLL")
 message(STATUS "Project: ${ProjectName}")
 project(${ProjectName} CXX)
 set(CMAKE_SUPPRESS_REGENERATION true)
 set(CMAKE_USE_RELATIVE_PATHS true)
+#
+set(OOS_BLD_DIR "build")
 
 # ------------------------------------------------------------------------------
 #  Determine top directory of Springhead tree.
@@ -30,7 +32,7 @@ if(DEFINED TOPDIR)
 elseif(EXISTS "${CMAKE_SOURCE_DIR}/${TOPDIR_FILE}")
     include(${TOPDIR_FILE})
 else()
-    set(TOPDIR "${CMAKE_SOURCE_DIR}/../../../..")
+    set(TOPDIR "${CMAKE_SOURCE_DIR}/../../..")
 endif()
 
 set(SPR_TOP_DIR  "${TOPDIR}")
@@ -79,7 +81,6 @@ include_file(OPTS ${OPTS_FILE} ${OPTS_DEFAULT_FILE})
 #
 if(${Windows})
     message(STATUS "Host System: Windows")
-    set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT ${ProjectName})
     set(CMAKE_CXX_FLAGS		${WIN_COPT_COMMON})
     set(CMAKE_CXX_FLAGS_DEBUG	${WIN_COPT_DEBUG})
     set(CMAKE_CXX_FLAGS_RELEASE	${WIN_COPT_RELEASE})
@@ -87,6 +88,10 @@ if(${Windows})
     foreach(macros IN ITEMS ${WIN_COPT_MACROS})
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /D ${macros}")
     endforeach()
+    set(CMAKE_SHARED_LINKER_FLAGS	  ${WIN_LINK_COMMON})
+    set(CMAKE_SHARED_LINKER_FLAGS_DEBUG	  ${WIN_LINK_DEBUG})
+    set(CMAKE_SHARED_LINKER_FLAGS_RELEASE ${WIN_LINK_RELEASE})
+    set(CMAKE_SHARED_LINKER_FLAGS_TRACE	  ${WIN_LINK_TRACE})
 elseif(${Linux})
     message(STATUS "Host System: Linux")
     set(LIB_DIR	"${SPR_CORE_DIR}/lib")
@@ -186,9 +191,10 @@ endif()
 #  Some other definitions.
 #
 if(${Windows})
-    #set(RunSwigDir ${CMAKE_SOURCE_DIR}/RunSwig)
-    set(RunSwigDir ${TOPDIR}/core/src/RunSwig)
+    set(RunSwigDir ${SPR_SRC_DIR}/RunSwig)
     set(Python ${RunSwigDir}/python_adapter.bat)
+    file(TO_NATIVE_PATH "${RunSwigDir}" RunSwigDir)
+    file(TO_NATIVE_PATH "${Python}" Python)
 #    if(NOT DEFINED VS_VERSION)
 #	execute_process(
 #	    COMMAND ${Python} get_vs_version.py
@@ -201,41 +207,83 @@ elseif(${Linux})
 endif()
 
 # ------------------------------------------------------------------------------
-#  Define sources.
-#	To ensure that GLOB to work, make nessesary (empty) files temporarily
-#	which EmbPython_RunSwig will create later at build time.
-#
-set(SPR_PROJS Base Collision Creature FileIO Foundation Framework Graphics
-	      HumanInterface Physics)
-foreach(_tmp ${SPR_PROJS})
-	file(TOUCH "../EP${_tmp}.h" "../EP${_tmp}.cpp")
-endforeach()
-file(GLOB SRCS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
-		../*.i ../*.h ../*.cpp
-		../EPUtility.h ../EPUtility.cpp ../EPInterpreter.cpp
-	 	../Utility/PyPTM.i ../Utility/EPObject.i)
-##list(APPEND SRCS "EPUtility.h" "EPUtility.cpp" "EPInterpreter.cpp"
-##		 "Utility/PyPTM.i" "Utility/EPObject.i")
-list(REMOVE_ITEM SRCS ../SprPythonDLL.cpp)		# Exclude
-
-# ------------------------------------------------------------------------------
 #  Main target.
 #
 set(Target ${ProjectName})
-add_library(${Target} STATIC ${SRCS})
-
-# output directory and library name
 if(${Windows})
-    set_target_properties("${Target}" PROPERTIES
-	OUTPUT_NAME_DEBUG   "${Target}${VS_VERSION}D${CMAKE_GENERATOR_PLATFORM}"
-	OUTPUT_NAME_RELEASE "${Target}${VS_VERSION}${CMAKE_GENERATOR_PLATFORM}"
-	OUTPUT_NAME_TRACE   "${Target}${VS_VERSION}T${CMAKE_GENERATOR_PLATFORM}"
-	ARCHIVE_OUTPUT_DIRECTORY_DEBUG   ${SPR_SRC_DIR}/${Target}
-	ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${SPR_SRC_DIR}/${Target}
-	ARCHIVE_OUTPUT_DIRECTORY_TRACE   ${SPR_SRC_DIR}/${Target}
-    )
-elseif(${Linux})
+    set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT ${ProjectName})
 endif()
+
+set(SRCS SprPythonDLL.cpp)
+add_library(${Target} SHARED ${SRCS})
+
+set(INSTALL_DIRECTORY_BASE ${SPR_TOP_DIR}/generated/bin)
+if ("${CMAKE_GENERATOR_PLATFORM}" STREQUAL "x64")
+    set(LIBRARY_INSTALL_DIRECTORY ${INSTALL_DIRECTORY_BASE}/win64)
+else ()
+    set(LIBRARY_INSTALL_DIRECTORY ${INSTALL_DIRECTORY_BASE}/win32)
+endif()
+set(LIBRARY_OUTPUT_DIRECTORY  ${LIBRARY_INSTALL_DIRECTORY}/Python)
+set(LIBNAME_DEBUG   SprD)
+set(LIBNAME_RELEASE Spr)
+set(LIBNAME_TRACE   SprT)
+
+set_target_properties(${Target} PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY_DEBUG   ${LIBRARY_OUTPUT_DIRECTORY}
+    RUNTIME_OUTPUT_DIRECTORY_RELEASE ${LIBRARY_OUTPUT_DIRECTORY}
+    RUNTIME_OUTPUT_DIRECTORY_TRACE   ${LIBRARY_OUTPUT_DIRECTORY}
+    RUNTIME_OUTPUT_NAME_DEBUG   ${LIBNAME_DEBUG}
+    RUNTIME_OUTPUT_NAME_RELEASE ${LIBNAME_RELEASE}
+    RUNTIME_OUTPUT_NAME_TRACE   ${LIBNAME_TRACE}
+    SUFFIX ".pyd"
+)
+
+# ------------------------------------------------------------------------------
+#  Add target to synchronize configuration with ${SRR_SRC_DIR}.
+#
+set(SPR_PROJS Base Collision Creature FileIO Foundation Framework Graphics
+	      HumanInterface Physics)
+set(SPR_PROJS_PLUS ${SPR_PROJS} EmbPython)
+#
+set(SYNC "sync")
+set(_tmp_args "-v"
+	"-a" "\"$(Platform)\""
+	"-c" "\"$(Configuration)\""
+	"${SPR_SRC_DIR}/${OOS_BLD_DIR}" "${CMAKE_BINARY_DIR}"
+	"${Target}" "${SPR_PROJS}")
+file(TO_NATIVE_PATH "${_tmp_args}" _tmp_args)
+add_custom_target(${SYNC}
+    COMMAND python ${SPR_SRC_DIR}/cmake_sync.py ${_tmp_args}
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    COMMENT "sync configuration with ${SPR_SRC_DIR}"
+)
+
+# ------------------------------------------------------------------------------
+#  Define depending projects.
+#
+set(DEP_Base)
+set(DEP_Collision Foundation)
+set(DEP_Creature Foundation Framework Physics)
+set(DEP_EmbPython EmbPython_RunSwig)
+set(DEP_FileIO Foundation)
+set(DEP_Foundation Base)
+set(DEP_Framework FileIO Foundation Graphics Physics)
+set(DEP_Graphics Foundation)
+set(DEP_HumanInterface Foundation)
+set(DEP_Physics Collision Foundation)
+add_subdirectory(${SPR_SRC_DIR}/RunSwig ${SPR_BLD_DIR}/RunSwig)
+foreach(proj IN ITEMS ${SPR_PROJS_PLUS})
+    add_subdirectory(${SPR_SRC_DIR}/${proj} ${SPR_BLD_DIR}/${proj})
+    set(DEP_LIST RunSwig)
+    foreach(dep IN ITEMS ${DEP_${proj}})
+	list(APPEND DEP_LIST ${dep})
+    endforeach()
+    add_dependencies(${proj} ${DEP_LIST})
+    #message("   dependencies: ${proj} => ${DEP_LIST}")
+endforeach()
+add_dependencies(RunSwig ${SYNC})
+add_dependencies(EmbPython_RunSwig ${SPR_PROJS} RunSwig)
+add_dependencies(${Target} ${SPR_PROJS_PLUS} ${SYNC})
 
 # ------------------------------------------------------------------------------
 #  Include directories.
@@ -243,29 +291,46 @@ endif()
 include_directories(${Target}
     PRIVATE ${CMAKE_SOURCE_DIR}
     PRIVATE ${SPR_INC_DIR}
-    PRIVATE ${SPR_INC_DIR}/EmbPython
     PRIVATE ${SPR_SRC_DIR}
-    PRIVATE ${SPR_SRC_DIR}/EmbPython/Utility
     PRIVATE ${Boost_INCLUDE_DIRS}
+    PRIVATE ${GLEW_INCLUDE_DIRS}
+    PRIVATE ${GLUT_INCLUDE_DIR}
+    PRIVATE ${ADDITIONAL_INCDIR}
 )
 
 # ------------------------------------------------------------------------------
-#  Add target to generate EmbPython sources.
+#  Additional libraries.
 #
-set(EmbPython_RunSwig "EmbPython_RunSwig")
-if(${Windows})
-    add_custom_target(${EmbPython_RunSwig} ALL
-	COMMAND python EmbPython_clean.py -v
-	COMMAND RunSwig_EmbPython.bat
-	WORKING_DIRECTORY "${SPR_SRC_DIR}/EmbPython"
-	COMMENT [[ generating EmbPython sources ]]
+target_link_libraries(${Target}
+    ${SPR_PROJS_PLUS}
+    #${ADDITIONAL_LIBS}
 )
-elseif(${Linux})
+
+# ------------------------------------------------------------------------------
+#  Library directories.
+#
+if("${ARCHITECTURE}" STREQUAL "x64")
+    set(DEPENDENCY_LIBDIR ${SPR_TOP_DIR}/dependency/lib/win64)
+else()
+    set(DEPENDENCY_LIBDIR ${SPR_TOP_DIR}/dependency/lib/win32)
 endif()
+target_link_directories(${Target}
+    #PRIVATE ${ADDITIONAL_LIBDIR}
+    PRIVATE ${DEPENDENCY_LIBDIR}
+)
 
 # ------------------------------------------------------------------------------
-#  Define dependencies between targets.
+#  Install.
 #
-add_dependencies(${Target} ${EmbPython_RunSwig})
+if(${Windows})
+    add_custom_target(${ProjectName}_INSTALL ALL
+	COMMAND if "'$(Configuration)'" equ "'Debug'"   copy ${LIBNAME_DEBUG}.pyd   ..
+	COMMAND if "'$(Configuration)'" equ "'Release'" copy ${LIBNAME_RELEASE}.pyd ..
+	COMMAND if "'$(Configuration)'" equ "'Trace'"   copy ${LIBNAME_TRACE}.pyd   ..
+	WORKING_DIRECTORY ${LIBRARY_OUTPUT_DIRECTORY}
+	DEPENDS ${Target}
+	COMMENT [[ install .pyd ]]
+    )
+endif()
 
 # end: CMakeLists.txt
