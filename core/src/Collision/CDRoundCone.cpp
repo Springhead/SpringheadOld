@@ -206,7 +206,6 @@ int CDRoundCone::Support(Vec3f&w, const Vec3f& v) const{
 
 // 切り口を求める. 接触解析を行う.
 bool CDRoundCone::FindCutRing(CDCutRing& ring, const Posed& toW) {
-	return false;
 	//	切り口(ring.local)系での カプセルの向き
 	Vec3f dir = ring.localInv.Ori() * toW.Ori() * Vec3f(0,0,1);
 	Vec3f center = ring.localInv * toW.Pos();
