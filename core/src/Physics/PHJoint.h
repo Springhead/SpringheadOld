@@ -41,7 +41,6 @@ protected:
 public:
 	typedef PTM::TVector<NDOF, double> VecNd;
 
-	/// 関節の位置・速度
 	VecNd position, velocity;
 
 	/// コンストラクタ
