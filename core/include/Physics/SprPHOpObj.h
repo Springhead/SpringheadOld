@@ -11,6 +11,7 @@
 #include <Foundation/SprObject.h>
 
 namespace Spr{;
+class PHOpHapticController;
 
 ///	剛体のステート
 struct PHOpObjState{
@@ -113,6 +114,7 @@ struct PHOpObjIf : public SceneObjectIf {
 	bool InitialObjUsingLocalBuffer(float pSize);
 
 	void positionPredict();
+	void positionPredictFriction(PHOpHapticController* myHc);
 	void groupStep();
 	void integrationStep();
 	void ReducedPositionProject();
@@ -337,6 +339,8 @@ struct PHOpHapticControllerIf : public SceneObjectIf{
 	void setC_ObstacleRadius(float r);
 	Vec3f GetUserPos();
 	Vec3f GetHCPosition();
+	void SetHCReady(bool flag);
+	bool GetHCReady();
 	void SetHCPosition(Vec3f pos);
 	void SetHCPose(Posef pose);
 	Posef GetHCPose();
