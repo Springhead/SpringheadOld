@@ -41,23 +41,26 @@
 #
 # ==============================================================================
 #  Version:
-#	Ver 1.0	 2012/10/25 F.Kanehori	First release version.
-#	Ver 2.0	 2013/01/07 F.Kanehori	全面改訂
-#	Ver 3.0	 2017/05/10 F.Kanehori	Windows batch file から移植.
-#	Ver 3.01 2017/06/29 F.Kanehori	Revise some messages.
-#	Ver 3.1  2017/07/24 F.Kanehori	Python executable directory moved.
-#	Ver 3.2  2017/09/06 F.Kanehori	New python library に対応.
-#	Ver 3.3  2017/10/11 F.Kanehori	起動するpythonを引数化.
-#	Ver 3.4  2017/11/08 F.Kanehori	Python library path の変更.
-#	Ver 3.5  2017/11/29 F.Kanehori	Python library path の変更.
-#	Ver 3.6  2018/07/03 F.Kanehori	空白を含むユーザ名に対応.
+#     Ver 1.00	 2012/10/25 F.Kanehori	First release version.
+#     Ver 2.00	 2013/01/07 F.Kanehori	全面改訂
+#     Ver 3.00	 2017/05/10 F.Kanehori	Windows batch file から移植.
+#     Ver 3.01	 2017/07/24 F.Kanehori	Python executable directory moved.
+#     Ver 3.02	 2017/09/06 F.Kanehori	New python library に対応.
+#     Ver 3.03	 2017/10/11 F.Kanehori	起動するpythonを引数化.
+#     Ver 3.04	 2017/11/08 F.Kanehori	Python library path の変更.
+#     Ver 3.05	 2017/11/29 F.Kanehori	Python library path の変更.
+#     Ver 3.06	 2018/07/03 F.Kanehori	空白を含むユーザ名に対応.
+#     Ver 3.07	 2019/02/26 F.Kanehori	Cmake環境に対応.
+#     Ver 3.08	 2019/04/01 F.Kanehori	Python library path 検索方法変更.
+#     Ver 3.09   2019/07/29 F.Kanehori	nmake path 検索方式変更.
 # ==============================================================================
-version = 3.6
+version = 3.09
 debug = False
 trace = False
 
 import sys
 import os
+import subprocess
 from optparse import OptionParser
 
 # ----------------------------------------------------------------------
@@ -91,8 +94,8 @@ unix = util.is_unix()
 #  Directories
 #
 sprtop = spr_path.abspath()
-bindir = spr_path.relpath('bin')
-srcdir = spr_path.relpath('src')
+bindir = spr_path.abspath('bin')
+srcdir = spr_path.abspath('src')
 etcdir = '%s/%s' % (srcdir, 'RunSwig')
 runswigdir = '%s/%s' % (srcdir, 'RunSwig')
 
@@ -108,14 +111,23 @@ makefile = 'makefile.swig'
 if unix:
 	makepath = '/usr/bin'
 else:
-	x32 = 'C:/Program Files'
-	x64 = 'C:/Program Files (x86)'
-	arch = None
-	if os.path.exists(x32) and os.path.isdir(x32): arch = x32
-	if os.path.exists(x64) and os.path.isdir(x64): arch = x64
-	if arch is None:
+	def s16(value):
+		return -(value & 0b1000000000000000) | (value & 0b0111111111111111)
+	cmnd = 'python find_path.py nmake.exe'
+	proc = subprocess.Popen(cmnd, stdout=subprocess.PIPE,
+				      stderr=subprocess.DEVNULL)
+	out, err = proc.communicate()
+	status = s16(proc.returncode)
+	if status != 0:
 		Error(prog).error('can not find "%s" path.' % make)
-	makepath = '%s/Microsoft Visual Studio 12.0/VC/bin' % arch
+	#
+	encoding = os.device_encoding(1)
+	if encoding is None:
+		encoding = 'UTF-8' if unix else 'cp932'
+	makepath = out.decode(encoding) if out else None
+	if makepath is None:
+		Error(prog).error('can not decode "%s" path.' % make)
+	print('nmake path found: %s' % makepath.replace(os.sep, '/'))
 
 swigpath = '%s/%s' % (srcdir, 'Foundation')
 addpath = os.pathsep.join([bindir, swigpath, makepath])
@@ -147,6 +159,8 @@ parser.add_option('-V', '--version',
 if options.version:
         print('%s: Version %s' % (prog, version))
         sys.exit(0)
+if debug:
+	print('%s options=%s args=%s' % (prog, options, args))
 
 clean   = options.clean
 verbose = options.verbose
@@ -156,7 +170,7 @@ verbose = options.verbose
 #
 if options.python:
 	python = options.python
-make = 'make' if unix else 'nmake'
+make = 'make' if unix else 'nmake /NOLOGO'
 opts = '-P %s' % python
 makemanager = '%s "%s/make_manager.py" %s' % (python, runswigdir, opts)
 
@@ -196,6 +210,12 @@ for line in lines:
 	if debug:
 		print('chdir: %s' % target_dir)
 	os.chdir(target_dir)
+
+	#  Remove empty stub file if exists.
+	stubfile = '%sStub.cpp' % proj
+	if os.path.exists(stubfile) and os.path.getsize(stubfile) == 0:
+		print('    rm %s' % stubfile)
+		os.remove(stubfile)
 
 	#  Do make.
 	if clean:

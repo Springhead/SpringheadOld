@@ -1,0 +1,67 @@
+# ==============================================================================
+#  CMakeConf.txt
+#    ** このファイルを直接編集してコミットしないようにお願いします **
+#    ** DO NOT edit and commit this file. **
+#
+#    このファイルでは、次の事項を設定します。
+#	外部パッケージの利用
+#		変数 CMAKE_PREFIX_PATH を定義すれば、dependency の代わりに
+#		それらのパッケージを参照するようになります。
+#	インストールディレクトリの設定
+#		下記の変数を定義すれば、生成したファイル及びコンパイル時に必要
+#		となるヘッダファイルをインストールするターゲットを生成できます。
+#    下記を参照のこと。
+#
+#    This file defines following matters.
+#	External package usage
+#		To use external package instead of 'dependency', define
+#		installed path(s) to CMAKE_PREFIX_PATH.
+#	Install directory
+#		Create target 'INSTALL' to install generated files and header
+#		files needed for compilation.
+#    See below for details.
+#
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+#  External packages (boost, glew and freeglut).
+#
+#    別途インストールしたパッケージを使用するときは、パッケージをインストール
+#    したディレクトリのパス(絶対パス)を CMAKE_PREFIX_PATH に設定してください。
+#    複数のパスを設定するときは、各パスを空白で区切って並べます。
+#
+#    If you installed above packages and intended to use them, uncomment and
+#    define installed directory list to CMAKE_PREFIX_PATH (USE ABSOLUTE PATH).
+#
+#set(CMAKE_PREFIX_PATH
+#	"F:/Project/ExternalPackage/boost_1_70_0/include/boost-1_70"
+#	"F:/Project/ExternalPackage/glew-2.1.0"
+#	"F:/Project/ExternalPackage/glew-2.1.0/lib/Release/x64"
+#	"F:/Project/ExternalPackage/freeglut"
+#	"F:/Project/ExternalPackage/glui-2.37/include"
+#)
+
+# ------------------------------------------------------------------------------
+#  Install directories (library and headers).
+#
+#    作成したライブラリ及びコンパイルに必要なヘッダファイルをユーザが指定する
+#    ディレクトリにインストールには、次の変数の値を適切なパス(絶対パス)で定義
+#    し直してください (ターゲット "INSTALL" が生成されます)。
+#    コンパイルが済んだあとで "INSTALL" を実行すればインストールが行われます。
+#
+#    To install library file and header files where you want, uncomment and
+#    redefine following parameters appropreately (use absolute path).
+#
+#    SPRINGHEAD_INCLUDE_PREFIX:
+#	Destination directory path (absolute path). Be care that header
+#	files will be installed at "${SPRINGHEAD_INCLUDE_PREFIX}/include".
+#                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+#    SPRINGHEAD_LIBRARY_DEBUG:
+#    SPRINGHEAD_LIBRARY_RELEASE:
+#	Destination directory path (absolute path).
+#
+#set(SPRINGHEAD_INCLUDE_PREFIX      "C:/usr/local")
+#set(SPRINGHEAD_LIBRARY_DIR_DEBUG   "C:/usr/local/lib")
+#set(SPRINGHEAD_LIBRARY_DIR_RELEASE "C:/usr/local/lib")
+
+# end: CMakeConf.txt

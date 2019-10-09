@@ -262,6 +262,10 @@ public:
 	/** @brief solidTempPoseにアクセスする
 	*/
 	virtual Posed GetSolidTempPose() { return solidTempPose; }
+
+	/** @brief solidPullbackPoseにアクセスする
+	*/
+	virtual Posed GetSolidPullbackPose() { return solidPullbackPose; }
 };
 
 // ---- ---- ---- ---- ---- ---- ---- ---- ---- ----
@@ -329,6 +333,10 @@ public:
 	/** @brief 一時変数の関節角度を取得する
 	*/
 	Quaterniond GetJointTempOri() { return jointTempOri; }
+
+	/** @brief 関節引き戻し目標を取得する
+	*/
+	Quaterniond GetPullbackTarget() { return pullbackTarget; }
 
 	// --- --- --- --- ---
 
@@ -436,6 +444,10 @@ public:
 	/** @brief 一時変数の関節角度を取得する
 	*/
 	double GetJointTempAngle() { return jointTempAngle; }
+
+	/** @brief 関節引き戻し目標を取得する
+	*/
+	double GetPullbackTarget() { return pullbackTarget; }
 
 	// --- --- --- --- ---
 

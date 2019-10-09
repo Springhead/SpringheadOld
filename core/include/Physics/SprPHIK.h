@@ -321,6 +321,10 @@ struct PHIKActuatorIf : SceneObjectIf{
 	/** @brief 一時変数の剛体姿勢を取得する
 	*/
 	Posed GetSolidTempPose();
+
+	/** @brief プルバックの剛体姿勢を取得する
+	*/
+	Posed GetSolidPullbackPose();
 };
 
 /// IKアクチュエータのステート
@@ -334,6 +338,8 @@ struct PHIKActuatorState{
 	double      jointTempAngle; ///< IK-FK計算用の一時変数：関節角度（ヒンジ用）
 	/// 補間後の関節角度（IK条件の変更等によるTargetPositionの急激な変化を避けるため）
 	double jointTempAngleIntp;
+	///
+	Posed solidPullbackPose;
 
 	PHIKActuatorState() {
 		solidTempPose    = Posed();
@@ -341,6 +347,7 @@ struct PHIKActuatorState{
 		jointTempOriIntp = Vec3d();
 		jointTempAngle = 0.0;
 		jointTempAngleIntp = 0;
+		solidPullbackPose = Posed();
 	}
 };
 
@@ -382,6 +389,10 @@ struct PHIKBallActuatorIf : PHIKActuatorIf{
 	/** @brief 一時変数の関節角度を取得する
 	*/
 	Quaterniond GetJointTempOri();
+
+	/** @brief 関節引き戻し目標を取得する
+	*/
+	Quaterniond GetPullbackTarget();
 };
 
 /// ３軸アクチュエータのディスクリプタ
@@ -418,6 +429,10 @@ struct PHIKHingeActuatorIf : PHIKActuatorIf{
 	/** @brief 一時変数の関節角度を取得する
 	*/
 	double GetJointTempAngle();
+
+	/** @brief 関節引き戻し目標を取得する
+	*/
+	double GetPullbackTarget();
 };
 
 /// １軸アクチュエータのディスクリプタ

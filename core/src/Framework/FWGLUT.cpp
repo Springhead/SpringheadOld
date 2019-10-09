@@ -13,6 +13,9 @@
 #include <SprDefs.h>
 #include <GL/glew.h>
 #include <GL/glut.h>
+#ifdef USE_FREEGLUT
+#include <GL/freeglut_ext.h>
+#endif
 
 #include <Framework/SprFWApp.h>
 #include <Framework/FWGLUT.h>
@@ -158,7 +161,22 @@ bool FWGLUT::StopTimer(UTTimer* timer){
 void FWGLUT::StartMainLoop(){
 	// CPUが常時100%になる問題あり
 	EnableIdleFunc(idleFuncFlag);
+#ifdef GLUT_ACTION_ON_WINDOW_CLOSE
+	glutSetOption(GLUT_ACTION_ON_WINDOW_CLOSE, GLUT_ACTION_GLUTMAINLOOP_RETURNS);
+#endif
 	glutMainLoop();
+}
+void FWGLUT::EndMainLoop() {
+#ifdef GLUT_ACTION_ON_WINDOW_CLOSE
+# if 0
+	glutExit();
+	::ExitThread(0);
+# else
+	glutLeaveMainLoop();
+# endif
+#else
+	exit(0);
+#endif
 }
 
 void FWGLUT::EnableIdleFunc(bool on){

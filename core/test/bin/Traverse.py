@@ -39,12 +39,11 @@
 # ----------------------------------------------------------------------
 #  VERSION:
 #	Ver 1.0  2018/02/26 F.Kanehori	First version.
-#	Ver 1.01 2018/03/14 F.Kanehori	Dealt with new Error class.
 #	Ver 1.1  2018/03/15 F.Kanehori	Bug fixed (for unix).
-#	Ver 1.11 2018/03/28 F.Kanehori	Bug fixed (for unix).
-#	Ver 1.12 2018/04/19 F.Kanehori	Special trap introduced.
-#	Ver 1.13 2018/05/24 F.Kanehori	Add some comments.
 #	Ver 1.2  2018/08/07 F.Kanehori	Execute binary directly (unix).
+#	Ver 1.3  2019/08/07 F.Kanehori	Pass 'ctl' to BuildAndRun.
+#	Ver 1.4  2019/09/25 F.Kanehori	OK for dailybuild cmake version.
+#	Ver 1.41 2019/10/02 F.Kanehori	Add '.cmake' to console report.
 # ======================================================================
 import sys
 import os
@@ -77,7 +76,7 @@ class Traverse:
 			timeout, report=True, audit=False,
 			dry_run=False, verbose=0):
 		self.clsname = self.__class__.__name__
-		self.version = 1.2
+		self.version = 1.4
 		#
 		self.testid = testid
 		self.result = result
@@ -104,7 +103,6 @@ class Traverse:
 		#
 		self.encoding = 'utf-8' if Util.is_unix() else 'cp932'
 		self.once = True
-		self.trace = True
 		self.fop = FileOp()
 
 	#  Compile the solution.
@@ -136,10 +134,19 @@ class Traverse:
 			self.__init_log(ctl.get(CFK.RUN_LOG), RST.RUN)
 			self.__init_log(ctl.get(CFK.RUN_ERR_LOG), RST.RUN, RST.ERR)
 			self.once = False
-			print()
+			use_cmake = True if ctl.get(CFK.USE_CMAKE) else False
+			if ctl.get(CFK.USE_CMAKE):
+				cmnd = 'cmake --version'
+				proc = Proc().execute(cmnd, stdout=Proc.PIPE, shell=True)
+				status, out, err = proc.output()
+				if status != 0:
+					exit(-1)
+				print('using %s' % out.split('\n')[0])
+			else:
+				print('do not use cmake')
 
 		# check test condition
-		is_cand = self.__is_candidate_dir(cwd)
+		is_cand = self.__is_candidate_dir(cwd, ctl)
 		exclude = ctl.get(CFK.EXCLUDE, False)
 		has_sln = self.__has_solution_file(ctl, cwd, self.toolset)
 		descend = ctl.get(CFK.DESCEND) and is_cand and not exclude
@@ -166,7 +173,7 @@ class Traverse:
 			for item in sorted(os.listdir(cwd)):
 				if not os.path.isdir(item):
 					continue
-				if not self.__is_candidate_dir(item):
+				if not self.__is_candidate_dir(item, ctl):
 					continue
 				subdir = '%s/%s' % (cwd, item)
 				stat = self.traverse(subdir)
@@ -201,7 +208,7 @@ class Traverse:
 
 		# process this directory
 		name = self.__report_1('\t', True, False)
-		bar = BuildAndRun(self.toolset, self.verbose, self.dry_run)
+		bar = BuildAndRun(ctl, self.toolset, self.verbose, self.dry_run)
 		if bar.error():
 			self.__report_1(bar.error(), False, True)
 			self.result.set_info(name, TST.ERR, bar.error())
@@ -221,6 +228,23 @@ class Traverse:
 
 			stat = 0
 			for config in self.configs:
+				#
+				# If use CMake, configure/generate solution file here
+				#
+				if ctl.get(CFK.USE_CMAKE):
+					logfile = ctl.get(CFK.BUILD_LOG)
+					cmake = CMake(ctl, self.toolset,
+				      		platform, None, logfile, self.verbose)
+					status = cmake.preparation()
+					if status != 0:
+						print('CMake prep error (%d)' % stat)
+						break
+					slnfile = cmake.config_and_generate()
+					if slnfile is None:
+						print('CMake config/gen error')
+						break
+					self.__report('%s' % config, '.cmake', False)
+
 				#
 				# Build (compile and link)
 				#
@@ -387,7 +411,7 @@ class Traverse:
 	#  This method is intended to eliminate unwilling directories
 	#  from directory traverse.
 	#
-	def __is_candidate_dir(self, dir):
+	def __is_candidate_dir(self, dir, ctl):
 		# arguments:
 		#   dir:	Directory name to be checked (str).
 		# returns:	Reason for non-candidate (str).
@@ -398,6 +422,8 @@ class Traverse:
 		# directory listed below or whose name begins with '.'
 		# are not target directory.
 		excludes = ['Template', 'log', self.toolset]
+		if (ctl.get(CFK.USE_CMAKE)):
+			excludes.append(ctl.get(CFK.CMAKE_BLDDIR))
 		if leaf[0] == '.' or leaf in excludes:
 			return False
 		return True
@@ -441,6 +467,8 @@ class Traverse:
 		# returns:	Output directory path (str).
 
 		outdir = ctl.get(CFK.OUTPUT_DIR)
+		if ctl.get(CFK.USE_CMAKE):
+			outdir = ctl.get(CFK.CMAKE_OUTPUT_DIR)
 		if outdir:
 			outdir = outdir.replace('$TOOLSET', self.toolset)
 			outdir = outdir.replace('$PLATFORM', self.platform)
@@ -449,7 +477,7 @@ class Traverse:
 		else:
 			outdir = '.'
 		default_name = slnfile
-		if Util.is_unix():
+		if Util.is_unix() or ctl.get(CFK.USE_CMAKE):
 			default_name = os.getcwd().split(os.sep)[-1]
 		binary = ctl.get(CFK.BINARY_OUT, default=default_name)
 		binary = binary.replace('.sln', '')
@@ -546,5 +574,39 @@ class Traverse:
 			name = 'build' if step == RST.BLD else 'run'
 			s = '%d' % status
 		return '  %s result is: %s' % (name, s)
+
+	#  Open log file.
+	#
+	def __open_log(self, fname, fmode, step):
+		# arguments:
+		#   fname:	Log file path.
+		#   fmode:	File open mode ('r', 'w' or 'a').
+		#   prefix:	Error message prefix (str).
+		# returns:	File object.
+
+		if self.dry_run:
+			print('  open log file "%s"' % fname)
+			return None
+		if fname is None:
+			return None
+
+		logdir = self.__dirpart(fname)
+		if logdir != '':
+			os.makedirs(logdir, exist_ok=True)
+		logf = TextFio(fname, mode=fmode, encoding=self.encoding)
+		if logf.open() < 0:
+			msg = 'build' if step == RST.BLD else 'run'
+			msg += ': open error: "%s"' % fname
+			Error(self.clsname).error(msg)
+			logf = None
+		return logf
+
+	#  Take directory part of the path.
+	#
+	def __dirpart(self, path):
+		dpart = '/'.join(Util.upath(path).split('/')[:-1])
+		if dpart == '':
+			dpart = '.'
+		return dpart
 
 # end: Traverse.py

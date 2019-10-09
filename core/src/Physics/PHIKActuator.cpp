@@ -257,6 +257,7 @@ void PHIKBallActuator::CalcJacobian(PHIKEndEffector* endeffector){
 		PHBallJoint* j = DCAST(PHBallJoint,joint);
 		Posed soParentPose = (parent) ? parent->GetSolidTempPose() : joint->GetSocketSolid()->GetPose();
 
+		// <!!> IKActuatorがついてないjointが間に入るとd.poseSocketがずれる
 		PHBallJointDesc d; j->GetDesc(&d);
 		Vec3d Pj = soParentPose * d.poseSocket * Vec3d(0,0,0);
 
@@ -317,6 +318,11 @@ void PHIKBallActuator::CalcPullbackVelocity() {
 	Vec3d pullback_ = m.inv() * (soParentPose.Ori() * (socketPose.Ori() * pullback));
 
 	for (size_t i=0; i<(size_t)ndof; ++i) { domega_pull[i] = pullback_[i]; }
+
+	Posed soParentPullbackPose = (parent) ? parent->GetSolidPullbackPose() : joint->GetSocketSolid()->GetPose();
+	Posed plugPose;   joint->GetPlugPose(plugPose);
+	Posed jpt = Posed(); jpt.Ori() = pullbackTarget;
+	solidPullbackPose = soParentPullbackPose * socketPose * jpt * plugPose.Inv();
 }
 
 void PHIKBallActuator::Move(){
@@ -497,6 +503,12 @@ void PHIKHingeActuator::CalcPullbackVelocity() {
 
 	// <!!> Pullback量が一定以下になるよう制限する．
 	domega_pull[0] = max(Rad(-200), min(domega_pull[0], Rad(200)));
+
+	Posed soParentPullbackPose = (parent) ? parent->GetSolidPullbackPose() : joint->GetSocketSolid()->GetPose();
+	Posed socketPose; joint->GetSocketPose(socketPose);
+	Posed plugPose;   joint->GetPlugPose(plugPose);
+	Posed jpt = Posed(); jpt.Ori() = Quaterniond::Rot(pullbackTarget, 'z');
+	solidPullbackPose = soParentPullbackPose * socketPose * jpt * plugPose.Inv();
 }
 
 void PHIKHingeActuator::Move(){
