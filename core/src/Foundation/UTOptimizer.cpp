@@ -15,6 +15,13 @@
 #endif
 
 namespace Spr {;
+	UTCMAESOptimizerIf* UTCMAESOptimizerIf::Create() {
+		return UTCMAESOptimizerIf::Create(UTCMAESOptimizerDesc());
+	}
+	UTCMAESOptimizerIf* UTCMAESOptimizerIf::Create(const UTCMAESOptimizerDesc& desc) {
+		return (DBG_NEW UTCMAESOptimizer(desc))->Cast();
+	}
+
 
 	UTCMAESOptimizerDesc::UTCMAESOptimizerDesc() :
 		stopMaxFunEvals(-1),
@@ -70,8 +77,10 @@ namespace Spr {;
 		initialValue = new double[dimension];
 		initialStdDev = new double[dimension];
 
+#ifdef USE_CLOSED_SRC
 		cmaes = new CMAES<double>();
 		parameters = new Parameters<double>();
+#endif
 	}
 
 	void UTCMAESOptimizer::Initialize() {
@@ -119,6 +128,7 @@ namespace Spr {;
 
 		currPopulationNum++;
 
+#ifdef USE_CLOSED_SRC
 		if (currPopulationNum >= cmaes->get(CMAES<double>::Lambda)) {
 			// update the search distribution used for sampleDistribution()
 			cmaes->updateDistribution(objectiveFunctionValues);
@@ -141,6 +151,7 @@ namespace Spr {;
 				currGenerationNum++;
 			}
 		}
+#endif
 	}
 
 }
