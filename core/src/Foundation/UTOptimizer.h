@@ -10,7 +10,7 @@ class UTOptimizer : public Object {
 protected:
 	int dimension;
 
-	double *initialValue;
+	double* initialValue;
 
 	double currentFitness;
 
@@ -18,44 +18,45 @@ public:
 	SPR_OBJECTDEF(UTOptimizer);
 
 	/// Constructor
-	UTOptimizer() { }
+	UTOptimizer(): dimension(0), initialValue(NULL), currentFitness(DBL_MAX) { }
 
 	/// Destructor
-	~UTOptimizer() { }
+	virtual ~UTOptimizer() { }
 
 	// ----- ----- ----- ----- ----- ----- ----- ----- ----- -----
 
 	/// Set Number of Parameters
-	void SetDimension(int dimension) { this->dimension = dimension; }
+	virtual void SetDimension(int dimension) { this->dimension = dimension; }
 
 	/// Get Number of Parameters
-	int GetDimension() { return dimension; }
+	virtual int GetDimension() { return dimension; }
 
 	/// Set Initial Value
-	void SetInitialValue(double const *initialValue) {
-		for (int i = 0; i < dimension; i++) { this->initialValue[i] = initialValue[i]; }
+	virtual void SetInitialValue(const double *initialValue) {
+		for (int i = 0; i < dimension; i++) {this->initialValue[i] = initialValue[i]; }
 	}
 
 	/// Initialize Optimizer
-	void Initialize() {}
+	virtual void Initialize() {}
 
 	/// Get Parameter Value to Compute Objective Function
-	double* GetPopulation() { return NULL; }
+	virtual double* GetPopulation() { return NULL; }
 
 	/// Set Objective Function Value Computation Result
-	void SetObjectiveFunctionValue(double value) {}
+	virtual void SetObjectiveFunctionValue(double value) {}
 
 	/// Proceed Optimize Process Step
-	void Next() {}
+	virtual void Next() {}
 
 	/// Check Optimization is Finished or Not
-	bool IsFinished() { return true; }
+	virtual bool IsFinished() { return true; }
 
 	/// Return Results
-	double* GetResult() { return NULL; }
+	virtual double* GetResult() { return NULL; }
 
 	/// Return Fitness
-	double GetFitness() { return currentFitness; }
+	virtual double GetFitness() { return currentFitness; }
+
 };
 
 // -----  -----  -----  -----  -----  -----  -----  -----  -----  -----  -----  -----  -----  ----- 
@@ -90,12 +91,13 @@ public:
 
 	/// Destruct Values
 	void Clear() {
-		if (initialValue) { delete initialValue; }
-		if (initialStdDev) { delete initialStdDev; }
+		if (initialValue) { delete initialValue; initialValue = NULL; }
+		if (initialStdDev) { delete initialStdDev; initialStdDev = NULL;  }
+		if (finalValue) { delete finalValue;  finalValue = NULL; }
 
 #ifdef USE_CLOSED_SRC
-		if (parameters) { delete parameters; }
-		if (cmaes) { delete cmaes; }
+		if (parameters) { delete parameters; parameters = NULL;  }
+		if (cmaes) { delete cmaes; cmaes = NULL; }
 #endif
 	}
 
@@ -125,8 +127,9 @@ public:
 	// ----- ----- ----- ----- ----- ----- ----- ----- ----- -----
 
 	/// Set Initial Standard Deviation
-	void SetInitialStdDev(double const *initialStdDev) {
-		for (int i = 0; i < dimension; i++) { this->initialStdDev[i] = initialStdDev[i]; }
+	void SetInitialStdDev(const double *initialStdDev) {
+		for (int i = 0; i < dimension; i++) {
+			this->initialStdDev[i] = initialStdDev[i]; }
 	}
 
 	/// Get Current Generation Number
@@ -134,8 +137,12 @@ public:
 
 	/// Get Current Population Number
 	int GetCurrentPopulation() { return currPopulationNum; }
+
+	double GetCs(){ return cs; }
+	double GetLambda() { return lambda; }
+
 };
 
 }
-
 #endif
+
