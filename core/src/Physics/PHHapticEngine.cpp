@@ -33,6 +33,8 @@ PHShapePairForHaptic::PHShapePairForHaptic(){
 	timeVaryFrictionB = 0;
 	timeVaryFrictionC = 0;
 	frictionViscosity = 0;
+	stribeckVelocity = 0;
+	stribeckmu = 0;
 	muCur = 0;
 	nIrsNormal = 0;
 }
@@ -49,6 +51,8 @@ void PHShapePairForHaptic::UpdateCache() {
 	timeVaryFrictionB = (shape[0]->GetMaterial().timeVaryFrictionB + shape[1]->GetMaterial().timeVaryFrictionB) * 0.5;
 	timeVaryFrictionC = (shape[0]->GetMaterial().timeVaryFrictionC + shape[1]->GetMaterial().timeVaryFrictionC) * 0.5;
 	frictionViscosity = (shape[0]->GetMaterial().frictionViscosity + shape[1]->GetMaterial().frictionViscosity) * 0.5;
+	stribeckVelocity = (shape[0]->GetMaterial().stribeckVelocity + shape[1]->GetMaterial().stribeckVelocity) * 0.5;
+	stribeckVelocity = (shape[0]->GetMaterial().stribeckmu + shape[1]->GetMaterial().stribeckmu) * 0.5;
 }
 bool PHShapePairForHaptic::Detect(unsigned ct, const Posed& pose0, const Posed& pose1){
 	// 0:剛体, 1:力覚ポインタ
@@ -67,9 +71,16 @@ bool PHShapePairForHaptic::Detect(unsigned ct, const Posed& pose0, const Posed& 
 	Vec3d sep;
 	double dist = FindClosestPoints(shape[0], shape[1], shapePoseW[0], shapePoseW[1],
 									sep, closestPoint[0], closestPoint[1]);
+	// 接触
 	Vec3d w0 = shapePoseW[0] * closestPoint[0];
 	Vec3d w1 = shapePoseW[1] * closestPoint[1];
-	normal = (w1 - w0).unit();		// 剛体->力覚ポインタへの法線ベクトル
+	normal = (w1 - w0);
+	if (normal.norm() > 1e-20) {
+		normal = normal.unit();		// 剛体->力覚ポインタへの法線ベクトル
+	}
+	else {
+		return false;
+	}
 	commonPoint = (w0 + w1) * 0.5;	// 共有点
 
 	if(dist > 1e-3){

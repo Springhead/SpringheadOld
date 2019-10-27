@@ -194,6 +194,9 @@ struct PHMaterial{
 	///	粘性摩擦のための係数	f_t = frictionViscocity * vel * f_N
 	float frictionViscosity;
 
+	float stribeckVelocity;
+	float stribeckmu;
+
 	struct VelocityField{
 		enum{
 			NONE,
