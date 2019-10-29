@@ -15,6 +15,13 @@
 #endif
 
 namespace Spr {;
+	UTCMAESOptimizerIf* UTCMAESOptimizerIf::Create() {
+		return UTCMAESOptimizerIf::Create(UTCMAESOptimizerDesc());
+	}
+	UTCMAESOptimizerIf* UTCMAESOptimizerIf::Create(const UTCMAESOptimizerDesc& desc) {
+		return (DBG_NEW UTCMAESOptimizer(desc))->Cast();
+	}
+
 
 	UTCMAESOptimizerDesc::UTCMAESOptimizerDesc() :
 		stopMaxFunEvals(-1),
@@ -44,12 +51,9 @@ namespace Spr {;
 
 	// ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- -----
 
-	UTCMAESOptimizer::UTCMAESOptimizer(const UTCMAESOptimizerDesc& desc) {
+	UTCMAESOptimizer::UTCMAESOptimizer(const UTCMAESOptimizerDesc& desc):
+		initialStdDev(NULL), finalValue(NULL) {
 		SetDesc(&desc);
-
-		initialValue = NULL;
-		initialStdDev = NULL;
-
 #ifdef USE_CLOSED_SRC
 		parameters = NULL;
 		cmaes = NULL;
@@ -105,6 +109,7 @@ namespace Spr {;
 		// -----
 
 		parameters->init(dimension, initialValue, initialStdDev);
+		cs = parameters->cs;
 		objectiveFunctionValues = cmaes->init(*parameters);
 
 		// -----
