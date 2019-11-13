@@ -1,16 +1,16 @@
 # ==============================================================================
 #  CMakeConf.txt
-#    ** ���̃t�@�C���𒼐ڕҏW���ăR�~�b�g���Ȃ��悤�ɂ��肢���܂� **
+#    ** このファイルを直接編集してコミットしないようにお願いします **
 #    ** DO NOT edit and commit this file. **
 #
-#    ���̃t�@�C���ł́A���̎�����ݒ肵�܂��B
-#	�O���p�b�P�[�W�̗��p
-#		�ϐ� CMAKE_PREFIX_PATH ���`����΁Adependency �̑����
-#		�����̃p�b�P�[�W���Q�Ƃ���悤�ɂȂ�܂��B
-#	�C���X�g�[���f�B���N�g���̐ݒ�
-#		���L�̕ϐ����`����΁A���������t�@�C���y�уR���p�C�����ɕK�v
-#		�ƂȂ�w�b�_�t�@�C�����C���X�g�[������^�[�Q�b�g�𐶐��ł��܂��B
-#    ���L���Q�Ƃ̂��ƁB
+#    このファイルでは、次の事項を設定します。
+#	外部パッケージの利用
+#		変数 CMAKE_PREFIX_PATH を定義すれば、dependency の代わりに
+#		それらのパッケージを参照するようになります。
+#	インストールディレクトリの設定
+#		下記の変数を定義すれば、生成したファイル及びコンパイル時に必要
+#		となるヘッダファイルをインストールするターゲットを生成できます。
+#    下記を参照のこと。
 #
 #    This file defines following matters.
 #	External package usage
@@ -26,11 +26,11 @@
 # ------------------------------------------------------------------------------
 #  External packages (boost, glew and freeglut).
 #
-#    �ʓr�C���X�g�[�������p�b�P�[�W���g�p����Ƃ��́A�p�b�P�[�W���C���X�g�[��
-#    �����f�B���N�g���̃p�X(��΃p�X)�� CMAKE_PREFIX_PATH �ɐݒ肵�Ă��������B
-#    �����̃p�X��ݒ肷��Ƃ��́A�e�p�X���󔒂ŋ�؂��ĕ��ׂ܂��B
+#    別途インストールしたパッケージを使用するときは、パッケージをインストール
+#    したディレクトリのパス(絶対パス)を CMAKE_PREFIX_PATH に設定してください。
+#    複数のパスを設定するときは、各パスを空白で区切って並べます。
 #
-#    If you installed above packages and intended to use them, uncomment and
+#    If you installed above packages and intend to use them, uncomment and
 #    define installed directory list to CMAKE_PREFIX_PATH (USE ABSOLUTE PATH).
 #
 #set(CMAKE_PREFIX_PATH
@@ -40,14 +40,15 @@
 #	"F:/Project/ExternalPackage/freeglut"
 #	"F:/Project/ExternalPackage/glui-2.37/include"
 #)
+#set(CMAKE_PREFIX_PATH "/usr")
 
 # ------------------------------------------------------------------------------
 #  Install directories (library and headers).
 #
-#    �쐬�������C�u�����y�уR���p�C���ɕK�v�ȃw�b�_�t�@�C�������[�U���w�肷��
-#    �f�B���N�g���ɃC���X�g�[���ɂ́A���̕ϐ��̒l��K�؂ȃp�X(��΃p�X)�Œ�`
-#    �������Ă������� (�^�[�Q�b�g "INSTALL" ����������܂�)�B
-#    �R���p�C�����ς񂾂��Ƃ� "INSTALL" �����s����΃C���X�g�[�����s���܂��B
+#    作成したライブラリ及びコンパイルに必要なヘッダファイルをユーザが指定する
+#    ディレクトリにインストールには、次の変数の値を適切なパス(絶対パス)で定義
+#    し直してください (ターゲット "INSTALL" が生成されます)。
+#    コンパイルが済んだあとで "INSTALL" を実行すればインストールが行われます。
 #
 #    To install library file and header files where you want, uncomment and
 #    redefine following parameters appropreately (use absolute path).

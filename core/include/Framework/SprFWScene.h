@@ -205,7 +205,8 @@ public:
 
 	/** @brief bboxの描画 */
 	void EnableRenderBBox(bool enable = true);
-	void SetBBoxMaterial(int mat);
+	void SetLocalBBoxMaterial(int mat);
+	void SetWorldBBoxMaterial(int mat);
 
 	/**  @brief グリッドの描画 */
 	void EnableRenderGrid(bool x = true, bool y = true, bool z = true);
@@ -255,6 +256,12 @@ public:
 	/** @breif スケルトンセンサからの情報を反映する
 	*/
 	void UpdateSkeletonSensors();
+
+	///	力覚ポインタの数を返す。
+	int NHapticPointers();
+	///	力覚ポインタを返す。
+	FWHapticPointerIf* GetHapticPointer(int i);
+
 
 	/** @brief OP力覚ハンドラーを作る
 	*/

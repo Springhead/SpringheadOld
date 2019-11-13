@@ -35,6 +35,7 @@ if "%1" equ "-SprTop" (
 set ARGS=
 :next_arg
 if "%1" == "" goto :end_arg
+	rem echo (((%1)))
 	set ARGS=!ARGS! %1
 	shift
 	goto :next_arg
@@ -65,8 +66,15 @@ if exist "%TOOLPATH%\python.exe" (
 )
 if %verbose% geq 0 (
 	rem where python
-	python -V
+	rem python -V
 )
+
+::----------------------------------------------
+::  CMake のための特別処理
+::	バッチファイルの引数に "a=b" と書いても1つの引数とは見做されない。
+::	そのため "a@b" という引数があったらそれを "a=b" と書き直すこととする。
+::
+set ARGS=%ARGS:@=^=%
 
 ::----------------------------------------------
 ::  Python を実行する
@@ -78,7 +86,11 @@ if %verbose% geq 2 (
 if %verbose% geq 1 (
 	echo.
 )
+rem where python
+rem python -V
+rem echo python %ARGS%
 python %ARGS%
+rem echo %ERRORLEVEL%
 
 endlocal
 exit /b

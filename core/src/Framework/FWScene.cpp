@@ -56,7 +56,8 @@ FWScene::FWScene(const FWSceneDesc& d) : phScene(NULL), grScene(NULL){
 	matAxis.y	= GRRenderIf::GREEN;
 	matAxis.z	= GRRenderIf::BLUE;
 	matContact	= GRRenderIf::YELLOW;
-	matBBox     = GRRenderIf::WHITE;
+	matBBoxLocal = GRRenderIf::LIGHTGRAY;
+	matBBoxWorld = GRRenderIf::WHITE;
 	matForce	= GRRenderIf::ORANGE;
 	matMoment	= GRRenderIf::CYAN;
 	matGrid.x = matGrid.y = matGrid.z = GRRenderIf::GRAY;
@@ -326,7 +327,7 @@ void FWScene::DrawPHScene(GRRenderIf* render){
 		PHConstraintEngine* engine = phScene->GetConstraintEngine()->Cast();
 		//DrawDetectorRegion(render, &engine->rootRegion);
 		for(int c = 0; c < (int)engine->cells.size(); c++)
-			DrawBBox(render, &engine->cells[c].bbox);
+			DrawBBox(render, Posed(), &engine->cells[c].bbox);
 	}
 
 	// 剛体
@@ -338,8 +339,14 @@ void FWScene::DrawPHScene(GRRenderIf* render){
 		// BBox
 		if(renderBBox){
 			PHSolid* so = solids[i]->Cast();
-			render->SetMaterial(matBBox);
-			DrawBBox(render, &so->bbWorld);
+			if (so->bboxReady) {
+				render->SetMaterial(matBBoxLocal);
+				DrawBBox(render, so->GetPose(), &so->bbLocal);
+			}
+			else if (so->aabbReady) {
+				render->SetMaterial(matBBoxWorld);
+				DrawBBox(render, Posed(), &so->bbWorld);
+			}
 		}
 
 		// 形状を描画
@@ -465,12 +472,17 @@ void FWScene::DrawSolid(GRRenderIf* render, PHSolidIf* solid, bool solid_or_wire
 	render->PopModelMatrix();
 }
 
-void FWScene::DrawBBox(GRRenderIf* render, PHBBox* bbox){
+void FWScene::DrawBBox(GRRenderIf* render, Posed pose, PHBBox* bbox){
 	Vec3d bbcenter = bbox->GetBBoxCenter();
 	Vec3d bbextent = bbox->GetBBoxExtent();
 	render->PushModelMatrix();
+	Affinef af;
+	pose.ToAffine(af);
+	render->MultModelMatrix(af);
 	render->MultModelMatrix(Affinef::Trn(bbcenter.x, bbcenter.y, bbcenter.z));
+	render->SetLighting(false);
 	render->DrawBox(2.0*bbextent.x, 2.0*bbextent.y, 2.0*bbextent.z, false);
+	render->SetLighting(true);
 	render->PopModelMatrix();
 }
 
@@ -722,21 +734,26 @@ void FWScene::DrawContactSafe(GRRenderIf* render, PHConstraintEngineIf* cei){
 	render->SetLighting(true);
 }
 void FWScene::DrawContact(GRRenderIf* render, PHContactPointIf* con){
-	render->SetMaterial(matContact);
-
-	PHContactPoint* c = con->Cast();
-	if(c->shapePair->section.size() < 3)
-		return;
-	std::vector<Vec3f> vtx;
-	vtx.resize(c->shapePair->section.size());
-	copy(c->shapePair->section.begin(), c->shapePair->section.end(), vtx.begin());
-	
+	render->SetMaterial(matContact);	
 	render->SetLighting(false);
-	render->SetDepthTest(false);
-	
-	render->SetVertexFormat(GRVertexElement::vfP3f);
-	render->DrawDirect(GRRenderBaseIf::LINE_LOOP, &vtx[0], vtx.size());
-	
+	render->SetDepthTest(false);	
+	PHContactPoint* c = con->Cast();
+	if (c->shapePair->section.size() > 1) {
+		std::vector<Vec3f> vtx;
+		vtx.resize(c->shapePair->section.size());
+		copy(c->shapePair->section.begin(), c->shapePair->section.end(), vtx.begin());
+		render->SetVertexFormat(GRVertexElement::vfP3f);
+		render->DrawDirect(GRRenderBaseIf::LINE_LOOP, &vtx[0], vtx.size());
+	}
+	render->SetPointSize(10, true);
+	render->SetMaterial(GRRenderBaseIf::GREEN);
+	render->DrawPoint(c->shapePair->center);
+/*	render->SetMaterial(GRRenderBaseIf::GREEN);
+	render->DrawPoint(c->shapePair->shapePoseW[0] * c->shapePair->closestPoint[0]);
+	render->SetMaterial(GRRenderBaseIf::YELLOWGREEN);
+	render->DrawPoint(c->shapePair->shapePoseW[1] * c->shapePair->closestPoint[1]);
+*/
+
 	render->SetDepthTest(true);
 	render->SetLighting(true);
 }
@@ -745,7 +762,7 @@ void FWScene::DrawContact(GRRenderIf* render, PHContactPointIf* con){
 	int n = (int)region->regions.size();
 	// 最下層のみBBoxを描画
 	if(n == 0)
-		DrawBBox(render, &region->bbox);
+		DrawBBox(render, Posed(), &region->bbox);
 	for(int i = 0; i < n; i++)
 		DrawDetectorRegion(render, region->regions[i]);
 }*/
@@ -1293,8 +1310,11 @@ void FWScene::SetContactMaterial(int mat){
 void FWScene::EnableRenderBBox(bool enable){
 	renderBBox = enable;
 }
-void FWScene::SetBBoxMaterial(int mat){
-	matBBox = mat;
+void FWScene::SetLocalBBoxMaterial(int mat) {
+	matBBoxWorld = mat;
+}
+void FWScene::SetWorldBBoxMaterial(int mat) {
+	matBBoxLocal = mat;
 }
 void FWScene::EnableRenderGrid(bool x, bool y, bool z){
 	renderGridX = x;

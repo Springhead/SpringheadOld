@@ -226,8 +226,6 @@ found:;
 		DSTR << " / " << sum << std::endl;
 #endif
 	}
-	lastContactCount = ct;
-
 	//	debug dump
 	if (depth > 5 || depth < 0){
 		//DSTR << "depth=" << depth << std::endl;
@@ -238,6 +236,7 @@ found:;
 		// 本来はここに来ないようにするのがベスト　tazz
 		return false;	
 	}
+	lastContactCount = ct;
 	return true;
 }
 

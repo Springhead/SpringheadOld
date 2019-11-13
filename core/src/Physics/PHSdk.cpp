@@ -36,8 +36,13 @@
 
 namespace Spr{;
 
-PHSdkIf* SPR_CDECL PHSdkIf::CreateSdk(){
-	return (DBG_NEW PHSdk)->Cast();
+UTRef<PHSdkIf> PHSdk::phSdkInstance = NULL;
+PHSdkIf* SPR_CDECL PHSdkIf::CreateSdk(const PHSdkDesc& desc){
+	if (PHSdk::phSdkInstance == NULL) {
+		PHSdk* sdk = DBG_NEW PHSdk(desc);
+		PHSdk::phSdkInstance = sdk->Cast();
+	}
+	return PHSdk::phSdkInstance;
 }
 
 

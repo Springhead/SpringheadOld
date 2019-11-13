@@ -55,16 +55,35 @@ if(${Windows})
 	ARCHIVE_OUTPUT_DIRECTORY_TRACE   ${SPR_SRC_DIR}/${Target}
     )
 elseif(${Linux})
+    set_target_properties("${Target}" PROPERTIES
+	ARCHIVE_OUTPUT_DIRECTORY ${SPR_SRC_DIR}/${Target}
+    )
 endif()
 
 # include directories
 #
 set(CMAKE_USE_RELATIVE_PATHS TRUE)
-target_include_directories(${Target}
-    PRIVATE ${SPR_INC_DIR}
-    PRIVATE ${SPR_SRC_DIR}
-    PRIVATE ${SPR_TOP_DIR}/dependency/src
-)
+if(DEFINED ADDITIONAL_INCDIR)
+    foreach(_dir ${ADDITIONAL_INCDIR})
+	target_include_directories(${Target}
+	    PRIVATE ${_dir}
+	)
+    endforeach()
+endif()
+if(${Windows})
+    target_include_directories(${Target}
+	PRIVATE ${SPR_INC_DIR}
+	PRIVATE ${SPR_SRC_DIR}
+	PRIVATE ${SPR_TOP_DIR}/dependency/src
+	PRIVATE .
+    )
+elseif(${Linux})
+    target_include_directories(${Target}
+	PRIVATE ${SPR_INC_DIR}
+	PRIVATE ${SPR_SRC_DIR}
+	PRIVATE .
+    )
+endif()
 
 # integrate intermediate directory
 #	${CMAKE_BINARY_DIR}/${Target}/${Target}.dir
@@ -77,13 +96,24 @@ set(INTDIR ${Target}.dir)
 set(ACTDIR ${SPR_SRC_DIR}/${Target}/${ARCHITECTURE})
 if(${Windows})
     set(ACTDIR ${ACTDIR}/${VS_VERSION})
+    set(LINKDIR ${INTDIR})
+elseif(${Linux})
+    set(LINKDIR .${CMAKE_FILES_DIRECTORY}/${INTDIR})
 endif()
 set(LINKLIST
-    "${INTDIR}=${ACTDIR}/${INTDIR}" ;
+    "${LINKDIR}=${ACTDIR}/${INTDIR}"
 )
-set(_tmp_cmnd "python ${SPR_SRC_DIR}/cmake_preconfig.py -v ${LINKLIST}")
+set(_script_dir ${SPR_SRC_DIR})
+if(${Windows})
+    set(_tmp_cmnd cmd /c ${SPR_SRC_DIR}\\do_python.bat)
+    set(_tmp_args ${_script_dir}\\cmake_preconfig.py -v ${LINKLIST})
+else()
+    set(_tmp_cmnd python)
+    set(_tmp_args ${_script_dir}/cmake_preconfig.py -v ${LINKLIST})
+endif()
+set(ENV{_SPRTOP_} ${SPR_TOP_DIR})
 execute_process(
-    COMMAND cmd /c ${_tmp_cmnd}
+    COMMAND ${_tmp_cmnd} ${_tmp_args}
     RESULT_VARIABLE CMD_RESULT
     OUTPUT_VARIABLE CMD_OUTPUT
     ERROR_VARIABLE CMD_ERROR
