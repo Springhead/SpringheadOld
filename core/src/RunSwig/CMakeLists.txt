@@ -37,11 +37,9 @@ file(TO_NATIVE_PATH "${RSBldDir}" RSBldDir)
 #message(STATUS "${Target}: RSBldDir: [${RSBldDir}]")
 
 if(${Windows})
-    set(Python python_adapter.bat)
     set(Make nmake)
     set(Makefile Makefile.win)
 elseif(${Linux})
-    set(Python python)
     set(Make make)
     set(Makefile Makefile.unix)
 endif()
@@ -74,17 +72,31 @@ endforeach()
 
 # main target
 #
-add_custom_target(${Target}
-    BYPRODUCTS ${genereated_files}
-    DEPENDS ${generated_files}
-)
-add_custom_command(
-    OUTPUT ${generated_files}
-    COMMAND cmd /c ${Python} make_manager.py -A -c
-    COMMAND ${Make} -f ${Makefile}
-    WORKING_DIRECTORY ${RSSrcDir}
-    COMMENT [[  generating files...]]
-)
+if(${Windows})
+    add_custom_target(${Target}
+	BYPRODUCTS ${genereated_files}
+	DEPENDS ${generated_files}
+    )
+    set(_tmp_cmnd cmd /c ${SPR_SRC_DIR}\\do_python.bat)
+    set(_tmp_args ${RSSrcDir}\\make_manager.py -A -c)
+    add_custom_command(
+	OUTPUT ${generated_files}
+	COMMAND set _SPRTOP_=${SPR_TOP_DIR} & ${_tmp_cmnd} ${_tmp_args}
+	COMMAND ${Make} -f ${RSSrcDir}\\${Makefile}
+	WORKING_DIRECTORY ${RSSrcDir}
+	COMMENT [[  generating files...]]
+    )
+elseif(${Linux})
+    set(_tmp_cmnd python)
+    set(_tmp_args ${RSSrcDir}/make_manager.py -A -c)
+    add_custom_target(${Target}
+	COMMAND _SPRTOP_=${SPR_TOP_DIR} ${_tmp_cmnd} ${_tmp_args}
+	COMMAND ${Make} -f ${RSSrcDir}/${Makefile}
+	BYPRODUCTS ${generated_files}
+	WORKING_DIRECTORY ${RSSrcDir}
+	COMMENT [[  generating files...]]
+    )
+endif()
 
 # integrate intermediate directory
 #	${CMAKE_BINARY_DIR}/${Target}/${Target}.dir
@@ -98,14 +110,26 @@ set(LOGDIR ${ARCHITECTURE})		# created by add_custom_target
 set(ACTDIR ${SPR_SRC_DIR}/${Target}/${ARCHITECTURE})
 if(${Windows})
     set(ACTDIR ${ACTDIR}/${VS_VERSION})
+    set(LINKDIR ${INTDIR})
+elseif(${Linux})
+    set(LINKDIR .${CMAKE_FILES_DIRECTORY}/${INTDIR})
+    set(LOGDIR  .${CMAKE_FILES_DIRECTORY}/${INTDIR})
 endif()
 set(LINKLIST
-    "${INTDIR}=${ACTDIR}/${INTDIR}" ;
+    "${LINKDIR}=${ACTDIR}/${INTDIR}"
     "${LOGDIR}=${ACTDIR}/${INTDIR}" ;
 )
-set(_tmp_cmnd "python ${SPR_SRC_DIR}/cmake_preconfig.py -v ${LINKLIST}")
+set(_script_dir ${SPR_SRC_DIR})
+if(${Windows})
+    set(_tmp_cmnd cmd /c ${SPR_SRC_DIR}\\do_python.bat)
+    set(_tmp_args ${_script_dir}\\cmake_preconfig.py -v ${LINKLIST})
+else()
+    set(_tmp_cmnd python)
+    set(_tmp_args ${_script_dir}/cmake_preconfig.py -v ${LINKLIST})
+endif()
+set(ENV{_SPRTOP_} ${SPR_TOP_DIR})
 execute_process(
-    COMMAND cmd /c ${_tmp_cmnd}
+    COMMAND ${_tmp_cmnd} ${_tmp_args}
     RESULT_VARIABLE CMD_RESULT
     OUTPUT_VARIABLE CMD_OUTPUT
     ERROR_VARIABLE CMD_ERROR
@@ -116,8 +140,8 @@ if(${CMD_RESULT})
 endif()
 if(NOT "${CMD_OUTPUT}" STREQUAL "")
     string(REPLACE "\n" "\n     " CMD_OUTPUT ${CMD_OUTPUT})
-    string(STRIP ${CMD_OUTPUT} CMD_OUTPUT)
-    message("     ${CMD_OUTPUT}")
 endif()
+string(STRIP ${CMD_OUTPUT} CMD_OUTPUT)
+message("     ${CMD_OUTPUT}")
 
 # end: CMakeLists.txt
