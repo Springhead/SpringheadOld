@@ -25,7 +25,7 @@ namespace Spr{
 		useHaptic = false;
 		useAnime = false;
 	}
-	void PHOpEngine::InitialNoMeshHapticRenderer()
+	void PHOpEngine::Initial3DOFHapticRenderer()
 	{
 		opHpRender = new PHOpHapticRenderer();
 		myHc = new PHOpHapticController();
@@ -33,11 +33,10 @@ namespace Spr{
 		myHc->hpObjIndex = -1;
 
 		myHc->hcType = PHOpHapticControllerDesc::_3DOF;
-#ifdef USEGRMESH
+
+		//DSTR << "Currently 3DOFRenderer is not implemented" << std::endl;
 		opHpRender->initial3DOFRenderer(myHc, &opObjs);
-#else
-		DSTR << "Currently 3DOFRenderer is not implemented" << std::endl;
-#endif
+
 		//set defualt c_obstacle
 		myHc->c_obstRadius = 0.2f;// opObjs[objId]->objAverRadius / 6;
 	}
@@ -65,7 +64,7 @@ namespace Spr{
 	myHc->IntialHapticController(opObj);
 	}*/
 
-	void PHOpEngine::InitialHapticRenderer(int objId)
+	void PHOpEngine::Initial6DOFHapticRenderer(int objId)
 	{
 		opHpRender = new PHOpHapticRenderer();
 		myHc = new PHOpHapticController();
@@ -237,17 +236,22 @@ namespace Spr{
 			{
 				if (myHc->hcType == PHOpHapticControllerDesc::_3DOF)
 				{//3DOF
-
-					if (myHc->hcReady)
-						HapticProcedure_3DOF();
-					else DSTR << "Haptic Device is not ready" << std::endl;
+					if (!myHc->isManual)
+					{
+						if (myHc->hcReady)
+							HapticProcedure_3DOF();
+						else DSTR << "Haptic Device is not ready" << std::endl;
+					}else HapticProcedure_3DOF();
 				}
 				else
 				{//6DOF
-
-					if (myHc->hcReady)
-						HapticProcedure_6DOF();
-					else DSTR << "Haptic Device is not ready" << std::endl;
+					if (!myHc->isManual)
+					{
+						if (myHc->hcReady)
+							HapticProcedure_6DOF();
+						else DSTR << "Haptic Device is not ready" << std::endl;
+					}
+					else HapticProcedure_6DOF();
 				}
 
 
@@ -313,54 +317,20 @@ namespace Spr{
 		diffAcc /= opObjs[myHc->GetHpObjIndex()]->assPsNum;
 
 
-		Vec3f f = winPose *diffAcc * opHpRender->outForceSpring;
+		Vec3f f = winPose *diffAcc * opHpRender->toUserVCSpring;
 	
-		if (myHc->SetForce(f))
+		if (myHc->SetForce(f, Vec3f()))
 		{
 			DSTR << "Set Force failed" << std::endl;
 		}
 	}
 	void PHOpEngine::HapticProcedure_3DOF()
 	{
-#ifdef USEGRMESH
-		;
+		opHpRender->HapticProxyProcedure();
+
+
 		PHOpParticle* dp = myHc->GetMyHpProxyParticle();
-		if (!myHc->CheckProxyState())
-		{
-			dp->pNewCtr = myHc->userPos;
-
-			
-			if (subStepProFix){
-				//触っていない時のproxyfix
-				noCtcItrNum = 0;
-				opHpRender->HpNoCtcProxyCorrection();
-				
-			}
-
-		}
-		else {
-			
-			if (subStepProFix){
-				//触っているときまずtraceする
-				opHpRender->ProxyTrace();
-				
-				//Proxy位置の修正(関数名は修正まち)
-
-				opHpRender->ProxyMove();
-			}
-
-		}
-#ifdef CHECK_INF_ERR
-		if (!FloatErrorTest::CheckBadFloatValue(dp->pNewCtr.z))
-			int u = 0;
-#endif
-		if (subStepProSolve)
-		{
-
-			//haptic解決
-			opHpRender->HpConstrainSolve(dp->pCurrCtr);
-
-		}
+		
 #ifdef CHECK_INF_ERR
 		if (!FloatErrorTest::CheckBadFloatValue(dp->pNewCtr.z))
 			int u = 0;
@@ -372,11 +342,11 @@ namespace Spr{
 		dp->pVelocity = (myHc->userPos - dp->pNewCtr) / timeStep;
 
 		//平面とのhaptic
-		opHpRender->ProxySlvPlane();
+		//opHpRender->ProxySlvPlane();
 
 
 		//力の計算
-		opHpRender->ForceCalculation();
+		//opHpRender->ForceCalculation();
 
 		dp->pCurrCtr = dp->pNewCtr;
 		myHc->hcCollied = false;
@@ -386,14 +356,14 @@ namespace Spr{
 		if (myHc->hcProxyOn || true == opHpRender->hitWall)
 		{
 			winPose = winPose.Inv();
-			f = winPose * (dp->pCurrCtr - myHc->userPos) *opHpRender->outForceSpring;
+			f = winPose * (dp->pCurrCtr - myHc->userPos) *opHpRender->toUserVCSpring;
 			float magni = f.norm();
-			if (magni > 10.0f)
+			if (magni > myHc->OutputForceLimit)
 			{
 				DSTR << "Big Force Output!" << std::endl;
 				;// f.clear();
 			}
-			DSTR << "f= " << f.x << " , " << f.y << " , " << f.z << std::endl;
+			//DSTR << "f= " << f.x << " , " << f.y << " , " << f.z << std::endl;
 		}
 		else {
 			f.clear();
@@ -401,8 +371,8 @@ namespace Spr{
 
 		if (opHpRender->hitWall)
 			f = f * 3;
-		myHc->SetForce(f);
-#endif
+		myHc->SetForce(f, Vec3f());
+
 	}
 
 	void PHOpEngine::SetTimeStep(double dt){

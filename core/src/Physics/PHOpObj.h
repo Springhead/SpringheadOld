@@ -12,9 +12,7 @@
 #include <Collision/SprCDShape.h>
 #include <Physics/PHEngine.h>
 #include <Foundation/Object.h>
-#ifdef USEGRMESH
-#include <Graphics/GRMesh.h>
-#endif
+
 #include <Physics/PHOpParticle.h>
 #include <Physics/PHOpGroup.h>
 #include <Physics/PHOpDecompositionMethods.h>
@@ -27,6 +25,11 @@ using namespace PTM;
 namespace Spr{
 	;
 
+	
+	struct TriFace {
+	int	nVertices;	///< 3 or 4
+	int	indices[4];
+	};
 	class PHOpObj : public SceneObject, public PHOpObjDesc {
 	
 	public:
@@ -38,7 +41,7 @@ namespace Spr{
 			gravityOn = false;
 
 			objGrouplinkCount = 5;
-			objTargetVtsNum = 0;
+			objMeshVtsNum = 0;
 			objNoMeshObj = false;
 			objUseDistCstr = false;
 			objUseReducedPP = true;
@@ -68,7 +71,7 @@ namespace Spr{
 				delete[] objVtoPmap;
 			if (initialBlWei)
 			{
-				for (int i = 0; i < objTargetVtsNum; i++)
+				for (int i = 0; i < objMeshVtsNum; i++)
 				{
 					delete[] objBlWeightArr[i];
 
@@ -90,9 +93,13 @@ namespace Spr{
 		//shapematching計算をJacobi計算用の
 		Jacobi j;
 		//model頂点群データ
-		//float objTargetVtsArr[10000];
-		//float *objTargetVtsArr;
+		//float objMeshVtsArr[10000];
+		//float *objMeshVtsArr;
 
+		//Triangle faces for haptic rendering (no need of GRMesh)
+		std::vector<TriFace> objMeshFaces;
+		//Triangle normals for haptic (no need of GRMesh)
+		std::vector<Vec3f> objMeshNormals;
 		//頂点の初期位置（Blendに使う）
 		Vec3f* objOrigPos;
 		//頂点の初期位置初期化flag
@@ -115,17 +122,13 @@ namespace Spr{
 		//粒子BVH（開発中）
 		//BVHgOp *bvhGOps;
 
-#ifdef USEGRMESH
-		//model対象
-		GRMesh *targetMesh;
-#else
 		//model頂点群
-		Vec3f *objTargetVts;
-#endif
+		Vec3f *objMeshVts;
+
 		//model頂点群初期化されたか
 		bool initialtgV;
 		//model頂点群数
-		//int objTargetVtsNum;
+		//int objMeshVtsNum;
 		//一時粒子group保存場
 		std::vector<PHOpGroup> tmpPGroups;
 		//粒子groupの配列
@@ -151,6 +154,11 @@ namespace Spr{
 
 		std::vector<Vec3f> tmpVts;
 
+		//record triangles for proxy CCD 
+		std::vector<int> triListForProxyCCD;
+		//record last vertices for CCD
+		Vec3f *lastTargetVts;
+
 		//int bvhNum;
 
 
@@ -161,9 +169,9 @@ namespace Spr{
 	public:
 		bool GetDesc(void *desc)  {
 			
-			for(int vi=0;vi<objTargetVtsNum * 3 ;vi++)
+			for(int vi=0;vi<objMeshVtsNum * 3 ;vi++)
 			{
-				((float*)desc)[vi] = objTargetVtsArr[vi];
+				((float*)desc)[vi] = objMeshVtsArr[vi];
 			}
 
 			return true;
@@ -184,24 +192,24 @@ namespace Spr{
 
 		/*void GetFirVertexData(float vData[])
 		{
-		vData = objTargetVtsArr;
+		vData = objMeshVtsArr;
 		}*/
 		//float (&GetFirVData())[10000]
 		/*float *GetFirVData()
 		{
-			return objTargetVtsArr;
+			return objMeshVtsArr;
 		}*/
 
 
 		void InitialFloatVertexDataArr()
 		{
-			//objTargetVtsArr = new float[objTargetVtsNum * 3];
-			//objTargetVtsArr[0] = new float[10000];
-			for (int vi = 0; vi <objTargetVtsNum; vi++)
+			//objMeshVtsArr = new float[objMeshVtsNum * 3];
+			//objMeshVtsArr[0] = new float[10000];
+			for (int vi = 0; vi <objMeshVtsNum; vi++)
 			{
-				objTargetVtsArr[vi * 3] = objTargetVts[vi].x;
-				objTargetVtsArr[vi * 3 + 1] = objTargetVts[vi].y;
-				objTargetVtsArr[vi * 3 + 2] = objTargetVts[vi].z;
+				objMeshVtsArr[vi * 3] = objMeshVts[vi].x;
+				objMeshVtsArr[vi * 3 + 1] = objMeshVts[vi].y;
+				objMeshVtsArr[vi * 3 + 2] = objMeshVts[vi].z;
 			}
 			//int u = 0;
 		}
@@ -225,12 +233,7 @@ namespace Spr{
 		{
 			return objGArr[gi].Cast();
 		}
-#ifdef USEGRMESH
-		void SetGRMesh(Object *mesh)
-		{
-			targetMesh = (GRMesh*)mesh;
-		}
-#endif
+
 
 		void DynamicRadiusUpdate()
 		{
@@ -240,7 +243,7 @@ namespace Spr{
 				float maxD = 0;
 				for (int vi = 0; vi < dp.pNvertex; vi++)
 				{
-					Vec3f &v = objTargetVts[dp.pVertArr[vi]];
+					Vec3f &v = objMeshVts[dp.pVertArr[vi]];
 					float dist = fabs((v - dp.pCurrCtr).norm());
 					if (dist > maxD)
 						maxD = dist;
@@ -423,10 +426,10 @@ namespace Spr{
 					}
 					//if (useTetgen)
 
-					objTargetVts[vertind] = u;
-					objTargetVtsArr[vertind * 3] = u.x;
-					objTargetVtsArr[vertind * 3 + 1] = u.y;
-					objTargetVtsArr[vertind * 3 + 2] = u.z;
+					objMeshVts[vertind] = u;
+					objMeshVtsArr[vertind * 3] = u.x;
+					objMeshVtsArr[vertind * 3 + 1] = u.y;
+					objMeshVtsArr[vertind * 3 + 2] = u.z;
 
 				}
 			}
@@ -435,7 +438,7 @@ namespace Spr{
 			// 頂点を共有する面の数
 			if (updateNormals)
 			{
-				std::vector<int> nFace(objTargetVtsNum, 0);
+				std::vector<int> nFace(objMeshVtsNum, 0);
 
 				for (unsigned i = 0; i < targetMesh->triFaces.size(); i += 3){
 					Vec3f n = (targetMesh->vertices[targetMesh->triFaces[i + 1]] - targetMesh->vertices[targetMesh->triFaces[i]])
@@ -453,6 +456,8 @@ namespace Spr{
 				for (unsigned i = 0; i < targetMesh->normals.size(); ++i)
 					targetMesh->normals[i] /= nFace[i];
 			}
+#else
+			
 #endif
 		}
 
@@ -472,8 +477,9 @@ namespace Spr{
 
 			objOrigPos = new Vec3f[vtsNum];
 			initialOrgP = true;
-			objTargetVts = vts;//Tetgenため使う
-			objTargetVtsNum = vtsNum;
+			objMeshVts = vts;//Tetgenため使う
+			objMeshVtsNum = vtsNum;
+			lastTargetVts = DBG_NEW Vec3f[vtsNum];
 
 			InitialFloatVertexDataArr();
 
@@ -501,8 +507,9 @@ namespace Spr{
 		{
 			objOrigPos = new Vec3f[vtsNum];
 			initialOrgP = true;
-			objTargetVts = vts;//Tetgenため使う
-			objTargetVtsNum = vtsNum;
+			objMeshVts = vts;//Tetgenため使う
+			objMeshVtsNum = vtsNum;
+			lastTargetVts = DBG_NEW Vec3f[vtsNum];
 
 			InitialFloatVertexDataArr();
 
@@ -764,7 +771,7 @@ namespace Spr{
 				Matrix3f &pMIMatrix = dp.pMomentInertia;
 				for (int i = 0; i < dp.pNvertex; i++)
 				{
-					Vec3f p = objTargetVts[dp.pVertArr[i]] - dp.pCurrCtr;
+					Vec3f p = objMeshVts[dp.pVertArr[i]] - dp.pCurrCtr;
 					pMIMatrix.xx += p.y * p.y + p.z * p.z;
 					pMIMatrix.xy += -p.x * p.y;
 					pMIMatrix.xz += -p.x * p.z;
@@ -796,14 +803,14 @@ namespace Spr{
 				objPArr[j].initialWArr = true;
 				for (int k = 0; k < objPArr[j].pNvertex; k++)
 				{
-					Vec3f &vp = objTargetVts[objPArr[j].pVertArr[k]];
+					Vec3f &vp = objMeshVts[objPArr[j].pVertArr[k]];
 					totalDis += (vp - objPArr[j].pCurrCtr).norm();
 
 				}
 
 				for (int k = 0; k < objPArr[j].pNvertex; k++)
 				{
-					Vec3f &vp = objTargetVts[objPArr[j].pVertArr[k]];
+					Vec3f &vp = objMeshVts[objPArr[j].pVertArr[k]];
 					if (totalDis == 0.0f)
 					{
 						objPArr[j].pVectDisWeightArr[k] = 1;
@@ -864,7 +871,7 @@ namespace Spr{
 				return;
 			}
 
-			size = objTargetVtsNum;
+			size = objMeshVtsNum;
 
 			objBlWeightArr = new float*[size];
 			initialBlWei = true;
@@ -882,7 +889,7 @@ namespace Spr{
 					int vertind = objPArr[j].pVertArr[k];
 					Vec3f vert;
 
-					vert = objTargetVts[vertind];
+					vert = objMeshVts[vertind];
 
 					float tmpdis = (CenterPs - vert).norm();
 					distanceSum += tmpdis;//vertexからすべてlinkしてParticleの距離を計算する
@@ -936,7 +943,7 @@ namespace Spr{
 		{
 			DSTR << "BuildMapFromVtoP" << std::endl;
 			if (this->objNoMeshObj)return;
-			objVtoPmap = new int[objTargetVtsNum];
+			objVtoPmap = new int[objMeshVtsNum];
 			initialtgV = true;
 			for (int pi = 0; pi < assPsNum; pi++)
 			{
@@ -1056,11 +1063,11 @@ namespace Spr{
 
 		int GetVertexNum()
 		{
-			return objTargetVtsNum;
+			return objMeshVtsNum;
 		}
 		Vec3f GetVertex(int vi)
 		{
-			return objTargetVts[vi];
+			return objMeshVts[vi];
 		}
 		struct ObjectParams
 		{

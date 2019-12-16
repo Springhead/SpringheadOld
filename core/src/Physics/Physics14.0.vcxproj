@@ -459,6 +459,7 @@
     <ClCompile Include="PHSdk.cpp" />
     <ClCompile Include="PHSkeleton.cpp" />
     <ClCompile Include="PHSliderJoint.cpp" />
+    <ClCompile Include="PHSoftSkin.cpp" />
     <ClCompile Include="PHSolid.cpp" />
     <ClCompile Include="PHSpring.cpp" />
     <ClCompile Include="PHTreeNode.cpp" />
@@ -521,6 +522,7 @@
     <ClInclude Include="PHSdk.h" />
     <ClInclude Include="PHSkeleton.h" />
     <ClInclude Include="PHSliderJoint.h" />
+    <ClInclude Include="PHSoftSkin.h" />
     <ClInclude Include="PHSolid.h" />
     <ClInclude Include="PHSpring.h" />
     <ClInclude Include="PHTreeNode.h" />

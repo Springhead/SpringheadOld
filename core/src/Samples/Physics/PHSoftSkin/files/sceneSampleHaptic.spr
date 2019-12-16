@@ -1,0 +1,42 @@
+Import { path = "grFloor.x" }
+Import { path = "MyCylinder.x"}
+
+FWScene fwScene{	
+	/* PHSolid‚ÆGRFrame‚Æ‚ÌŠÖ˜A•t‚¯ */
+	FWObject fwFloor{
+		*soFloor		// PHSolid
+		*grFrameFloor	// GRFrame
+	}
+	FWOpObj fwCylinder{
+		fwPSize = 0.0005
+		*cylinderMesh//*grFloor//
+		*phCylinder
+	}
+
+	/* PHScene“à‚ÌObject */
+	PHScene phScene{
+		PHSolid soFloor{
+			pose = 1 0 0 0  -0.5 -15.2 0
+			dynamical = false
+			*grFloor		// link to xfile(physics model)
+		}
+		PHOpObj phCylinder{
+			
+		}
+	}
+	
+	/* GRScene“à‚ÌObject */
+	GRScene grScene{
+		GRFrame grFrameFloor{ *grFloor }
+		GRFrame grFrameBunny{ *cylinderMesh}
+		
+		GRLight light1 {						#SprGRRender.h GRMaterialDesc
+			ambient = 0.9 0.9 0.9 0.0			#Vec4f ambient
+			diffuse = 0.5 0.5 0.5 0.9			#Vec4f diffuse
+			specular = 0.1 0.1 0.1 1.0			#Vec4f specular
+			position = 1.0 5.0 1.0 0.0			#Vec4f position
+			range = 10000.0						#float range
+		}
+		
+	}
+}

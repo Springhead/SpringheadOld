@@ -31,20 +31,40 @@ class PHOpHapticRenderer :public SceneObject, public PHOpHapticRendererDesc
 		std::vector<std::map<int, std::vector<int> > > objEdgeInfos;
 		std::vector<std::map<int, std::vector<int> > > objVtoFInfos;
 
+		int animeTimeLine;
+		bool useProxyPopOut;
+		int popOutNum;
+		
+
 		struct proxySolveItror
 		{
 			std::vector<PHOpHapticController::ConstrainPlaneInfo*> constrainIs;
-		public:
 		
 		}slvItr;
+
+		struct DisCmpPtoPbyV
+		{
+
+			int pIndex;
+			int vIndex;
+			float distance;
+			bool cmpdis(const DisCmpPtoPbyV &a, const DisCmpPtoPbyV &b)
+			{
+				return a.distance<b.distance;
+			}
+			bool operator < (const DisCmpPtoPbyV &a)const
+			{
+				return (distance < a.distance);
+			}
+		};
 
 		PHOpHapticRenderer(const PHOpHapticRendererDesc& desc = PHOpHapticRendererDesc()) : PHOpHapticRendererDesc(desc)
 		
 		{
 			hitWall = false;
 			rigid = false;
-			outForceSpring = 1.0f;
-			extForceSpring = 1.0f;
+			toUserVCSpring = 1.0f;
+			toObjVCSpring = 1.0f;
 			constraintSpring = 1.0f;
 			useIncreaseMeshMove = false;
 			useConstrainForce = false;
@@ -55,6 +75,8 @@ class PHOpHapticRenderer :public SceneObject, public PHOpHapticRendererDesc
 			noCtcItrNum = 0;
 			proxyItrtNum = 0;
 			proxyItrtMaxNum = 3;
+			subStepProSolve = true;
+			useProxyPopOut = true;
 		}
 		void SetRigid(bool set)
 		{
@@ -69,17 +91,16 @@ class PHOpHapticRenderer :public SceneObject, public PHOpHapticRendererDesc
 		{
 			return rigid;
 		}
-#ifdef USEGRMESH
+
 		void initial3DOFRenderer(PHOpHapticController* hc, std::vector<PHOpObj*>* objs)
 		{
 			myHc = hc;
 			opObjs = objs;
 			forceOnRadius = 0.3f;
 			objNum = (int)(*opObjs).size();
-			BuildVToFaceRelation();
-			BuildEdgeInfo();
+			//BuildVToFaceRelation();
+			//BuildEdgeInfo();
 		}
-#endif
 		void initial6DOFRenderer(PHOpHapticController* hc, std::vector<PHOpObj*>* objs)
 		{
 			myHc = hc;
@@ -88,29 +109,27 @@ class PHOpHapticRenderer :public SceneObject, public PHOpHapticRendererDesc
 			objNum = (int)(*opObjs).size();
 			
 		}
-#ifdef USEGRMESH
-		void ProxySlvPlane();
-		void ProxyMove();
-		void ProxyTrace();
-		bool ProxyCorrection();
-		void HpNoCtcProxyCorrection();
-		void HpConstrainSolve(Vec3f &currSubStart);
-		void BuildVToFaceRelation();
-		void BuildEdgeInfo();
-		bool intersectOnRoute(Vec3f currSubStart, Vec3f currSubGoal, Vec3f &newSubStart, Vec3f &newSubGoal, PHOpHapticController::ConstrainPlaneInfo &cpinfo, bool inverseF);
-		bool intersectOnRouteInColliPs(Vec3f currSubStart, Vec3f currSubGoal, Vec3f &newSubStart, Vec3f &newSubGoal, PHOpHapticController::ConstrainPlaneInfo &cpinfo, bool inverseF);
-#endif
+
+		void HapticProxyProcedure();
+		void PruneNonPositiveTriangles();
+		int HpProxyPopOut();
+		void HapticProxySolveOpt(Vec3f currSubStart);
+		bool new_intersectOnRouteUseShrink(Vec3f currSubStart, Vec3f currSubGoal, Vec3f &newSubStart, Vec3f &newSubGoal, PHOpHapticController::ConstrainPlaneInfo &cpinfo, bool inverseF, bool sameCheck);
+		void HpForceMoment();
+		void HpProxyNoCtcRecord2();
+		void SeriousNoCtcProxyCCD3();
+
 		void setForceOnRadius(float r)
 		{
 			forceOnRadius = r;
 		}
 		void SetForceSpring(float k)
 		{
-			extForceSpring = k;
+			toObjVCSpring = k;
 		}
 		float GetForceSpring()
 		{
-			return extForceSpring;
+			return toObjVCSpring;
 		}
 		void SetConstraintSpring(float k)
 		{

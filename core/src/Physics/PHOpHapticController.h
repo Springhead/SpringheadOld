@@ -14,6 +14,16 @@
 
 namespace Spr {
 	;
+
+#define TriAId 2
+#define TriBId 1
+#define TriCId 0
+#define ParallelBigForceProblemScalarThreshold 3
+#define ParallelBigForceProblemThreshold 400.0f
+#define ProxyPopOutPopLittleOverCoeff 1.001f
+#define ProxyPopOutRangeScalarCoeff 2.01f
+#define ProxyPopOutPopMinimumCoeff 0.02f
+
 	class PHOpHapticController: public SceneObject, public PHOpHapticControllerDesc
 	{
 	public:
@@ -22,6 +32,10 @@ namespace Spr {
 		{
 			max_output_force = 6.0f;
 			IsSetForceReady = false;
+			ProxySolveDetectionSize = 2;
+			SolveShrinkRadio = 0.999f;
+			sameCstrInside = false;
+			OutputForceLimit = 10.0f;
 		}
 		~PHOpHapticController()
 		{
@@ -43,11 +57,54 @@ namespace Spr {
 		FILE *logPosFile;//particle pos
 		FILE *logUPosFile;//user pos
 		float max_output_force;
+		float ProxySolveDetectionSize;
+		float SolveShrinkRadio;
 		std::vector<int> surrCnstrList;
+		Vec3f hcFixProxystart;
+		bool sameCstrInside;
+		float hcNoCtcDtcRadius;
+		
 
 		struct ConstrainPlaneInfo{
+			ConstrainPlaneInfo()
+			{
 
-			bool operator = (const ConstrainPlaneInfo &a)
+			}
+			bool isSameCstr(ConstrainPlaneInfo& a)
+			{
+				if (this->cstType != a.cstType) return false;
+
+				if (this->objid != a.objid) return false;
+
+				if (this->cstType == cstrainType::cstFace)
+				{
+					if (this->planeid == a.planeid)
+					{
+						return true;
+					}
+					else return false;
+				}
+				else if (this->cstType == cstrainType::cstEdge)
+				{
+					if (((this->edgeidA == a.edgeidA) && (this->edgeidB == a.edgeidB)) || ((this->edgeidA == a.edgeidB) && (this->edgeidB == a.edgeidA)))
+					{
+						return true;
+					}
+					else return false;
+				}
+				else if (this->cstType == cstrainType::cstPoint)
+				{
+					if (this->vid == a.vid)
+					{
+						return true;
+					}
+					else return false;
+				}
+
+				return false;
+			}
+
+			ConstrainPlaneInfo& operator = (const ConstrainPlaneInfo &a)
 			{
 				this->cstType = a.cstType;
 				this->edgeidA = a.edgeidA;
@@ -62,10 +119,28 @@ namespace Spr {
 				this->fw = a.fw;
 				this->segmentt = a.segmentt;
 				this->routet = a.routet;
-				return true;
+				return *this;
 
 
 			}
+
+			ConstrainPlaneInfo(const ConstrainPlaneInfo  & a)
+			{
+				this->cstType = a.cstType;
+				this->edgeidA = a.edgeidA;
+				this->edgeidB = a.edgeidB;
+				this->objid = a.objid;
+				this->planeid = a.planeid;
+				this->planeN = a.planeN;
+				this->planeP = a.planeP;
+				this->vid = a.vid;
+				this->fu = a.fu;
+				this->fv = a.fv;
+				this->fw = a.fw;
+				this->segmentt = a.segmentt;
+				this->routet = a.routet;
+			}
+			
 			int vid;
 			int edgeidA;
 			int edgeidB;
@@ -98,7 +173,6 @@ namespace Spr {
 		bool InitialHapticController();
 		
 		void LogForce(TQuaternion<float> winPose);
-		void UpdateProxyPosition(Vec3f &pos, TQuaternion<float> winPose);
 		bool CheckProxyState();
 		void SetHCColliedFlag(bool flag);
 		
@@ -110,7 +184,7 @@ namespace Spr {
 		void setC_ObstacleRadius(float r);
 		int GetHpObjIndex();
 		ObjectIf* GetHpOpObj();
-		bool SetForce(Vec3f f);
+		bool SetForce(Vec3f f, Vec3f t);
 		
 		void SetHCForceReady(bool flag);
 		bool GetHCForceReady();
@@ -120,20 +194,42 @@ namespace Spr {
 		void SetHCPosition(Vec3f pos);
 		void SetHCPose(Posef pose);
 		Posef GetHCPose();
-
+		Vec3f Get3DoFProxyPosition()
+		{
+			return hcObj->objPArr[0].pCurrCtr;
+		}
 		
-		Vec3f GetUserPos()
+		Vec3f GetUserPosition()
 		{
 			return userPos;
+		}
+		
+		void SetUserPose(Vec3f &pos, Vec3f &rot)
+		{
+			userPos = pos;
+			//userPose = ;
 		}
 		float GetC_ObstacleRadius()
 		{
 			return c_obstRadius;
 		}
 		Vec3f GetCurrentOutputForce();
-		
+		void SetManualMode(bool flag)
+		{
+			isManual = flag;
+		}
+		bool GetManualMode()
+		{
+			return isManual;
+		}
 		
 	};
+	static bool  HasIinArr(int checki, int* arr, int Num)
+	{
+		for (int i = 0; i < Num; i++)
+			if (checki == arr[i]) return true;
 
+		return false;
+	}
 }//namespace
 #endif

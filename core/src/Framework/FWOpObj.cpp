@@ -33,7 +33,7 @@ void FWOpObj::CreateOpObj()
 	//Decide Particle size
 	Vec3f tbeginP, tdiameterP;
 	int vtsNum = grMesh->NVertex();
-	
+
 
 	//ƒ‚ƒfƒ‹‚©‚çparticle—±Žq’Tõ”¼Œa‚â‚¢‚ë‚¢‚ë‚ðŒˆ‚ß‚é
 	if (vtsNum == 1)
@@ -44,68 +44,68 @@ void FWOpObj::CreateOpObj()
 	{
 		if (grMesh->GetName()[9] == '4')
 		{
-			
+
 			tbeginP = grMesh->vertices[0];	tdiameterP = grMesh->vertices[1];
-			
+
 		}
 	}
 	else if (grMesh->GetName()[0] == 'a')//for artery
 	{
-		
+
 		tbeginP = grMesh->vertices[61];	tdiameterP = grMesh->vertices[90];
 		opObj->params.SetBound(30.0f);
-	
+
 	}
 	else if (grMesh->GetName()[0] == 'c')//for clipMesh
 	{
-		
+
 		tbeginP = grMesh->vertices[61];	tdiameterP = grMesh->vertices[90];
 		opObj->params.SetBound(30.0f);
-	
+
 	}
 	else if (grMesh->GetName()[0] == 'f')//for fabicrabbit
 	{
-	
+
 		if (grMesh->GetName()[2] == 'c')
 		{//for faceCube
 			tbeginP = grMesh->vertices[208];	tdiameterP = grMesh->vertices[310];
-		
+
 		}
-		else{
+		else {
 
 			tbeginP = grMesh->vertices[61];	tdiameterP = grMesh->vertices[65];
-		
+
 		}
 	}
 	else if (grMesh->GetName()[0] == 's')//for fabicrabbit
 	{
-	
+
 		tbeginP = grMesh->vertices[61];	tdiameterP = grMesh->vertices[65];
-	
+
 	}
 	else if (grMesh->GetName()[0] == 'r')//for rabbit
 	{
-		
+
 		tbeginP = grMesh->vertices[61];	tdiameterP = grMesh->vertices[65];
-	
+
 	}
 	else if (grMesh->GetName()[0] == 'm')//only for monkey
 	{
-		
+
 		tbeginP = grMesh->vertices[14];	tdiameterP = grMesh->vertices[20];
-	
-	
+
+
 	}
 	else if (grMesh->GetName()[0] == 'b')//only for bar
 	{
 		tbeginP = grMesh->vertices[0];	tdiameterP = grMesh->vertices[4];
 		opObj->objGrouplinkCount = 3;
-	
+
 	}
 	else if (grMesh->GetName()[0] == 'p')
 	{
 		tbeginP = grMesh->vertices[0];	tdiameterP = grMesh->vertices[5];
-	
+
 	}
 	else if (grMesh->GetName()[0] == 'd')
 	{
@@ -113,11 +113,11 @@ void FWOpObj::CreateOpObj()
 		{
 			tbeginP = grMesh->vertices[12]; tdiameterP = grMesh->vertices[42];
 		}
-		else{
+		else {
 			tbeginP = grMesh->vertices[4161];	tdiameterP = grMesh->vertices[4160];
 
 		}
-	
+
 	}
 	else if (grMesh->GetName()[0] == 'g')
 	{
@@ -129,33 +129,61 @@ void FWOpObj::CreateOpObj()
 		if (grMesh->GetName()[8] == 'T')
 		{
 			tbeginP = grMesh->vertices[9];	tdiameterP = grMesh->vertices[57];
-		
+
 		}
 		else {
 			//tbeginP = grMesh->vertices[44];	tdiameterP =grMesh->vertices[37];
 			tbeginP = grMesh->vertices[44];	tdiameterP = grMesh->vertices[40];
-		
+
 		}
 	}
-	else{ tbeginP = grMesh->vertices[0];	tdiameterP = grMesh->vertices[2]; }//only for box
+	else { tbeginP = grMesh->vertices[0];	tdiameterP = grMesh->vertices[2]; }//only for box
 
-	
+
 	tdiameterP = tbeginP - tdiameterP;
 	float objPtclDiameter = fabs(tdiameterP.norm());
 
 	opObj->initialPHOpObj(&grMesh->vertices[0], grMesh->NVertex(), objPtclDiameter);
-#ifdef USEGRMESH
-	opObj->targetMesh = grMesh;
-#endif
 	opObj->SetName(grMesh->GetName());
+
+	for (unsigned int fi = 0; fi < grMesh->faces.size(); fi++)
+	{
+		TriFace tf; tf.nVertices = grMesh->faces[fi].nVertices;
+		for (int ti = 0; ti < tf.nVertices; ti++)
+		{
+			tf.indices[ti] = grMesh->faces[fi].indices[ti];
+		}
+
+		opObj->objMeshFaces.emplace_back(tf);
+		
+	}
+	for (unsigned int fi = 0; fi < grMesh->normals.size(); fi++)
+	{
+		opObj->objMeshNormals.emplace_back(grMesh->normals[fi]);
+	}
+
 }
 void FWOpObj::CreateOpObjWithRadius(float r)
 {
 	grMesh->EnableAlwaysCreateBuffer();
 	opObj->initialPHOpObj(&grMesh->vertices[0], grMesh->NVertex(), r);
-#ifdef USEGRMESH
-	opObj->targetMesh = grMesh;
-#endif
+
+	for (unsigned int fi = 0; fi < grMesh->faces.size(); fi++)
+	{
+		TriFace tf; tf.nVertices = grMesh->faces[fi].nVertices;
+		for (int ti = 0; ti < tf.nVertices; ti++)
+		{
+			tf.indices[ti] = grMesh->faces[fi].indices[ti];
+		}
+
+		opObj->objMeshFaces.emplace_back(tf);
+
+	}
+	for (unsigned int fi = 0; fi < grMesh->normals.size(); fi++)
+	{
+		opObj->objMeshNormals.emplace_back(grMesh->normals[fi]);
+	}
+
 	opObj->SetName(grMesh->GetName());
 }
 

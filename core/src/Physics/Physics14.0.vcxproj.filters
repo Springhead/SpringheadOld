@@ -178,6 +178,9 @@
     <ClCompile Include="PHBody.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="PHSoftSkin.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="PHAxisIndex.h">
@@ -394,6 +397,9 @@
       <Filter>include</Filter>
     </ClInclude>
     <ClInclude Include="PHBody.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="PHSoftSkin.h">
       <Filter>src</Filter>
     </ClInclude>
   </ItemGroup>

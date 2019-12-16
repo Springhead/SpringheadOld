@@ -54,6 +54,8 @@ namespace Spr {
 			vel.w() = hiPose->GetAngularVelocity();
 			Posed pose = hiPose->GetPose();
 
+			if (opHC->isManual) return;
+
 			opHC->SetHCPosition(pose.Pos());
 			opHC->SetHCPose(pose);
 		}

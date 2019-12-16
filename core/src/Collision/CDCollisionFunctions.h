@@ -11,8 +11,24 @@
 namespace Spr{
 	;
 
-	class CollisionFuntions{
+	class CollisionFunctions{
 	public:
+
+		static bool isClose(Vec3f &a, Vec3f &b, float &distance)
+		{
+			float abx = fabs(a.x - b.x);
+			float aby = fabs(a.y - b.y);
+			float abz = fabs(a.z - b.z);
+
+			if ((abx*abx + aby*aby + abz*abz) < distance*distance)
+			{
+
+				return true;
+			}
+			else return false;
+
+		}
+
 		static int  IntersectSegmentSphere(Vec3f a, Vec3f unitb_aNome, float dista_b, Vec3f sphereCtr, float sphereR, float &t, Vec3f &q)
 	{
 		Vec3f m = a - sphereCtr;
@@ -365,6 +381,70 @@ namespace Spr{
 		float w = vc * denom;
 		insideFlag = true;
 		{regionFlag = 0; }
+		return a + ab * v + ac * w; // = u*a + v*b + w*c, u = va * denom = 1.0f - v - w
+
+	}
+
+	static Vec3f ClosestPtoTriangle(Vec3f p, Vec3f a, Vec3f b, Vec3f c, bool &insideFlag, int &regionFlag, float &wb, float &wc)
+	{
+		//Check if P in vertex region outside A
+		Vec3f ab = b - a;
+		Vec3f ac = c - a;
+		Vec3f ap = p - a;
+		float d1 = ab * ap;
+		float d2 = ac * ap;
+		if (d1 <= 0.0f && d2 <= 0.0f) { regionFlag = 1; return a; }
+
+		//Check if P in vertex region outside B
+		Vec3f bp = p - b;
+		float d3 = ab * bp;
+		float d4 = ac * bp;
+		//if(d3 >= 0.0f && d4 <= d3 ) {regionFlag = 2;return b;}
+
+		Vec3f bc = c - b;
+		float d4_ = bc * bp;
+		if (d3 >= 0.0f && d4_ <= 0.0f) { regionFlag = 2; return b; }
+
+		//Check if P in edge region of AB, then return the projection of P
+		float vc = d1 * d4 - d3 * d2;
+		if (vc <= 0.0f && d1 >= 0.0f && d3 <= 0.0f)
+		{
+			float v = d1 / (d1 - d3);
+			{regionFlag = 12; }
+			return a + v * ab;
+		}
+
+		//Check if P in vertex region of outside C
+		Vec3f cp = p - c;
+		float d5 = ab * cp;
+		float d6 = ac * cp;
+		//if(d6 <=0.0f && d5 <= d6) {regionFlag = 3;return c;}
+
+		float d5_ = bc * cp;
+		if (d6 >= 0.0f && d5_ >= 0.0f) { regionFlag = 3; return c; }
+
+		// Check if P in edge region of AC, if so return projection of P onto AC
+		float vb = d5*d2 - d1*d6;
+		if (vb <= 0.0f && d2 >= 0.0f && d6 <= 0.0f) {
+			float w = d2 / (d2 - d6);
+			{regionFlag = 13; }
+			return a + w * ac; // barycentric coordinates (1-w,0,w)
+		}
+
+		// Check if P in edge region of BC, if so return projection of P onto BC
+		float va = d3*d6 - d5*d4;
+		if (va <= 0.0f && (d4 - d3) >= 0.0f && (d5 - d6) >= 0.0f) {
+			float w = (d4 - d3) / ((d4 - d3) + (d5 - d6));
+			{regionFlag = 23; }
+			return b + w * (c - b); // barycentric coordinates (0,1-w,w)
+		}
+
+		// P inside face region. Compute Q through its barycentric coordinates (u,v,w)
+		float denom = 1.0f / (va + vb + vc);
+		float v = vb * denom;
+		float w = vc * denom;
+		insideFlag = true;
+		{regionFlag = 0; wb = v; wc = w; }
 		return a + ab * v + ac * w; // = u*a + v*b + w*c, u = va * denom = 1.0f - v - w
 
 	}

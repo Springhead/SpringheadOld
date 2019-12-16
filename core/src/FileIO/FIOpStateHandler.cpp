@@ -61,9 +61,9 @@ namespace Spr
 		//if (dfobj.useTetgen)
 		{
 			//vertices
-			for (int i = 0; i< dfobj.objTargetVtsNum; i++)
+			for (int i = 0; i< dfobj.objMeshVtsNum; i++)
 			{
-				fprintf(f, "%f %f %f\n", dfobj.objTargetVts[i].x, dfobj.objTargetVts[i].y, dfobj.objTargetVts[i].z);
+				fprintf(f, "%f %f %f\n", dfobj.objMeshVts[i].x, dfobj.objMeshVts[i].y, dfobj.objMeshVts[i].z);
 			}
 		}
 		//else{
@@ -230,7 +230,7 @@ namespace Spr
 
 		//Orignal vertex position
 		fprintf(f, "Orig Vertex positions\n");
-		for (int i = 0; i < dfobj.objTargetVtsNum; i++)
+		for (int i = 0; i < dfobj.objMeshVtsNum; i++)
 		{
 			fprintf(f, "%f %f %f\n", dfobj.objOrigPos[i].x, dfobj.objOrigPos[i].y, dfobj.objOrigPos[i].z);
 		}
@@ -320,10 +320,10 @@ namespace Spr
 	{
 
 		//vertices
-		for (int i = 0; i< dfobj.objTargetVtsNum; i++)
+		for (int i = 0; i< dfobj.objMeshVtsNum; i++)
 		{
 			fgets(s, len, f);
-			sscanf_s(s, "%f %f %f", &dfobj.objTargetVts[i].x, &dfobj.objTargetVts[i].y, &dfobj.objTargetVts[i].z);
+			sscanf_s(s, "%f %f %f", &dfobj.objMeshVts[i].x, &dfobj.objMeshVts[i].y, &dfobj.objMeshVts[i].z);
 		}
 	}
 	
@@ -468,7 +468,7 @@ namespace Spr
 	fgets(s, len, f);
 
 	//weight
-	dfobj.objBlWeightArr = new float*[dfobj.objTargetVtsNum];
+	dfobj.objBlWeightArr = new float*[dfobj.objMeshVtsNum];
 	for (int j = 0; j < dfobj.assPsNum; j++)
 	{
 		PHOpGroup &pg = dfobj.objGArr[dfobj.objPArr[j].pMyGroupInd];
@@ -542,8 +542,8 @@ namespace Spr
 
 	//Orignal vertex position
 	fgets(s, len, f);
-	dfobj.objOrigPos = new Vec3f[dfobj.objTargetVtsNum];
-	for (int i = 0; i < dfobj.objTargetVtsNum; i++)
+	dfobj.objOrigPos = new Vec3f[dfobj.objMeshVtsNum];
+	for (int i = 0; i < dfobj.objMeshVtsNum; i++)
 	{
 		fgets(s, len, f); sscanf_s(s, "%f %f %f", &dfobj.objOrigPos[i].x, &dfobj.objOrigPos[i].y, &dfobj.objOrigPos[i].z);
 	}

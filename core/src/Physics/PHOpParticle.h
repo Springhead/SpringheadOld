@@ -44,7 +44,7 @@ public :
 		pNvertex = 0;
 		pWvel = pVelocity = Vec3f(0.0,0.0,0.0);
 		pRadii = 0.0;
-		pTotalMass = 0.0;
+		pTotalMass = 1.0;
 		pOrigCtr = pOrigCtr.Zero();
 		pGoalCtr.clear();
 		pCurrCtr = pCurrCtr.Zero();

@@ -16,9 +16,7 @@
   #undef min
   #undef max
 // end
-#ifdef USEGRMESH
-#include "Graphics/GRDrawEllipsoid.h"
-#endif
+
 #include <Physics/PHOpDecompositionMethods.h>
 #include "Physics/PHOpHapticController.h"
 #include "Physics/PHEngine.h"
@@ -42,11 +40,7 @@ namespace Spr{
 		int objidIndex;
 		//描画する粒子の半径係数
 		float radiusCoe;
-#ifdef USEGRMESH
-		//楕円描画する用
-		DrawEllipsoid drawEll;
 
-#endif
 		UTRef<PHOpAnimation> opAnimator;	//	To avoid memory leak
 
 		int opIterationTime;
@@ -86,7 +80,7 @@ namespace Spr{
 		PHOpObjIf* GetOpObjIf(int obji);
 		void HapticProcedure_3DOF();
 		void HapticProcedure_6DOF();
-		void InitialHapticRenderer(int objId);
+		void Initial6DOFHapticRenderer(int objId);
 		void SetUseHaptic(bool hapticUsage);
 		bool GetUseHaptic();
 		
@@ -94,7 +88,7 @@ namespace Spr{
 		bool IsHapticSolve();
 		void SetProxyCorrectionEnable(bool enable);
 		bool IsProxyCorrection();
-		void InitialNoMeshHapticRenderer();
+		void Initial3DOFHapticRenderer();
 
 		ObjectIf* GetOpHapticController();
 		ObjectIf* GetOpHapticRenderer();

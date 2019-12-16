@@ -154,37 +154,7 @@ namespace Spr {
 	{
 		return hcProxyOn;
 	}
-	void PHOpHapticController::UpdateProxyPosition(Vec3f &pos, TQuaternion<float> winPose)
-	{
-		hcCollied = false;
-
-
-		
-		PHOpParticle* dp = GetMyHpProxyParticle();
-		
-		dp->pCurrCtr = pos;
-		dp->pCurrOrint = dp->pNewOrint;
-		
-		Vec3f f;
-		if (hcProxyOn)
-		{
-			winPose = winPose.Inv();
-			f = winPose * (dp->pCurrCtr - userPos) * 3;
-			float magni = f.norm();
-			if (magni > 10.0f)
-			{
-				DSTR << "Big Force Output!" << std::endl;
-				f.clear();
-			}
-		}
-		else {
-			f.clear();
-		}
-
-
-		SetForce(f);
-		
-	}
+	
 	void PHOpHapticController::LogForce(TQuaternion<float> winPose)
 	{
 		if (logForce)
@@ -285,13 +255,14 @@ namespace Spr {
 	{
 		return hcObj->Cast();
 	}
-	bool PHOpHapticController::SetForce(Vec3f f)
+	bool PHOpHapticController::SetForce(Vec3f f, Vec3f t = Vec3f())
 	{
 		if (fabs(f.norm()) < max_output_force)
 		{
 			
 			SetHCForceReady(true);
 			outForce.v() = f;
+			outForce.w() = t;
 			return true;
 		}
 		else return false;

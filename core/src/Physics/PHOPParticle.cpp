@@ -61,7 +61,7 @@ bool PHOpParticle::addNewVertex(int index)
 		}
 	}
 	
-	pTotalMass += pSingleVMass;
+	//pTotalMass += pSingleVMass;// calculate particle mass according to vertex number
 	
 	pVertTempInd.push_back(index);
 	pNvertex++;

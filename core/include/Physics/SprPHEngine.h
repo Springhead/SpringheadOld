@@ -246,7 +246,7 @@ public:
 	void SetTimeStep(double dt);
 	double GetTimeStep();
 	void SetGravity(bool gflag);
-	void InitialHapticRenderer(int objId);
+	void Initial6DOFHapticRenderer(int objId);
 	//ObjectIf* GetHapticController();
 	PHOpObjDesc* GetOpObj(int i);
 	void StepWithBlend();
@@ -272,7 +272,7 @@ public:
 	bool GetAnimationFlag();
 	void SetDrawPtclR(float r);
 	float GetDrawPtclR();
-	void InitialNoMeshHapticRenderer();
+	void Initial3DOFHapticRenderer();
 	//void SetCrossPlatformCoord(bool InverX, bool InverY, bool InverZ);
 };
 //@}

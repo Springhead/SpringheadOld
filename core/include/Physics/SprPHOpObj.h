@@ -23,8 +23,8 @@ struct PHOpObjState{
 };
 
 struct PHOpHapticRendererDesc{
-	float extForceSpring;
-	float outForceSpring;
+	float toObjVCSpring; //VC spring for force apply to Virtual object
+	float toUserVCSpring; //VC spring for force apply to user
 	float constraintSpring;
 	float timeStep;
 	float forceOnRadius;
@@ -35,7 +35,10 @@ struct PHOpHapticRendererDesc{
 	bool sqrtAlphaForce;
 	bool hitWall;
 	bool useDualTranFix;
+	bool useMultirate;
 	bool rigid;
+	bool subStepProSolve;
+	
 
 	int proxyItrtNum;
 	int proxyItrtMaxNum;
@@ -44,6 +47,7 @@ struct PHOpHapticRendererDesc{
 	int noCtcItrNum;
 
 	Vec3f proxyFixPos;
+	
 };
 
 struct PHOpObjDesc : public PHOpObjState{
@@ -53,13 +57,13 @@ struct PHOpObjDesc : public PHOpObjState{
 	bool		dynamical;		///<	物理法則に従うか(速度は積分される)
 
 	////model頂点群
-	Vec3f *objTargetVts;
+	Vec3f *objMeshVts;
 	
 	//model頂点データ
-	float objTargetVtsArr[10000];
+	float objMeshVtsArr[10000];
 
 	//model頂点群数
-	int objTargetVtsNum;
+	int objMeshVtsNum;
 	//粒子の数
 	int assPsNum;
 	//粒子groupの数
@@ -281,6 +285,7 @@ struct PHOpHapticControllerDesc
 	Vec3f hcLastUPos;
 	Vec3f hcFixsubGoal;
 	float c_obstRadius;
+	bool isManual;
 
 	int hpObjIndex;
 	enum HapticDOFType
@@ -306,6 +311,7 @@ struct PHOpHapticControllerDesc
 	int collectItrtor;
 	bool hcProxyOn;
 	int suspObjid;
+	float OutputForceLimit;
 
 	float proxyRadius;
 	int surrCnstrs;// detected constrains Num before fix
@@ -324,6 +330,7 @@ struct PHOpHapticControllerDesc
 		Vec3f ctcPos;
 	};
 
+	Vec3f _3dofProxyPenetration;
 };
 struct PHOpHapticControllerIf : public SceneObjectIf{
 	SPR_IFDEF(PHOpHapticController);
@@ -335,33 +342,21 @@ struct PHOpHapticControllerIf : public SceneObjectIf{
 	bool BeginLogForce();
 	void EndLogForce();
 	void setC_ObstacleRadius(float r);
-	Vec3f GetUserPos();
+	Vec3f GetUserPosition();
 	Vec3f GetHCPosition();
 	void SetHCPosition(Vec3f pos);
 	void SetHCPose(Posef pose);
 	Posef GetHCPose();
 	float GetC_ObstacleRadius();
 	Vec3f GetCurrentOutputForce();
+	void SetManualMode(bool flag);
+	bool GetManualMode();
+	void SetUserPose(Vec3f &pos, Vec3f &rot);
+	Vec3f Get3DoFProxyPosition();
 };
 struct PHOpHapticRendererIf : public SceneObjectIf{
 	SPR_IFDEF(PHOpHapticRenderer);
-#ifdef USEGRMESH
-	void ProxySlvPlane();
-	void ProxyMove();
-	void ProxyTrace();
-	bool ProxyCorrection();
-	void ForceCalculation();
-	void setForceOnRadius(float r);
-	void SetForceSpring(float k);
-	float GetForceSpring();
-	void SetConstraintSpring(float k);
-	float GetConstraintSrping();
 
-	void HpNoCtcProxyCorrection();
-	void HpConstrainSolve(Vec3f &currSubStart);
-	void BuildVToFaceRelation();
-	void BuildEdgeInfo();
-#endif
 	void SetRigid(bool set);
 	bool IsRigid();
 };
