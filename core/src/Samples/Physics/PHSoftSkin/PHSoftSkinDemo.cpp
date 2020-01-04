@@ -11,6 +11,7 @@
 #include "Physics/PHOpEngine.h"
 #include <Foundation/UTClapack.h>
 #include "Graphics/GRMesh.h"
+//#include "Physics/PHSoftSkin.h"
 #include <iomanip>
 
 #define USE_SPRFILE
@@ -61,7 +62,7 @@ void PHSoftSkinDemo::Init(int argc, char* argv[]){
 	//initial op objects
 	FWOpObjIf *tmp = GetSdk()->GetScene()->FindObject("fwCylinder")->Cast();
 //#ifdef _3DOF
-	tmp->CreateOpObjWithRadius(0.2f);
+	tmp->CreateOpObjWithRadius(0.4f);
 //#endif
 
 
@@ -104,13 +105,7 @@ void PHSoftSkinDemo::Init(int argc, char* argv[]){
 	opHc->setC_ObstacleRadius(0.02f);
 	PHOpHapticRendererIf* opHr = (PHOpHapticRendererIf*)opEngineif->GetOpHapticRenderer();
 	
-	//for clip
-	//opEngine->InitialHapticRenderer(1, hisdk);
-	//PHOpHapticRendererIf* opHr = (PHOpHapticRendererIf*)opEngine->GetOpHapticRenderer();
-
-	////for rigid Clip
-	//opHr->SetRigid(true);
-
+	
 	//opAnimator = (PHOpAnimationIf*)opEngine->GetOpAnimator();
 	//opAnimator->AddAnimationP(1, 38, Vec3f(0, -300, 0), 100);
 	//for (int pi = 48; pi < 56; pi++)
@@ -118,7 +113,7 @@ void PHSoftSkinDemo::Init(int argc, char* argv[]){
 	//	opAnimator->AddAnimationP(1, pi, Vec3f(0, -300, 0), 100);
 	//}
 	PHOpObjIf *opObjIf = opEngineif->GetOpObjIf(0);
-	opObjIf->SetBound(3);
+	opObjIf->SetBound(10);
 
 	opHrDesc = DCAST(PHOpHapticRenderer, opHr);
 #endif
@@ -179,6 +174,70 @@ void PHSoftSkinDemo::Init(int argc, char* argv[]){
 	spIf->EnableCollisionDetection(false);
 #endif
 
+	//-------Add joint start
+	InitialJoints();
+	//---------Add joints finish
+
+	PHSoftSkinIf* ss = (PHSoftSkinIf*)opObjIf->GetObjSkin();// GetSdk()->GetScene()->GetPHScene()->CreateSoftSkin();
+	PHSceneIf* phscene = GetFWScene()->GetPHScene();
+	int soNum = phscene->NSolids();
+	for (int bi = 0; bi < soNum; bi++)
+	{
+		ss->AddSkinBone(phscene->GetSolid(bi));
+	}
+
+	//cylineder 1 is particle 0 to 17, 2 is 18 to 37, 3 is 38 to 55
+	int ptclNum = ss->GetParticleNum();
+	int bonei = 1;
+	for (int pi = 0; pi < ptclNum; pi++)
+	{
+		if (pi < 19) 
+			ss->AddParticleToBone(1, pi);
+		if (pi >= 19 && pi <= 37)
+			ss->AddParticleToBone(3, pi);
+		if (pi > 37)
+			ss->AddParticleToBone(2, pi);
+	}
+	int solidNum = ss->GetSolidNum();
+	for (int pi = 0; pi < ptclNum; pi++)
+	{
+		if (pi < 19)
+			ss->AddBoneToParticle(1, pi);
+		if (pi >= 19 && pi <= 37)
+			ss->AddBoneToParticle(3, pi);
+		if (pi > 37)
+			ss->AddBoneToParticle(2, pi);
+	}
+
+	//add linked particles
+	ss->AddBoneToParticle(1, 43);
+	ss->AddBoneToParticle(1, 44);
+	ss->AddBoneToParticle(1, 45);
+	ss->AddBoneToParticle(1, 54);
+	ss->AddBoneToParticle(1, 55);
+	ss->AddBoneToParticle(1, 56);
+
+	ss->AddBoneToParticle(1, 24);
+	ss->AddBoneToParticle(1, 25);
+	ss->AddBoneToParticle(1, 26);
+	ss->AddBoneToParticle(1, 36);
+	ss->AddBoneToParticle(1, 37);
+
+	ss->AddBoneToParticle(2, 0);
+	ss->AddBoneToParticle(2, 1);
+	ss->AddBoneToParticle(2, 2);
+	ss->AddBoneToParticle(2, 3);
+	ss->AddBoneToParticle(2, 4);
+
+	ss->AddBoneToParticle(3, 38);
+	ss->AddBoneToParticle(3, 39);
+	ss->AddBoneToParticle(3, 40);
+	ss->AddBoneToParticle(3, 41);
+	ss->AddBoneToParticle(3, 42);
+
+	ss->CalBoneWeights();
+
+
 	DrawHelpInfo = true;
 	checkPtclInfo = true;
 	useMouseSelect = false;
@@ -195,7 +254,7 @@ void PHSoftSkinDemo::Init(int argc, char* argv[]){
 	mouseLbtn = false;
 	mouseVertmotion = false;
 	pgroupEditionModel = false;
-	runByStep = false;
+	runByStep = true;
 	addGrpLink = true;
 	ediFirP = true;
 	render = GetCurrentWin()->GetRender();
@@ -217,21 +276,7 @@ void PHSoftSkinDemo::Init(int argc, char* argv[]){
 	GetCurrentWin()->GetTrackball()->SetLongitudeRange(rmin, rmax);
 
 }
-bool PHSoftSkinDemo::OnMouse(int button, int state, int x, int y)
-{
-	MouseButton(button, state, x, y);
-	return true;
-}
-void PHSoftSkinDemo::InitCameraView(){
-	Vec3d pos = Vec3d(-0.978414, 11.5185, 24.4473);		// カメラ初期位置
-	GetCurrentWin()->GetTrackball()->SetPosition(pos);	// カメラ初期位置の設定
-}
 
-void PHSoftSkinDemo::Reset(){
-	GetSdk()->Clear();
-	GetSdk()->LoadScene(fileName);
-	GetCurrentWin()->SetScene(GetSdk()->GetScene());
-}
 
 void PHSoftSkinDemo::TimerFunc(int id)
 {
@@ -262,43 +307,80 @@ void PHSoftSkinDemo::TimerFunc(int id)
 	/*if (useAnime)
 		opAnimator->AnimationStep(opEngine->GetDescAddress());*/
 }
-void PHSoftSkinDemo::InitInterface(){
-	HISdkIf* hiSdk = GetSdk()->GetHISdk();
 
-	if (humanInterface == SPIDAR){
-		// x86
-		DRUsb20SimpleDesc usbSimpleDesc;
-		hiSdk->AddRealDevice(DRUsb20SimpleIf::GetIfInfoStatic(), &usbSimpleDesc);
-		DRUsb20Sh4Desc usb20Sh4Desc;
-		for (int i = 0; i< 10; ++i){
-			usb20Sh4Desc.channel = i;
-			hiSdk->AddRealDevice(DRUsb20Sh4If::GetIfInfoStatic(), &usb20Sh4Desc);
-		}
-		// x64
-		DRCyUsb20Sh4Desc cyDesc;
-		for(int i=0; i<10; ++i){
-			cyDesc.channel = i;
-			hiSdk->AddRealDevice(DRCyUsb20Sh4If::GetIfInfoStatic(), &cyDesc);
-		}
-		hiSdk->AddRealDevice(DRKeyMouseWin32If::GetIfInfoStatic());
-		hiSdk->Print(DSTR);
-		hiSdk->Print(std::cout);
 
-		spg = hiSdk->CreateHumanInterface(HISpidarGIf::GetIfInfoStatic())->Cast();
-#ifdef	_MSC_VER
-		spg->Init(&HISpidarGDesc("SpidarG6X3R"));
-#else
-		HISpidarGDesc tmpdesc = HISpidarGDesc((char *) "SpidarG6X3R");
-		spg->Init(&tmpdesc);
-#endif
-		spg->Calibration();
+void PHSoftSkinDemo::InitialJoints()
+{
+	PHSdkIf* phSdk = GetFWScene()->GetPHScene()->GetSdk();
+	PHSolidDesc descSolid;
+
+	CDRoundConeDesc descCapsule;
+	descCapsule.radius = Vec2f(0.5, 0.5);
+	descCapsule.length = 3;
+
+	// Base Link
+	PHSolidIf* so0 = GetFWScene()->GetPHScene()->CreateSolid(descSolid);
+	so0->AddShape(phSdk->CreateShape(descCapsule));
+	so0->SetDynamical(false);
+	PHTreeNodeIf* nd = GetFWScene()->GetPHScene()->CreateRootNode(so0);
+	PHTreeNodeIf* rt = nd;
+
+	// Link 1
+	PHSolidIf* so1 = GetFWScene()->GetPHScene()->CreateSolid(descSolid);
+	so1->AddShape(phSdk->CreateShape(descCapsule));
+
+	// Link 2
+	PHSolidIf* so2 = GetFWScene()->GetPHScene()->CreateSolid(descSolid);
+	so2->AddShape(phSdk->CreateShape(descCapsule));
+
+	// ----- ----- ----- ----- -----
+
+	{
+		PHBallJointDesc descBall;
+		descBall.poseSocket.Pos() = Vec3d(0, 0, 2);
+		descBall.posePlug.Pos() = Vec3d(0, 0, -2);
+		descBall.spring = 0;
+		descBall.damper = 0;
+
+		// Base <-> Link 1
+		PHBallJointIf* jo1 = GetFWScene()->GetPHScene()->CreateJoint(so0, so1, descBall)->Cast();
+		{
+			PHBallJointConeLimitDesc ld;
+			jo1->CreateLimit(ld);
+			DCAST(PHBallJointConeLimitIf, jo1->GetLimit())->SetSpring(1000);
+			DCAST(PHBallJointConeLimitIf, jo1->GetLimit())->SetDamper(10);
+			DCAST(PHBallJointConeLimitIf, jo1->GetLimit())->SetSwingRange(Vec2d(Rad(-10), Rad(5)));
+		}
+
+		nd = GetFWScene()->GetPHScene()->CreateTreeNode(nd, so1);
 	}
-	else if (humanInterface == XBOX){
-		spg = hiSdk->CreateHumanInterface(HIXbox360ControllerIf::GetIfInfoStatic())->Cast();
+
+	// Link 1 <-> Link 2
+	{
+		PHBallJointDesc descBall;
+		descBall.poseSocket.Pos() = Vec3d(0, 0, 2);
+		descBall.posePlug.Pos() = Vec3d(0, 0, -2);
+		descBall.spring = 0;
+		descBall.damper = 0;
+
+		PHBallJointIf* jo2 = GetFWScene()->GetPHScene()->CreateJoint(so1, so2, descBall)->Cast();
+		{
+			PHBallJointConeLimitDesc ld;
+			jo2->CreateLimit(ld);
+			DCAST(PHBallJointConeLimitIf, jo2->GetLimit())->SetSpring(1000);
+			DCAST(PHBallJointConeLimitIf, jo2->GetLimit())->SetDamper(10);
+			DCAST(PHBallJointConeLimitIf, jo2->GetLimit())->SetSwingRange(Vec2d(Rad(-10), Rad(100)));
+		}
+
+		nd = GetFWScene()->GetPHScene()->CreateTreeNode(nd, so2);
 	}
-	else if (humanInterface == FALCON){
-		spg = hiSdk->CreateHumanInterface(HINovintFalconIf::GetIfInfoStatic())->Cast();
-		spg->Init(NULL);
-	}
+
+	// ----- ----- ----- ----- -----
+
+	GetFWScene()->GetPHScene()->SetContactMode(PHSceneDesc::MODE_NONE);
+
+	rt->Enable(/*/ true /*/ false /**/);
+
+	so1->SetGravity(false);
+	so2->SetGravity(false);
 }
-

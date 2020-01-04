@@ -9,6 +9,7 @@
 #define SPR_PHOPOBJ_H
 
 #include <Foundation/SprObject.h>
+#include <Physics\SprPHSolid.h>
 
 namespace Spr{;
 
@@ -147,7 +148,7 @@ struct PHOpObjIf : public SceneObjectIf {
 	void SetObjItrTime(int itrT);
 	int GetObjItrTime();
 	void StoreOrigPose();
-
+	ObjectIf* GetObjSkin();
 
 };
 struct PHOpParticleDesc {
@@ -387,7 +388,26 @@ struct PHOpAnimationIf :public  SceneObjectIf, public PHOpAnimationDesc{
 	
 };
 
+struct PHSoftSkinDesc {
+	int solidNum;
+	int particleNum;
+};
 
+struct PHSoftSkinIf : public SceneObjectIf
+{
+	SPR_IFDEF(PHSoftSkin);
+	PHSolidIf* GetSkinBone(int boneId);
+	void AddSkinBone(ObjectIf* solid);
+	PHOpParticleIf* GetSkinPtcl(int pId);
+	void AddSkinPtcl(ObjectIf* ptcl);
+	void AddBoneToParticle(int boneid, int pId);
+	void AddParticleToBone(int boneid, int pId);
+	void CalBoneWeights();
+	void ParticleSkinBlending();
+	void UpdateBoneForces();
+	int GetParticleNum();
+	int GetSolidNum();
+};
 
 }	//	namespace Spr
 #endif

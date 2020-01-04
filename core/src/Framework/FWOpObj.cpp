@@ -13,6 +13,7 @@ namespace Spr{;
 FWOpObj::FWOpObj(const FWOpObjDesc& d) :grMesh(NULL){
 	SetDesc(&d);
 	fwPSize = d.fwPSize;
+	fwPLinkNum = d.fwPLinkNum;
 }
 ObjectIf* FWOpObj::GetOpObj()
 {
@@ -143,7 +144,7 @@ void FWOpObj::CreateOpObj()
 	tdiameterP = tbeginP - tdiameterP;
 	float objPtclDiameter = fabs(tdiameterP.norm());
 
-	opObj->initialPHOpObj(&grMesh->vertices[0], grMesh->NVertex(), objPtclDiameter);
+	opObj->initialPHOpObj(&grMesh->vertices[0], grMesh->NVertex(), /*objPtclDiameter*/ fwPSize, fwPLinkNum);
 	opObj->SetName(grMesh->GetName());
 
 	for (unsigned int fi = 0; fi < grMesh->faces.size(); fi++)
@@ -163,10 +164,13 @@ void FWOpObj::CreateOpObj()
 	}
 
 }
-void FWOpObj::CreateOpObjWithRadius(float r)
+void FWOpObj::CreateOpObjWithRadius(float r, int pLinkNum)
 {
+	if (pLinkNum < 0)
+		pLinkNum = fwPLinkNum;
+
 	grMesh->EnableAlwaysCreateBuffer();
-	opObj->initialPHOpObj(&grMesh->vertices[0], grMesh->NVertex(), r);
+	opObj->initialPHOpObj(&grMesh->vertices[0], grMesh->NVertex(), r, pLinkNum);
 
 	for (unsigned int fi = 0; fi < grMesh->faces.size(); fi++)
 	{

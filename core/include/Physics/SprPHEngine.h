@@ -259,6 +259,8 @@ public:
 	bool IsUpdateNormal(int obji);
 	void SetUseHaptic(bool hapticUsage);
 	bool GetUseHaptic();
+	void SetUseSoftSkin(bool flag);
+	bool GetUseSoftSkin();
 
 	PHOpObjIf* GetOpObjIf(int obji);
 	int GetOpObjNum();

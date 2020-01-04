@@ -16,6 +16,7 @@
 #include "PHIKEndEffector.h"
 #include "PHSkeleton.h"
 #include "PHOpEngine.h"
+#include "PHSoftSkin.h"
 #include <Physics/PHOpSpHashColliAgent.h>
 
 namespace Spr {;
@@ -68,6 +69,7 @@ protected:
 	UTRef<PHOpSpHashColliAgent>	opSpAgent;
 
 	std::vector< UTRef<PHSkeleton> > skeletons;
+	std::vector< UTRef<PHSoftSkin> > softskins;
 
 	double					timeStepInv;	///< timeStepの逆数．高速化用
 
@@ -132,6 +134,8 @@ public:
 	PHRayIf*				CreateRay(const PHRayDesc& desc = PHRayDesc());
 	int						NRays() const;
 	PHRayIf*				GetRay(int i);
+	PHSoftSkinIf*			GetSoftSkin(int i);
+	PHSoftSkinIf*			CreateSoftSkin();
 
 	PHIKActuatorIf*			CreateIKActuator(const IfInfo* ii, const PHIKActuatorDesc& desc = PHIKActuatorDesc());
 	int						NIKActuators() const;

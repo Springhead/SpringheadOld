@@ -195,8 +195,6 @@ void PHOpObj::summationTogAgroup()
 {
 	
 	float m  = 0.0f;
-	Matrix3f Asphere;
-	Asphere.clear();
 
 	for(int im=0;im<assPsNum;im++)
 	{

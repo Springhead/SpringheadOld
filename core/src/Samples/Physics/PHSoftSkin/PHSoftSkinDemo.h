@@ -143,5 +143,7 @@ public:
 	float manualModeSpeedScalar;
 
 	void InitInterface();
+	FWSceneIf*				GetFWScene() { return GetCurrentWin() ? GetCurrentWin()->GetScene() : NULL; }
+	void InitialJoints();
 }; 
 #endif 

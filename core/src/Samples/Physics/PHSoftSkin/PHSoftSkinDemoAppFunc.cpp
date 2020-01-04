@@ -1,11 +1,65 @@
 #include "PHSoftSkinDemo.h"
-#include "Physics/PHOpSpHashColliAgent.h"]
+#include "Physics/PHOpSpHashColliAgent.h"
 #include "Graphics/GRMesh.h"
 #define ESC 27
 
 using namespace std;
 
+bool PHSoftSkinDemo::OnMouse(int button, int state, int x, int y)
+{
+	MouseButton(button, state, x, y);
+	return true;
+}
+void PHSoftSkinDemo::InitCameraView() {
+	Vec3d pos = Vec3d(-0.978414, 11.5185, 24.4473);		// カメラ初期位置
+	GetCurrentWin()->GetTrackball()->SetPosition(pos);	// カメラ初期位置の設定
+}
 
+void PHSoftSkinDemo::Reset() {
+	GetSdk()->Clear();
+	GetSdk()->LoadScene(fileName);
+	GetCurrentWin()->SetScene(GetSdk()->GetScene());
+}
+
+void PHSoftSkinDemo::InitInterface() {
+	HISdkIf* hiSdk = GetSdk()->GetHISdk();
+
+	if (humanInterface == SPIDAR) {
+		// x86
+		DRUsb20SimpleDesc usbSimpleDesc;
+		hiSdk->AddRealDevice(DRUsb20SimpleIf::GetIfInfoStatic(), &usbSimpleDesc);
+		DRUsb20Sh4Desc usb20Sh4Desc;
+		for (int i = 0; i< 10; ++i) {
+			usb20Sh4Desc.channel = i;
+			hiSdk->AddRealDevice(DRUsb20Sh4If::GetIfInfoStatic(), &usb20Sh4Desc);
+		}
+		// x64
+		DRCyUsb20Sh4Desc cyDesc;
+		for (int i = 0; i<10; ++i) {
+			cyDesc.channel = i;
+			hiSdk->AddRealDevice(DRCyUsb20Sh4If::GetIfInfoStatic(), &cyDesc);
+		}
+		hiSdk->AddRealDevice(DRKeyMouseWin32If::GetIfInfoStatic());
+		hiSdk->Print(DSTR);
+		hiSdk->Print(std::cout);
+
+		spg = hiSdk->CreateHumanInterface(HISpidarGIf::GetIfInfoStatic())->Cast();
+#ifdef	_MSC_VER
+		spg->Init(&HISpidarGDesc("SpidarG6X3R"));
+#else
+		HISpidarGDesc tmpdesc = HISpidarGDesc((char *) "SpidarG6X3R");
+		spg->Init(&tmpdesc);
+#endif
+		spg->Calibration();
+	}
+	else if (humanInterface == XBOX) {
+		spg = hiSdk->CreateHumanInterface(HIXbox360ControllerIf::GetIfInfoStatic())->Cast();
+	}
+	else if (humanInterface == FALCON) {
+		spg = hiSdk->CreateHumanInterface(HINovintFalconIf::GetIfInfoStatic())->Cast();
+		spg->Init(NULL);
+	}
+}
 
 void PHSoftSkinDemo::Keyboard(int key, int x, int y) {
 
@@ -30,7 +84,8 @@ void PHSoftSkinDemo::Keyboard(int key, int x, int y) {
 		objif2 = opEngineif->GetOpObjIf(1);
 	PHOpParticleIf *dpif = (PHOpParticleIf*)objif->GetOpParticle(0);
 	PHOpParticleDesc *dp = dpif->GetParticleDesc();
-
+	PHSolidIf* so1 = GetFWScene()->GetPHScene()->GetSolid(0);
+	PHSolidIf* so2 = GetFWScene()->GetPHScene()->GetSolid(2);
 
 	void * dp1;
 
@@ -391,6 +446,10 @@ void PHSoftSkinDemo::Keyboard(int key, int x, int y) {
 			opEngineif->StepWithBlend();
 		else DSTR << " Please start run by step model using 'z'" << endl;
 		break;
+	case 'S':
+		opEngineif->SetUseSoftSkin(!opEngineif->GetUseSoftSkin());
+		DSTR << " Use Soft Skin is " << opEngineif->GetUseSoftSkin() << std::endl;
+		break;
 	case 'v':
 		drawVertex = !drawVertex;
 		DSTR << "drawVertex = " << drawVertex << std::endl;
@@ -408,6 +467,10 @@ void PHSoftSkinDemo::Keyboard(int key, int x, int y) {
 			spIf->SetCollisionCstrStiffness(spIf->GetCollisionCstrStiffness() - 0.05f);
 			DSTR << "CollisionConstraintStiffness Reduced to" << spIf->GetCollisionCstrStiffness() << std::endl;
 		}
+		break;
+	case 'j'://test solid force
+		
+		so2->AddForce(Vec3f(0.0f, 10.0f, 0.0));
 		break;
 	case 'z':
 		//step debugger
@@ -687,7 +750,7 @@ void PHSoftSkinDemo::Display()
 			PHOpObj& drawObj = *opEngine->opObjs[obji];
 			{
 
-				for (int fi = 0; fi < drawObj.objMeshFaces.size(); fi++)
+				for (int fi = 0; fi < (int)drawObj.objMeshFaces.size(); fi++)
 				{
 					Vec3f &fa = drawObj.objMeshVts[drawObj.objMeshFaces[fi].indices[TriAId]];
 					Vec3f &fb = drawObj.objMeshVts[drawObj.objMeshFaces[fi].indices[TriBId]];
@@ -735,6 +798,31 @@ void PHSoftSkinDemo::Display()
 			render->PopModelMatrix();
 		}
 	}
+
+	//Draw particle id
+	//if(drawPs)
+		for (int obji = 0; obji < (int)opEngineif->GetOpObjNum(); obji++)
+		{
+			PHOpObj& drawObj = *opEngine->opObjs[obji];
+			for (int i = 0; i < drawObj.assPsNum; i++)
+			{
+				PHOpParticle &dp = drawObj.objPArr[i];
+				Vec3f pos1 = dp.pCurrCtr;
+				sstr << dp.pPId;
+				render->DrawFont(pos1, sstr.str());
+				sstr.str("");
+			}
+		}
+
+	//if(drawSolidId)
+	/*int solidNum = GetSdk()->GetScene()->GetPHScene()->NSolids();
+	for (int si = 0; si < solidNum; si++)
+	{
+		Vec3f solidPos = GetSdk()->GetScene()->GetPHScene()->GetSolid(si)->GetCenterPosition();
+		sstr << si;
+		render->DrawFont(solidPos, sstr.str());
+					sstr.str("");
+	}*/
 
 	for (int obji = 0; obji < (int)opEngineif->GetOpObjNum(); obji++)
 	{

@@ -22,6 +22,7 @@ public :
 	UTRef<GRMesh> grMesh;
 	UTRef<PHOpObj> opObj;
 	float fwPSize;
+	int fwPLinkNum;
 
 	FWOpObj(const FWOpObjDesc& d = FWOpObjDesc());
 
@@ -30,7 +31,7 @@ public :
 	//頂点をGraphicsに反映する
 	void Blend();
 	void Sync();
-	void CreateOpObjWithRadius(float r);
+	void CreateOpObjWithRadius(float r, int pLinkNum = -1);
 	///	子オブジェクトの数
 	virtual size_t NChildObject() const;
 	///	子オブジェクトの取得

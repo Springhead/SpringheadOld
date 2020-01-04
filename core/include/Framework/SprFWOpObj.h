@@ -16,6 +16,7 @@ namespace Spr{;
 struct FWOpObjDesc :public FWObjectDesc{
 
 	float fwPSize;
+	int fwPLinkNum;
 };
 
 struct FWOpObjIf : FWObjectIf{
@@ -28,7 +29,7 @@ struct FWOpObjIf : FWObjectIf{
 	 ObjectIf* GetChildObject(size_t pos);
 	///	子オブジェクトの追加
 	 bool AddChildObject(ObjectIf* o);
-	 void CreateOpObjWithRadius(float r);
+	 void CreateOpObjWithRadius(float r, int pLinkNum = -1);
 	 void CreateOpObj();
 	 ObjectIf* GetOpObj();
 	 ObjectIf* GetGRMesh();

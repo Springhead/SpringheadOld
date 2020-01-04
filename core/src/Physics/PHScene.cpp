@@ -145,6 +145,7 @@ PHJointIf* PHScene::CreateJoint(PHSolidIf* lhs, PHSolidIf* rhs, const IfInfo* ii
 	AddChildObject(joint->Cast());
 	return joint->Cast();
 }
+
 int PHScene::NJoints()const{
 	return (int)constraintEngine->joints.size();
 }
@@ -453,6 +454,16 @@ ObjectIf* PHScene::CreateObject(const IfInfo* info, const void* desc){
 	}
 	return rv;
 }
+PHSoftSkinIf* PHScene::GetSoftSkin(int i)
+{
+	return softskins[i]->Cast();
+}
+PHSoftSkinIf* PHScene::CreateSoftSkin()
+{
+	softskins.emplace_back(DBG_NEW PHSoftSkin());
+	return softskins.back()->Cast();
+}
+
 size_t PHScene::NChildObject() const{
 	//return engines.size();
 	return NSolids() + NJoints() + NRootNodes() + NGears() + NPaths()

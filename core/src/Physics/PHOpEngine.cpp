@@ -24,6 +24,7 @@ namespace Spr{
 		logForce = false;
 		useHaptic = false;
 		useAnime = false;
+		useSoftSkin = false;
 	}
 	void PHOpEngine::Initial3DOFHapticRenderer()
 	{
@@ -75,6 +76,14 @@ namespace Spr{
 
 		//set c_obstacle
 		myHc->c_obstRadius = opObjs[objId]->objAverRadius / 6;
+	}
+	void PHOpEngine::SetUseSoftSkin(bool flag)
+	{
+		useSoftSkin = flag;
+	}
+	bool PHOpEngine::GetUseSoftSkin()
+	{
+		return useSoftSkin;
 	}
 	void  PHOpEngine::SetIterationCount(int count)
 	{
@@ -160,6 +169,28 @@ namespace Spr{
 		PHSceneIf* phs = (PHSceneIf*)GetScene();
 		PHOpSpHashColliAgentIf* agent = phs->GetOpColliAgent();
 
+		if (useHaptic)
+		{
+			myHc->userPose.Pos() = winPose * myHc->userPose.Pos();
+			myHc->userPos = winPose *  myHc->userPos;
+		}
+
+		//haptic
+		if (useHaptic)
+		{
+			if (myHc->hcType == PHOpHapticControllerDesc::_3DOF)
+			{//3DOF
+				if (!myHc->isManual)
+				{
+					if (myHc->hcReady)
+						HapticProcedure_3DOF();
+					else DSTR << "Haptic Device is not ready" << std::endl;
+				}
+				else HapticProcedure_3DOF();
+			}
+		}
+
+
 		for (int obji = 0; obji < (int)opObjs.size(); obji++)
 		{
 			if (opObjs[obji]->objNoMeshObj)
@@ -169,13 +200,9 @@ namespace Spr{
 			opObjs[obji]->positionPredict();
 		}
 
-		//haptic sych
+		//6-Dof haptic sych
 		if (useHaptic)
 		{
-
-			myHc->userPose.Pos() = winPose * myHc->userPose.Pos();
-			myHc->userPos = winPose *  myHc->userPos;
-			//
 			if (myHc->hcType == PHOpHapticControllerDesc::_6DOF)
 			{
 				if (!opHpRender->IsRigid())
@@ -205,15 +232,27 @@ namespace Spr{
 
 		}
 
+		//SoftSkin Bone Blending and Bone Force Update
+		if (useSoftSkin)
+		{
+			for (int obji = 0; obji < (int)opObjs.size(); obji++)
+			{
+				opObjs[obji]->objSkin->ParticleSkinBlending();
+				opObjs[obji]->objSkin->UpdateBoneForces();
+			}
+		}
+
+
 		//animation
 		if (useAnime)
 			opAnimator->AnimationStep(this);
 
 
+
 		//collision
 		if (agent->IsCollisionEnabled())
 		{
-		agent->OpCollisionProcedure();
+			agent->OpCollisionProcedure();
 
 		}
 		
@@ -231,19 +270,10 @@ namespace Spr{
 				opObjs[obji]->groupStep();
 			}
 
-			//haptic
+			//6Dof Haptic constraint
 			if (useHaptic)
 			{
-				if (myHc->hcType == PHOpHapticControllerDesc::_3DOF)
-				{//3DOF
-					if (!myHc->isManual)
-					{
-						if (myHc->hcReady)
-							HapticProcedure_3DOF();
-						else DSTR << "Haptic Device is not ready" << std::endl;
-					}else HapticProcedure_3DOF();
-				}
-				else
+				if (myHc->hcType == PHOpHapticControllerDesc::_6DOF)
 				{//6DOF
 					if (!myHc->isManual)
 					{
@@ -253,8 +283,6 @@ namespace Spr{
 					}
 					else HapticProcedure_6DOF();
 				}
-
-
 			}
 
 		}

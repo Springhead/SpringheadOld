@@ -57,7 +57,7 @@ namespace Spr{
 		PHOpHapticRenderer* opHpRender;
 		PHOpHapticController *myHc;
 		bool useHaptic;
-
+		bool useSoftSkin;
 
 		PHOpEngine();
 
@@ -76,6 +76,7 @@ namespace Spr{
 		int GetOpObjNum(){ return(int)opObjs.size(); }
 		PHOpObjDesc* GetOpObj(int i);
 		void StepWithBlend();
+		void StepWithSkin();
 		int  AddOpObj();
 		PHOpObjIf* GetOpObjIf(int obji);
 		void HapticProcedure_3DOF();
@@ -99,6 +100,8 @@ namespace Spr{
 		bool GetAnimationFlag();
 		void SetDrawPtclR(float r);
 		float GetDrawPtclR();
+		void SetUseSoftSkin(bool flag);
+		bool GetUseSoftSkin();
 
 		void SetCurrentCameraOritation(TQuaternion<float> orit);
 		TQuaternion<float> GetCurrentCameraOrientation();

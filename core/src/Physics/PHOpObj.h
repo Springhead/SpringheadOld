@@ -16,7 +16,7 @@
 #include <Physics/PHOpParticle.h>
 #include <Physics/PHOpGroup.h>
 #include <Physics/PHOpDecompositionMethods.h>
-
+#include <Physics/PHSoftSkin.h>
 
 #define GROUP_DISTANCE
 
@@ -57,6 +57,8 @@ namespace Spr{
 			objType = 0;
 			objitrTime = 1;
 			j.init();
+
+			objSkin = DBG_NEW PHSoftSkin();
 		}
 
 		~PHOpObj()
@@ -78,6 +80,7 @@ namespace Spr{
 				}
 				delete[] objBlWeightArr;
 			}
+			delete objSkin;
 		}
 
 		//Step計算用関数
@@ -161,12 +164,19 @@ namespace Spr{
 
 		//int bvhNum;
 
+		//Skin of the object that follows the solid bone
+		PHSoftSkin* objSkin;
 
 
 	private:
 		//配置完了のlist（local用）
 		std::vector<int> mPtclAssList;
 	public:
+
+		ObjectIf* GetObjSkin() {
+			return objSkin->Cast();
+		}
+
 		bool GetDesc(void *desc)  {
 			
 			for(int vi=0;vi<objMeshVtsNum * 3 ;vi++)
@@ -464,7 +474,7 @@ namespace Spr{
 		Matrix3f SolveShpMchByJacobi(PHOpGroup &pg);
 
 
-		bool InitialObjUsingLocalBuffer(float pSize)
+		bool InitialObjUsingLocalBuffer(float pSize, int objGrpLinkNum = -1)
 		{
 			int vtsNum = (int)tmpVts.size();
 			Vec3f* vts = new Vec3f[vtsNum];
@@ -481,10 +491,13 @@ namespace Spr{
 			objMeshVtsNum = vtsNum;
 			lastTargetVts = DBG_NEW Vec3f[vtsNum];
 
+			if (objGrpLinkNum < 0)
+				objGrpLinkNum = objGrouplinkCount;
+
 			InitialFloatVertexDataArr();
 
 			initialDeformVertex(vts, vtsNum);
-			if (!BuildParticles(vts, vtsNum, tmpPtclList, pSize))
+			if (!BuildParticles(vts, vtsNum, tmpPtclList, pSize, objGrpLinkNum))
 				return false;
 
 			return true;
@@ -503,7 +516,7 @@ namespace Spr{
 			tmpVts.push_back(v);
 		}
 
-		bool initialPHOpObj(Vec3f *vts, int vtsNum, float pSize)
+		bool initialPHOpObj(Vec3f *vts, int vtsNum, float pSize, int objGrpLinkNum = -1)
 		{
 			objOrigPos = new Vec3f[vtsNum];
 			initialOrgP = true;
@@ -511,10 +524,13 @@ namespace Spr{
 			objMeshVtsNum = vtsNum;
 			lastTargetVts = DBG_NEW Vec3f[vtsNum];
 
+			if (objGrpLinkNum < 0)
+				objGrpLinkNum = objGrouplinkCount;
+
 			InitialFloatVertexDataArr();
 
 			initialDeformVertex(vts, vtsNum);
-			if (!BuildParticles(vts, vtsNum, tmpPtclList, pSize))
+			if (!BuildParticles(vts, vtsNum, tmpPtclList, pSize, objGrpLinkNum))
 				return false;
 
 			return true;
@@ -522,7 +538,7 @@ namespace Spr{
 
 
 
-		bool BuildParticles(Vec3f *vts, int vtsNum, std::vector<PHOpParticle> &dParticleArr, float pSize)
+		bool BuildParticles(Vec3f *vts, int vtsNum, std::vector<PHOpParticle> &dParticleArr, float pSize, int objGrpLinkNum)
 		{
 
 			float distance;
@@ -679,7 +695,7 @@ namespace Spr{
 
 				}
 				if (linkCount < (int)disCmpQue.size())
-					linkCount = objGrouplinkCount; //debug linkCount
+					linkCount = objGrpLinkNum; //debug linkCount
 				else linkCount = (int)disCmpQue.size();
 
 				if ((int)dParticleArr.size() < linkCount)
@@ -756,7 +772,11 @@ namespace Spr{
 			//Particle初期姿勢を記憶する(blendingに使う)
 			StoreOrigPose();
 
-
+			//Initial PHSoftSkin particles
+			for (int pi = 0; pi < assPsNum; pi++)
+			{
+				objSkin->AddSkinPtcl(objPArr[pi].Cast());
+			}
 
 			return true;
 		}

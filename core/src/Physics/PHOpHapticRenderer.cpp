@@ -144,8 +144,8 @@ namespace Spr
 #endif
 					return false;
 				}
-				if (dlt >0)rootType == 2;
-				if (dlt == 0)rootType == 1;
+				if (dlt >0)rootType = 2;
+				if (dlt == 0)rootType = 1;
 
 				double C1 = (-c + sqrt(dlt)) / (2 * b);
 				double C2 = (-c - sqrt(dlt)) / (2 * b);
@@ -546,7 +546,6 @@ namespace Spr
 	void PHOpHapticRenderer::HpForceMoment()
 	{
 
-		MatrixExtension ma;
 		//Force calculation
 		PHOpParticle	*hdp = myHc->GetMyHpProxyParticle();
 		int insideCount;
@@ -621,7 +620,7 @@ namespace Spr
 			auto itr = disCmpQue.begin();
 			int itrI = 0;
 
-			for (int di = 0; di < disCmpQue.size(); di++)
+			for (unsigned di = 0; di < disCmpQue.size(); di++)
 			{
 				int checkid = disCmpQue[di].pIndex;
 				bool isLinked = false;
@@ -985,7 +984,6 @@ namespace Spr
 	int PHOpHapticRenderer::HpProxyPopOut()
 	{
 
-		MatrixExtension ma;
 		float c_objst = myHc->c_obstRadius;
 		float move_a_little_over = c_objst * ProxyPopOutPopLittleOverCoeff;
 		float move_minimum = c_objst * ProxyPopOutPopMinimumCoeff;
@@ -1007,7 +1005,7 @@ namespace Spr
 		float st;
 
 		PHOpParticle	*hdp = myHc->GetMyHpProxyParticle();
-		for (int obji = 0; obji <opObjs->size(); obji++)
+		for (unsigned obji = 0; obji <opObjs->size(); obji++)
 		{
 			myHc->surrCnstrList.clear();
 			PHOpObj *myobj = (*opObjs)[obji];
@@ -1080,7 +1078,7 @@ namespace Spr
 				int updatedRegion;
 
 				//we first check in triangle case, edge and vertex case is solved if no fall in triangle face
-				for (int isoi = 0; isoi < myHc->surrCnstrList.size(); isoi++)
+				for (unsigned isoi = 0; isoi < myHc->surrCnstrList.size(); isoi++)
 				{
 					int ofi = myHc->surrCnstrList[isoi];
 					Vec3f &fpa = myobj->objMeshVts[myobj->objMeshFaces[ofi].indices[TriAId]];
@@ -1611,7 +1609,7 @@ namespace Spr
 
 
 #endif
-					for (unsigned int samei = 0; samei<myHc->constrainCount - 1; samei++)
+					for (int samei = 0; samei<myHc->constrainCount - 1; samei++)
 					{
 						if (tmpcpinfo1.isSameCstr(cpiVec[samei]))
 						{
@@ -1653,10 +1651,10 @@ namespace Spr
 
 					//make counterPlane for Proxy
 					Vec3f counterPlane;
-					for (unsigned int pbpi = 0; pbpi<myHc->constrainCount; pbpi++)
+					for (int pbpi = 0; pbpi<myHc->constrainCount; pbpi++)
 						//for(int pbpi = 0;pbpi<pssbPlanes.size();pbpi++)
 					{
-						unsigned int objid = cpiVec[pbpi].objid;
+						int objid = cpiVec[pbpi].objid;
 
 						Vec3f planeN = cpiVec[pbpi].planeN;
 						Vec3f planeP = cpiVec[pbpi].planeP;
@@ -1958,7 +1956,7 @@ namespace Spr
 
 
 #endif	
-						for (unsigned int samei = 0; samei<myHc->constrainCount - 1; samei++)
+						for (int samei = 0; samei<myHc->constrainCount - 1; samei++)
 						{
 
 							if (tmpcpinfo2.isSameCstr(cpiVec[samei]))
@@ -1998,10 +1996,10 @@ namespace Spr
 
 						//make counterPlane for Proxy
 						Vec3f counterPlane;
-						for (unsigned int pbpi = 0; pbpi<myHc->constrainCount; pbpi++)
+						for (int pbpi = 0; pbpi<myHc->constrainCount; pbpi++)
 							//for(unsigned int pbpi = 0;pbpi<pssbPlanes.size();pbpi++)
 						{
-							unsigned int objid = cpiVec[pbpi].objid;
+							int objid = cpiVec[pbpi].objid;
 							//unsigned int corrTurni;
 							//if (pbpi == 0)
 							//{
@@ -2342,7 +2340,7 @@ namespace Spr
 			{
 				bool SameCstrInThisLoop = false;
 
-				for (unsigned int csti = 0; csti < myHc->constrainCount; csti++)
+				for (int csti = 0; csti < myHc->constrainCount; csti++)
 				{
 					PHOpHapticController::ConstrainPlaneInfo &cpinfo1 = myHc->cpiVec[csti];
 
@@ -2503,7 +2501,6 @@ namespace Spr
 		int IsIntsctedOverf;
 		int IsIntsctedEdgecyliner;
 		int IsIntsctedSphere;
-		int IsIntsctedOverf2;
 
 		float detectRadius = myHc->ProxySolveDetectionSize;
 		/*float detectRadius = (userPoint - currSubStart).norm();
@@ -2519,7 +2516,7 @@ namespace Spr
 		vector<unsigned int> vsInRange; vsInRange.reserve(400);
 		vector<unsigned int> fsInRange; fsInRange.reserve(400);
 
-		for (int obji = 0; obji <opObjs->size(); obji++)
+		for (unsigned obji = 0; obji <opObjs->size(); obji++)
 		{
 			fsInRangeNs.clear();
 			vsInRange.clear();
@@ -2773,7 +2770,7 @@ namespace Spr
 							//find connected face
 							bool otherFFind = false;
 							int j;
-							for (int fii = 0; fii < fsInRange.size(); fii++)
+							for (unsigned fii = 0; fii < fsInRange.size(); fii++)
 							{
 								j = fsInRange[fii];
 								if (j == i) continue;
@@ -2881,7 +2878,7 @@ namespace Spr
 							//find connected face
 							bool otherFFind = false;
 							int j;
-							for (int fii = 0; fii < fsInRange.size(); fii++)
+							for (unsigned fii = 0; fii < fsInRange.size(); fii++)
 							{
 								j = fsInRange[fii];
 								if (j == i) continue;
@@ -2991,7 +2988,7 @@ namespace Spr
 							//find connected face
 							bool otherFFind = false;
 							int j;
-							for (int fii = 0; fii < fsInRange.size(); fii++)
+							for (unsigned fii = 0; fii < fsInRange.size(); fii++)
 							{
 								j = fsInRange[fii];
 								if (j == i) continue;
