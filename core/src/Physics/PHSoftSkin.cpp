@@ -94,14 +94,15 @@ void PHSoftSkin::ParticleSkinBlending()
 		assert(skPtclLinkedBoneList.size() == skSkinParticles.size());
 		Vec3f pOrig = skSkinParticles[pi]->pOrigCtr;
 		Vec3f pNew; pNew.clear();
-
+		cout << "P" << endl;
 		for (unsigned bi = 0; bi < skPtclLinkedBoneList[pi].size(); bi++)
 		{
 			assert(skiningWeight[pi].size() == skPtclLinkedBoneList[pi].size());
 			PHSolid *so = skBones[skPtclLinkedBoneList[pi][bi]];
 			Posef bPos = so->GetPose();
+			//cout <<	bPos << endl;
 
-			pNew += skiningWeight[pi][bi] * (bPos.Ori() * (pOrig - bPos.Pos()));
+			pNew += skiningWeight[pi][bi] * (bPos * (pOrig - bPos.Pos()));
 		}
 		skSkinParticles[pi]->pNewCtr = pNew;
 	}
