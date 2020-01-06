@@ -115,7 +115,7 @@ class PHOpHapticRenderer :public SceneObject, public PHOpHapticRendererDesc
 		int HpProxyPopOut();
 		void HapticProxySolveOpt(Vec3f currSubStart);
 		bool new_intersectOnRouteUseShrink(Vec3f currSubStart, Vec3f currSubGoal, Vec3f &newSubStart, Vec3f &newSubGoal, PHOpHapticController::ConstrainPlaneInfo &cpinfo, bool inverseF, bool sameCheck);
-		void HpForceMoment();
+		void Apply3DoFHapticForce();
 		void HpProxyNoCtcRecord2();
 		void SeriousNoCtcProxyCCD3();
 

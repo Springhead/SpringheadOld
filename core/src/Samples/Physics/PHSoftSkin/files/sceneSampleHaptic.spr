@@ -1,5 +1,8 @@
 Import { path = "grFloor.x" }
 Import { path = "MyCylinders.x"}
+Import { path = "MyCylinder.x"}
+Import { path = "MyCylinder2.x"}
+Import { path = "MyCylinder3.x"}
 
 FWScene fwScene{	
 	/* PHSolid‚ÆGRFrame‚Æ‚ÌŠÖ˜A•t‚¯ */
@@ -10,8 +13,20 @@ FWScene fwScene{
 	FWOpObj fwCylinder{
 		fwPSize = 1.0
 		fwPLinkNum = 5
-		*cylindersMesh//*grFloor//
+		*cylinderMesh//*grFloor//
 		*phCylinder
+	}
+	FWOpObj fwCylinder2{
+		fwPSize = 1.0
+		fwPLinkNum = 5
+		*cylinder2Mesh//*grFloor//
+		*phCylinder2
+	}
+	FWOpObj fwCylinder3{
+		fwPSize = 1.0
+		fwPLinkNum = 5
+		*cylinder3Mesh//*grFloor//
+		*phCylinder3
 	}
 
 	/* PHScene“à‚ÌObject */
@@ -24,12 +39,22 @@ FWScene fwScene{
 		PHOpObj phCylinder{
 			
 		}
+		PHOpObj phCylinder2{
+			
+		}
+		PHOpObj phCylinder3{
+			
+		}
+
 	}
 	
 	/* GRScene“à‚ÌObject */
 	GRScene grScene{
 		GRFrame grFrameFloor{ *grFloor }
-		GRFrame grFrameBunny{ *cylindersMesh}
+		//GRFrame grFrameBunny{ *cylindersMesh}
+		GRFrame grFrameBunny{ *cylinderMesh}
+		GRFrame grFrameBunny{ *cylinder2Mesh}
+		GRFrame grFrameBunny{ *cylinder3Mesh}
 		
 		GRLight light1 {						#SprGRRender.h GRMaterialDesc
 			ambient = 0.9 0.9 0.9 0.0			#Vec4f ambient

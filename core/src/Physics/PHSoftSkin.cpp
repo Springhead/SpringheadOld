@@ -10,46 +10,88 @@ PHSolidIf* PHSoftSkin::GetSkinBone(int boneId)
 	}
 	return (PHSolidIf*)this->skBones[boneId]->GetObjectIf();
 }
-void PHSoftSkin::AddSkinBone(ObjectIf* solid)
+bool PHSoftSkin::AddSkinBone(ObjectIf* solid)
 {
+	for (int bi = 0; bi < skBones.size(); bi++)
+	{
+		if (skBones[bi] == (PHSolid*)solid)
+			return false;
+	}
 	skBones.emplace_back((PHSolid*)solid);
 	vector<unsigned> tmp;
 	skBoneParticleList.emplace_back(tmp);
+	skBoneRestPoss.emplace_back(((PHSolid*)solid)->GetFramePosition());
 	//skBoneParticleList.emplace_back(pinSolidList);
 	solidNum++;
+	return true;
 }
-void PHSoftSkin::AddParticleToBone(int boneid, int pId)
+bool PHSoftSkin::AddParticleToBone(int boneid, ObjectIf* ptcl)
 {
+	int pId = -1;
+	PHOpParticleDesc* pd = (PHOpParticleDesc*)((PHOpParticleIf*)ptcl)->GetDescAddress();
+	for (unsigned pi = 0; pi < skSkinParticles.size(); pi++)
+	{
+		if (skSkinParticles[pi]->GetParticleDesc()->pPId == pd->pPId
+			&& skSkinParticles[pi]->GetParticleDesc()->pObjId == pd->pObjId)
+			pId = pi;
+	}
+
+	if (pId < 0) return false;
+
 	for (unsigned int i = 0; i<skBoneParticleList[boneid].size(); i++)
 	{
 		if (skBoneParticleList[boneid][i] == pId)
-			return;
+			return false;
 	}
 	skBoneParticleList[boneid].emplace_back(pId);
+	return true;
 }
 PHOpParticleIf* PHSoftSkin::GetSkinPtcl(int pId)
 {
 	return (PHOpParticleIf*)this->skSkinParticles[pId]->GetObjectIf();
 }
-void PHSoftSkin::AddSkinPtcl(ObjectIf* ptcl)
+bool PHSoftSkin::AddSkinPtcl(ObjectIf* ptcl)
 {
-	this->skSkinParticles.emplace_back((PHOpParticle*)((PHOpParticleIf*)ptcl)->Cast());
+	//Check same particle
+	PHOpParticleDesc* pd = (PHOpParticleDesc*)((PHOpParticleIf*)ptcl)->GetDescAddress();
+	for (unsigned pi = 0; pi < skSkinParticles.size(); pi++)
+	{
+		if (skSkinParticles[pi]->GetParticleDesc()->pPId ==pd->pPId
+			&& skSkinParticles[pi]->GetParticleDesc()->pObjId == pd->pObjId)
+			return false;
+	}
+
+
+	skSkinParticles.emplace_back((PHOpParticle*)((PHOpParticleIf*)ptcl)->Cast());
 	vector<unsigned> tmp;
 	skPtclLinkedBoneList.emplace_back(tmp);
 	particleNum++;
+	return true;
 }
 
 /**
 * @brief boneid is the bone index in skBones, pId is the particle id in skSkinParticles
 */
-void PHSoftSkin::AddBoneToParticle(int boneid, int pId)
+bool PHSoftSkin::AddBoneToParticle(int boneid, ObjectIf* ptcl)
 {
+	int pId = -1;
+	PHOpParticleDesc* pd = (PHOpParticleDesc*)((PHOpParticleIf*)ptcl)->GetDescAddress();
+	for (unsigned pi = 0; pi < skSkinParticles.size(); pi++)
+	{
+		if (skSkinParticles[pi]->GetParticleDesc()->pPId == pd->pPId
+			&& skSkinParticles[pi]->GetParticleDesc()->pObjId == pd->pObjId)
+			pId = pi;
+	}
+
+	if (pId < 0) return false;
+
 	for (unsigned int i = 0; i<skPtclLinkedBoneList[pId].size(); i++)
 	{
 		if (skPtclLinkedBoneList[pId][i] == (unsigned)boneid)
-			return;
-	}
+			return false;
+	} 
 	skPtclLinkedBoneList[pId].emplace_back(boneid);
+	return true;
 }
 
 void PHSoftSkin::CalBoneWeights()
@@ -88,23 +130,25 @@ void PHSoftSkin::CalBoneWeights()
 
 void PHSoftSkin::ParticleSkinBlending()
 {
-
+	float dtSq = dt*dt;
 	for (unsigned pi = 0; pi < skSkinParticles.size(); pi++)
 	{
 		assert(skPtclLinkedBoneList.size() == skSkinParticles.size());
-		Vec3f pOrig = skSkinParticles[pi]->pOrigCtr;
+		Vec3f pOrig = skSkinParticles[pi]->pLocalOrigCtr;
 		Vec3f pNew; pNew.clear();
-		cout << "P" << endl;
+		//cout << "P" << endl;
 		for (unsigned bi = 0; bi < skPtclLinkedBoneList[pi].size(); bi++)
 		{
 			assert(skiningWeight[pi].size() == skPtclLinkedBoneList[pi].size());
 			PHSolid *so = skBones[skPtclLinkedBoneList[pi][bi]];
+			//Vec3f pos = so->GetCenterPosition();
 			Posef bPos = so->GetPose();
 			//cout <<	bPos << endl;
+			Vec3f solidRestpos = skBoneRestPoss[skPtclLinkedBoneList[pi][bi]];
 
-			pNew += skiningWeight[pi][bi] * (bPos * (pOrig - bPos.Pos()));
+			pNew += skiningWeight[pi][bi] * (bPos * (pOrig - solidRestpos));
 		}
-		skSkinParticles[pi]->pNewCtr = pNew;
+		skSkinParticles[pi]->pExternalForce = (pNew - skSkinParticles[pi]->pNewCtr) /(dtSq) * skSkinParticles[pi]->pTotalMass;
 	}
 }
 
@@ -115,7 +159,8 @@ void PHSoftSkin::UpdateBoneForces()
 		for (unsigned pi = 0; pi < skBoneParticleList.size(); pi++)
 		{
 			PHOpParticle *dp = skSkinParticles[pi];
-			skBones[bi]->AddForce(dp->pExternalForce);
+			if(dp->pHapticForce.norm() > 0)
+				skBones[bi]->AddForce(dp->pHapticForce);
 		}
 	}
 }

@@ -16,7 +16,6 @@
 #include <Physics/PHOpParticle.h>
 #include <Physics/PHOpGroup.h>
 #include <Physics/PHOpDecompositionMethods.h>
-#include <Physics/PHSoftSkin.h>
 
 #define GROUP_DISTANCE
 
@@ -58,7 +57,6 @@ namespace Spr{
 			objitrTime = 1;
 			j.init();
 
-			objSkin = DBG_NEW PHSoftSkin();
 		}
 
 		~PHOpObj()
@@ -80,7 +78,6 @@ namespace Spr{
 				}
 				delete[] objBlWeightArr;
 			}
-			delete objSkin;
 		}
 
 		//Step計算用関数
@@ -164,8 +161,6 @@ namespace Spr{
 
 		//int bvhNum;
 
-		//Skin of the object that follows the solid bone
-		PHSoftSkin* objSkin;
 
 
 	private:
@@ -173,9 +168,6 @@ namespace Spr{
 		std::vector<int> mPtclAssList;
 	public:
 
-		ObjectIf* GetObjSkin() {
-			return objSkin->Cast();
-		}
 
 		bool GetDesc(void *desc)  {
 			
@@ -244,6 +236,21 @@ namespace Spr{
 			return objGArr[gi].Cast();
 		}
 
+		void CalParticleLocalPos()
+		{
+			Vec3f objCtr;
+			for (int pi = 0; pi < assPsNum; pi++)
+			{
+				PHOpParticle &dp = objPArr[pi];
+				objCtr += dp.pOrigCtr;
+			}
+			objCtr /= assPsNum;
+			for (int pi = 0; pi < assPsNum; pi++)
+			{
+				PHOpParticle &dp = objPArr[pi];
+				dp.pLocalOrigCtr = dp.pOrigCtr - objCtr;
+			}
+		}
 
 		void DynamicRadiusUpdate()
 		{
@@ -772,11 +779,8 @@ namespace Spr{
 			//Particle初期姿勢を記憶する(blendingに使う)
 			StoreOrigPose();
 
-			//Initial PHSoftSkin particles
-			for (int pi = 0; pi < assPsNum; pi++)
-			{
-				objSkin->AddSkinPtcl(objPArr[pi].Cast());
-			}
+			//record particle original local position for skin blending
+			CalParticleLocalPos();
 
 			return true;
 		}
@@ -1216,6 +1220,14 @@ namespace Spr{
 		PHOpGroup& getObjPGroup(int groupIndex)
 		{
 			return objGArr[groupIndex];
+		}
+		int GetOpParticleNum()
+		{
+			return assPsNum;
+		}
+		int GetOpGroupNum()
+		{
+			return assGrpNum;
 		}
 		void FindObjctBound()
 		{

@@ -23,7 +23,7 @@
 #include "Physics/PHOpObj.h"
 #include "Physics/PHOpHapticRenderer.h"
 #include "Physics/PHOpAnimation.h"
-
+#include "Physics/PHSoftSkin.h"
 
 namespace Spr{
 	;
@@ -52,6 +52,8 @@ namespace Spr{
 		bool logForce;
 		bool useAnime;
 
+		UTRef<PHSoftSkin> softSkin;
+
 		//proxy
 		int noCtcItrNum;
 		PHOpHapticRenderer* opHpRender;
@@ -60,7 +62,6 @@ namespace Spr{
 		bool useSoftSkin;
 
 		PHOpEngine();
-
 		int  GetPriority() const {
 			return SGBP_NONE;
 		}
@@ -76,7 +77,6 @@ namespace Spr{
 		int GetOpObjNum(){ return(int)opObjs.size(); }
 		PHOpObjDesc* GetOpObj(int i);
 		void StepWithBlend();
-		void StepWithSkin();
 		int  AddOpObj();
 		PHOpObjIf* GetOpObjIf(int obji);
 		void HapticProcedure_3DOF();
@@ -102,6 +102,7 @@ namespace Spr{
 		float GetDrawPtclR();
 		void SetUseSoftSkin(bool flag);
 		bool GetUseSoftSkin();
+		ObjectIf* GetSoftSkin();
 
 		void SetCurrentCameraOritation(TQuaternion<float> orit);
 		TQuaternion<float> GetCurrentCameraOrientation();

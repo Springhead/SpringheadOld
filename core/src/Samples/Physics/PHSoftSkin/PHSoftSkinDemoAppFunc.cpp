@@ -483,6 +483,25 @@ void PHSoftSkinDemo::Keyboard(int key, int x, int y) {
 		// ƒtƒ@ƒCƒ‹‚ÌÄ“Ç‚Ýž‚Ý
 		Reset();
 		break;
+
+	case 360://Home
+		if (!opHc->GetManualMode()) break;
+		if (!use6DOF)
+			opHc->SetUserPose(opHc->GetUserPosition() + Vec3f(0, 0, -manualModeSpeedScalar), Vec3f());
+		else
+		{
+			opHc->SetUserPose(opHc->GetUserPosition() + Vec3f(0, 0, -manualModeSpeedScalar), Vec3f());
+		}
+		break;
+	case 363://end
+		if (!opHc->GetManualMode()) break;
+		if (!use6DOF)
+			opHc->SetUserPose(opHc->GetUserPosition() + Vec3f(0, 0, manualModeSpeedScalar), Vec3f());
+		else
+		{
+			opHc->SetUserPose(opHc->GetUserPosition() + Vec3f(0, 0, manualModeSpeedScalar), Vec3f());
+		}
+		break;
 	case ' ':
 		if (opEngineif->GetOpObjNum() < 2)break;
 		//change radius collision test

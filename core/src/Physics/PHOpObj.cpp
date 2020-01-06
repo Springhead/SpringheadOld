@@ -111,6 +111,10 @@ void PHOpObj::positionPredict()
 		{		
 			dp.pVelocity += params.gravity * params.timeStep ;
 		}
+
+		//add Haptic force 
+		dp.pExternalForce += dp.pHapticForce;
+
 		//external force
 		dp.pVelocity += dp.pExternalForce *params.timeStep / dp.pTotalMass;
 

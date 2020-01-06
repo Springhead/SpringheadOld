@@ -476,7 +476,7 @@ namespace Spr
 		{
 			//haptic force and torque calculation
 
-			HpForceMoment();
+			Apply3DoFHapticForce();
 			//HpApplyHpForceOnProxyCstrPs();
 			//HpHapticForceOnCstrDir();
 			//HpHapticForceOnCstrDirWithInDirect();
@@ -543,7 +543,7 @@ namespace Spr
 		}
 	}
 
-	void PHOpHapticRenderer::HpForceMoment()
+	void PHOpHapticRenderer::Apply3DoFHapticForce()
 	{
 
 		//Force calculation
@@ -755,7 +755,7 @@ namespace Spr
 				if (!useConstrainForce)
 				{
 
-					cdp->pExternalForce += toObjVCSpring * pMove;// *(deltT * deltT) / cdp->pTempSingleVMass;
+					cdp->pHapticForce += toObjVCSpring * pMove;// *(deltT * deltT) / cdp->pTempSingleVMass;
 																 //cdp->pExternalForce = forceSpring * pMove;// / myHc->posScale;// / (deltT * deltT) * cdp->pTempSingleVMass / (deltT * deltT) * cdp->pTempSingleVMass;
 																 //cdp->pExternalForce += forceSpring * pMove;//罠です、although f = kx, but k here is not a spring
 

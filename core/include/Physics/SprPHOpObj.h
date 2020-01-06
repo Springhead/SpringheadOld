@@ -148,7 +148,8 @@ struct PHOpObjIf : public SceneObjectIf {
 	void SetObjItrTime(int itrT);
 	int GetObjItrTime();
 	void StoreOrigPose();
-	ObjectIf* GetObjSkin();
+	int GetOpParticleNum();
+	int GetOpGroupNum();
 
 };
 struct PHOpParticleDesc {
@@ -192,6 +193,10 @@ struct PHOpParticleDesc {
 	Vec3f pOrigCtr;
 	//粒子の予測位置
 	Vec3f pNewCtr;
+	//The local original position of OP
+	Vec3f pLocalOrigCtr;
+	//force of 3dof haptic
+	Vec3f pHapticForce;
 	//粒子の速度
 	Vec3f pVelocity;
 	//SPhash に検出されたか
@@ -391,22 +396,26 @@ struct PHOpAnimationIf :public  SceneObjectIf, public PHOpAnimationDesc{
 struct PHSoftSkinDesc {
 	int solidNum;
 	int particleNum;
+	float dt;
 };
 
 struct PHSoftSkinIf : public SceneObjectIf
 {
 	SPR_IFDEF(PHSoftSkin);
 	PHSolidIf* GetSkinBone(int boneId);
-	void AddSkinBone(ObjectIf* solid);
+	bool AddSkinBone(ObjectIf* solid);
 	PHOpParticleIf* GetSkinPtcl(int pId);
-	void AddSkinPtcl(ObjectIf* ptcl);
-	void AddBoneToParticle(int boneid, int pId);
-	void AddParticleToBone(int boneid, int pId);
+	bool AddSkinPtcl(ObjectIf* ptcl);
+	bool AddBoneToParticle(int boneid, ObjectIf* ptcl);
+	bool AddParticleToBone(int boneid, ObjectIf* ptcl);
 	void CalBoneWeights();
 	void ParticleSkinBlending();
 	void UpdateBoneForces();
 	int GetParticleNum();
 	int GetSolidNum();
+	void SetDeltaT(float dttmp);
+	float GetDeltaT(float dt);
+
 };
 
 }	//	namespace Spr

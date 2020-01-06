@@ -26,6 +26,7 @@ namespace Spr
 		vector<vector<float> > skiningWeight;
 		vector<vector<unsigned> > skPtclLinkedBoneList;
 		vector<vector<unsigned> > skBoneParticleList;
+		vector<Vec3f> skBoneRestPoss;
 
 	public:
 		SPR_OBJECTDEF(PHSoftSkin);
@@ -35,22 +36,26 @@ namespace Spr
 		{
 			solidNum = 0;
 			particleNum = 0;
+			dt = 0.01f;
 		}
 
 		PHSolidIf* GetSkinBone(int boneId);
-		void AddSkinBone(ObjectIf* solid);
+		bool AddSkinBone(ObjectIf* solid);
 		PHOpParticleIf* GetSkinPtcl(int pId);
-		void AddSkinPtcl(ObjectIf* ptcl);
+		bool AddSkinPtcl(ObjectIf* ptcl);
 		/**
 		* @brief boneid is the bone index in skBones, pId is the particle id in skSkinParticles
 		*/
-		void AddBoneToParticle(int boneid, int pId);
-		void AddParticleToBone(int boneid, int pId);
+		bool AddBoneToParticle(int boneid, ObjectIf* ptcl);
+		bool AddParticleToBone(int boneid, ObjectIf* ptcl);
 		void ParticleSkinBlending();
 		void CalBoneWeights();
 		void UpdateBoneForces();
 		int GetParticleNum() {			return particleNum;		}
 		int GetSolidNum() { return solidNum; }
+		void SetDeltaT(float dttmp) { dt = dttmp; }
+		float GetDeltaT(float dt) { return dt; }
+
 
 	};
 

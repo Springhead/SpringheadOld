@@ -25,6 +25,8 @@ namespace Spr{
 		useHaptic = false;
 		useAnime = false;
 		useSoftSkin = false;
+
+		softSkin = DBG_NEW PHSoftSkin();
 	}
 	void PHOpEngine::Initial3DOFHapticRenderer()
 	{
@@ -129,6 +131,10 @@ namespace Spr{
 	{
 		subStepProFix = enable;
 	}
+	ObjectIf* PHOpEngine::GetSoftSkin()
+	{
+		return softSkin->Cast();
+	}
 
 	void PHOpEngine::SetGravity(bool gflag)
 	{
@@ -190,6 +196,17 @@ namespace Spr{
 			}
 		}
 
+		//SoftSkin Bone Blending and Bone Force Update
+		if (useSoftSkin)
+		{
+			/*for (int obji = 0; obji < (int)opObjs.size(); obji++)
+			{
+			opObjs[obji]->objSkin->ParticleSkinBlending();
+			opObjs[obji]->objSkin->UpdateBoneForces();
+			}*/
+			softSkin->ParticleSkinBlending();
+			softSkin->UpdateBoneForces();
+		}
 
 		for (int obji = 0; obji < (int)opObjs.size(); obji++)
 		{
@@ -231,17 +248,6 @@ namespace Spr{
 			}
 
 		}
-
-		//SoftSkin Bone Blending and Bone Force Update
-		if (useSoftSkin)
-		{
-			for (int obji = 0; obji < (int)opObjs.size(); obji++)
-			{
-				opObjs[obji]->objSkin->ParticleSkinBlending();
-				opObjs[obji]->objSkin->UpdateBoneForces();
-			}
-		}
-
 
 		//animation
 		if (useAnime)

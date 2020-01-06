@@ -261,6 +261,7 @@ public:
 	bool GetUseHaptic();
 	void SetUseSoftSkin(bool flag);
 	bool GetUseSoftSkin();
+	ObjectIf* GetSoftSkin();
 
 	PHOpObjIf* GetOpObjIf(int obji);
 	int GetOpObjNum();

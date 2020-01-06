@@ -61,8 +61,12 @@ void PHSoftSkinDemo::Init(int argc, char* argv[]){
 	
 	//initial op objects
 	FWOpObjIf *tmp = GetSdk()->GetScene()->FindObject("fwCylinder")->Cast();
+	FWOpObjIf *tmp2 = GetSdk()->GetScene()->FindObject("fwCylinder2")->Cast();
+	FWOpObjIf *tmp3 = GetSdk()->GetScene()->FindObject("fwCylinder3")->Cast();
 //#ifdef _3DOF
 	tmp->CreateOpObjWithRadius(0.4f);
+	tmp2->CreateOpObjWithRadius(0.4f);
+	tmp3->CreateOpObjWithRadius(0.4f);
 //#endif
 
 
@@ -102,7 +106,7 @@ void PHSoftSkinDemo::Init(int argc, char* argv[]){
 	opHapticHandler->SetHumanInterface(spg);
 	
 	PHOpHapticControllerIf* opHc = (PHOpHapticControllerIf*)opEngineif->GetOpHapticController();
-	opHc->setC_ObstacleRadius(0.02f);
+	opHc->setC_ObstacleRadius(0.2f);
 	PHOpHapticRendererIf* opHr = (PHOpHapticRendererIf*)opEngineif->GetOpHapticRenderer();
 	
 	
@@ -113,7 +117,11 @@ void PHSoftSkinDemo::Init(int argc, char* argv[]){
 	//	opAnimator->AddAnimationP(1, pi, Vec3f(0, -300, 0), 100);
 	//}
 	PHOpObjIf *opObjIf = opEngineif->GetOpObjIf(0);
-	opObjIf->SetBound(10);
+	opObjIf->SetBound(100);
+	PHOpObjIf *opObjIf2 = opEngineif->GetOpObjIf(1);
+	opObjIf2->SetBound(100);
+	PHOpObjIf *opObjIf3 = opEngineif->GetOpObjIf(2);
+	opObjIf3->SetBound(100);
 
 	opHrDesc = DCAST(PHOpHapticRenderer, opHr);
 #endif
@@ -178,64 +186,135 @@ void PHSoftSkinDemo::Init(int argc, char* argv[]){
 	InitialJoints();
 	//---------Add joints finish
 
-	PHSoftSkinIf* ss = (PHSoftSkinIf*)opObjIf->GetObjSkin();// GetSdk()->GetScene()->GetPHScene()->CreateSoftSkin();
+	//obj have solid
+	/*for (int obji = 0; obji < opEngine->opObjs.size(); obji++)
+	{
+		PHOpObjIf *opObjIf = opEngineif->GetOpObjIf(obji);
+		PHSoftSkinIf* ss = (PHSoftSkinIf*)opObjIf->GetObjSkin();
+		PHSceneIf* phscene = GetFWScene()->GetPHScene();
+		int soNum = phscene->NSolids();
+		for (int bi = 0; bi < soNum; bi++)
+		{
+			ss->AddSkinBone(phscene->GetSolid(bi));
+		}
+	}*/
+
+	PHSoftSkinIf* softSkin = (PHSoftSkinIf*)opEngine->GetSoftSkin();
+	
+	//PHSoftSkinIf* ss = (PHSoftSkinIf*)opObjIf->GetObjSkin();// GetSdk()->GetScene()->GetPHScene()->CreateSoftSkin();
 	PHSceneIf* phscene = GetFWScene()->GetPHScene();
 	int soNum = phscene->NSolids();
 	for (int bi = 0; bi < soNum; bi++)
 	{
-		ss->AddSkinBone(phscene->GetSolid(bi));
+		softSkin->AddSkinBone(phscene->GetSolid(bi));
+	}
+	for (int obji = 0; obji < opEngine->opObjs.size(); obji++)
+	{
+		PHOpObjIf *opObjIf = opEngineif->GetOpObjIf(obji);
+		for (int pi = 0; pi < opObjIf->GetOpParticleNum(); pi++)
+		{
+			softSkin->AddSkinPtcl(opObjIf->GetOpParticle(pi));
+		}
+	}
+
+	for (int obji = 0; obji < opEngine->opObjs.size(); obji++)
+	{
+		PHOpObjIf *opObjIf = opEngineif->GetOpObjIf(obji);
+		for (int pi = 0; pi < opObjIf->GetOpParticleNum(); pi++)
+		{
+			softSkin->AddParticleToBone(obji + 1, opObjIf->GetOpParticle(pi));
+		}
 	}
 
 	//cylineder 1 is particle 0 to 17, 2 is 18 to 37, 3 is 38 to 55
-	int ptclNum = ss->GetParticleNum();
-	int bonei = 1;
-	for (int pi = 0; pi < ptclNum; pi++)
-	{
-		if (pi < 19) 
-			ss->AddParticleToBone(1, pi);
-		if (pi >= 19 && pi <= 37)
-			ss->AddParticleToBone(3, pi);
-		if (pi > 37)
-			ss->AddParticleToBone(2, pi);
-	}
-	int solidNum = ss->GetSolidNum();
+	
+	int ptclNum = softSkin->GetParticleNum();
+		
+	int solidNum = softSkin->GetSolidNum();
 	for (int pi = 0; pi < ptclNum; pi++)
 	{
 		if (pi < 19)
-			ss->AddBoneToParticle(1, pi);
+			softSkin->AddBoneToParticle(1, softSkin->GetSkinPtcl(pi));
 		if (pi >= 19 && pi <= 37)
-			ss->AddBoneToParticle(3, pi);
+			softSkin->AddBoneToParticle(2, softSkin->GetSkinPtcl(pi));
 		if (pi > 37)
-			ss->AddBoneToParticle(2, pi);
+			softSkin->AddBoneToParticle(3, softSkin->GetSkinPtcl(pi));
 	}
 
 	//add linked particles
-	ss->AddBoneToParticle(1, 43);
-	ss->AddBoneToParticle(1, 44);
-	ss->AddBoneToParticle(1, 45);
-	ss->AddBoneToParticle(1, 54);
-	ss->AddBoneToParticle(1, 55);
-	ss->AddBoneToParticle(1, 56);
+	softSkin->AddBoneToParticle(2, softSkin->GetSkinPtcl(18));
+	softSkin->AddBoneToParticle(2, softSkin->GetSkinPtcl(7));
+	softSkin->AddBoneToParticle(2, softSkin->GetSkinPtcl(6));
+	softSkin->AddBoneToParticle(2, softSkin->GetSkinPtcl(5));
 
-	ss->AddBoneToParticle(1, 24);
-	ss->AddBoneToParticle(1, 25);
-	ss->AddBoneToParticle(1, 26);
-	ss->AddBoneToParticle(1, 36);
-	ss->AddBoneToParticle(1, 37);
+	softSkin->AddBoneToParticle(3, softSkin->GetSkinPtcl(opObjIf->GetOpParticleNum() + 18));
+	softSkin->AddBoneToParticle(3, softSkin->GetSkinPtcl(opObjIf->GetOpParticleNum() + 7));
+	softSkin->AddBoneToParticle(3, softSkin->GetSkinPtcl(opObjIf->GetOpParticleNum() + 6));
+	softSkin->AddBoneToParticle(3, softSkin->GetSkinPtcl(opObjIf->GetOpParticleNum() + 5));
 
-	ss->AddBoneToParticle(2, 0);
-	ss->AddBoneToParticle(2, 1);
-	ss->AddBoneToParticle(2, 2);
-	ss->AddBoneToParticle(2, 3);
-	ss->AddBoneToParticle(2, 4);
+	softSkin->AddBoneToParticle(1, softSkin->GetSkinPtcl(opObjIf->GetOpParticleNum() + 0));
+	softSkin->AddBoneToParticle(1, softSkin->GetSkinPtcl(opObjIf->GetOpParticleNum() + 2));
+	softSkin->AddBoneToParticle(1, softSkin->GetSkinPtcl(opObjIf->GetOpParticleNum() + 3));
+	softSkin->AddBoneToParticle(1, softSkin->GetSkinPtcl(opObjIf->GetOpParticleNum() + 4));
 
-	ss->AddBoneToParticle(3, 38);
-	ss->AddBoneToParticle(3, 39);
-	ss->AddBoneToParticle(3, 40);
-	ss->AddBoneToParticle(3, 41);
-	ss->AddBoneToParticle(3, 42);
 
-	ss->CalBoneWeights();
+	softSkin->AddBoneToParticle(2, softSkin->GetSkinPtcl(opObjIf->GetOpParticleNum() * 2 + 0));
+	softSkin->AddBoneToParticle(2, softSkin->GetSkinPtcl(opObjIf->GetOpParticleNum() * 2 + 2));
+	softSkin->AddBoneToParticle(2, softSkin->GetSkinPtcl(opObjIf->GetOpParticleNum() * 2 + 3));
+	softSkin->AddBoneToParticle(2, softSkin->GetSkinPtcl(opObjIf->GetOpParticleNum() * 2 + 4));
+
+	softSkin->CalBoneWeights();
+
+	////cylineder 1 is particle 0 to 17, 2 is 18 to 37, 3 is 38 to 55
+	//int ptclNum = ss->GetParticleNum();
+	//int bonei = 1;
+	//for (int pi = 0; pi < ptclNum; pi++)
+	//{
+	//	if (pi < 19) 
+	//		ss->AddParticleToBone(1, pi);
+	//	if (pi >= 19 && pi <= 37)
+	//		ss->AddParticleToBone(3, pi);
+	//	if (pi > 37)
+	//		ss->AddParticleToBone(2, pi);
+	//}
+	//int solidNum = ss->GetSolidNum();
+	//for (int pi = 0; pi < ptclNum; pi++)
+	//{
+	//	if (pi < 19)
+	//		ss->AddBoneToParticle(1, pi);
+	//	if (pi >= 19 && pi <= 37)
+	//		ss->AddBoneToParticle(3, pi);
+	//	if (pi > 37)
+	//		ss->AddBoneToParticle(2, pi);
+	//}
+
+	////add linked particles
+	//ss->AddBoneToParticle(1, 43);
+	//ss->AddBoneToParticle(1, 44);
+	//ss->AddBoneToParticle(1, 45);
+	//ss->AddBoneToParticle(1, 54);
+	//ss->AddBoneToParticle(1, 55);
+	//ss->AddBoneToParticle(1, 56);
+
+	//ss->AddBoneToParticle(1, 24);
+	//ss->AddBoneToParticle(1, 25);
+	//ss->AddBoneToParticle(1, 26);
+	//ss->AddBoneToParticle(1, 36);
+	//ss->AddBoneToParticle(1, 37);
+
+	//ss->AddBoneToParticle(2, 0);
+	//ss->AddBoneToParticle(2, 1);
+	//ss->AddBoneToParticle(2, 2);
+	//ss->AddBoneToParticle(2, 3);
+	//ss->AddBoneToParticle(2, 4);
+
+	//ss->AddBoneToParticle(3, 38);
+	//ss->AddBoneToParticle(3, 39);
+	//ss->AddBoneToParticle(3, 40);
+	//ss->AddBoneToParticle(3, 41);
+	//ss->AddBoneToParticle(3, 42);
+
+	//ss->CalBoneWeights();
 
 
 	DrawHelpInfo = true;
@@ -316,7 +395,7 @@ void PHSoftSkinDemo::InitialJoints()
 
 	CDRoundConeDesc descCapsule;
 	descCapsule.radius = Vec2f(0.5, 0.5);
-	descCapsule.length = 3;
+	descCapsule.length = 2;
 
 	// Base Link
 	PHSolidIf* so0 = GetFWScene()->GetPHScene()->CreateSolid(descSolid);
@@ -337,8 +416,8 @@ void PHSoftSkinDemo::InitialJoints()
 
 	{
 		PHBallJointDesc descBall;
-		descBall.poseSocket.Pos() = Vec3d(0, 0, 2);
-		descBall.posePlug.Pos() = Vec3d(0, 0, -2);
+		descBall.poseSocket.Pos() = Vec3d(0, 0, 1);
+		descBall.posePlug.Pos() = Vec3d(0, 0, -1);
 		descBall.spring = 0;
 		descBall.damper = 0;
 
@@ -358,8 +437,8 @@ void PHSoftSkinDemo::InitialJoints()
 	// Link 1 <-> Link 2
 	{
 		PHBallJointDesc descBall;
-		descBall.poseSocket.Pos() = Vec3d(0, 0, 2);
-		descBall.posePlug.Pos() = Vec3d(0, 0, -2);
+		descBall.poseSocket.Pos() = Vec3d(0, 0, 1);
+		descBall.posePlug.Pos() = Vec3d(0, 0, -1);
 		descBall.spring = 0;
 		descBall.damper = 0;
 
