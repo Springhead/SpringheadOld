@@ -758,7 +758,7 @@ void PHHapticEngine::VibrationRendering(PHHapticStepBase* he, PHHapticPointer* p
 
 
 		}
-		pointer->AddForce(vibForce.v()); //シミュレーション用
+	//	pointer->AddForce(vibForce.v()); //シミュレーション用
 
 		pointer->AddHapticForce(vibForce);
 		//CSVOUT << vibForce.v().x << "," << vibForce.v().y << "," << vibForce.v().z << std::endl;
