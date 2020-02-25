@@ -1,0 +1,281 @@
+# CMakeLists.txt for Springhead
+
+cmake_minimum_required(VERSION 3.1)
+
+# ------------------------------------------------------------------------------
+#  Read project name.
+#
+if(EXISTS "${CMAKE_SOURCE_DIR}/CMakeSettings.txt")
+    set(SETTING_FILE "CMakeSettings.txt")
+else()
+    set(SETTING_FILE "CMakeSettings.txt.dist")
+endif()
+include("${CMAKE_SOURCE_DIR}/${SETTING_FILE}")
+message(STATUS "Host System: ${CMAKE_HOST_SYSTEM_NAME}")
+
+# ------------------------------------------------------------------------------
+#  Definition of project.
+#
+message(STATUS "Project: ${ProjectName}")
+project(${ProjectName} CXX)
+set(CMAKE_SUPPRESS_REGENERATION true)
+set(CMAKE_USE_RELATIVE_PATHS true)
+
+# ------------------------------------------------------------------------------
+#  We set top directory of Springhead tree to "TOPDIR".
+#
+set(TOPDIR "${CMAKE_SOURCE_DIR}/../..")
+
+set(SPR_TOP_DIR  "${TOPDIR}")
+set(SPR_CORE_DIR "${TOPDIR}/core")
+set(SPR_SRC_DIR  "${TOPDIR}/core/src")
+set(SPR_INC_DIR  "${TOPDIR}/core/include")
+get_filename_component(TOPDIR ${TOPDIR} ABSOLUTE)
+get_filename_component(SPR_TOP_DIR ${SPR_TOP_DIR} ABSOLUTE)
+get_filename_component(SPR_SRC_DIR ${SPR_SRC_DIR} ABSOLUTE)
+get_filename_component(SPR_INC_DIR ${SPR_INC_DIR} ABSOLUTE)
+get_filename_component(SPR_BLD_DIR ${PROJECT_BINARY_DIR} ABSOLUTE)
+message(STATUS "SPR_TOP_DIR: [${SPR_TOP_DIR}]")
+#message(STATUS "SPR_SRC_DIR: [${SPR_SRC_DIR}]")
+#message(STATUS "SPR_INC_DIR: [${SPR_INC_DIR}]")
+message(STATUS "SPR_BLD_DIR: [${SPR_BLD_DIR}]")
+
+# ------------------------------------------------------------------------------
+#  Sytem environment.
+#
+include("${SPR_CORE_DIR}/make.system.cmake")
+message(STATUS "Architecture: ${ARCHITECTURE}")
+set(CMAKE_GENERATOR_PLATFORM ${ARCHITECTURE})
+
+# ------------------------------------------------------------------------------
+#  Read function definitions.
+#
+include("${SPR_CORE_DIR}/make.func.cmake")
+
+# ------------------------------------------------------------------------------
+#  Read compiler/linker option file (try to find in following order).
+#	(1) File specified by option "-D OPTS=<file>".
+#	(2) "${CMAKE_SOURCE_DIR}/CMakeOpts.txt".
+#	(3) Default file: "${SPR_SRC_DIR}/CMakeOpts.txt.dist".
+#
+set(OPTS_FILE_NAME "CMakeOpts.txt")
+set(OPTS_FILE "${CMAKE_SOURCE_DIR}/${OPTS_FILE_NAME}")
+set(OPTS_DEFAULT_FILE "${SPR_SRC_DIR}/${OPTS_FILE_NAME}.dist")
+include_file(OPTS ${OPTS_FILE} ${OPTS_DEFAULT_FILE})
+
+# ------------------------------------------------------------------------------
+#  Read setting parameters.
+#
+include("${CMAKE_SOURCE_DIR}/${SETTING_FILE}")
+
+# ------------------------------------------------------------------------------
+#  Read definition of external packages. (try to find in following order).
+#	(1) File specified by option "-D CONF=<file>".
+#	(2) "${CMAKE_SOURCE_DIR}/CMakeConf.txt".
+#	(3) Default file: "${SPR_SRC_DIR}/CMakeConf.txt.dist".
+#
+set(CONF_FILE_NAME "CMakeConf.txt")
+set(CONF_FILE "${CMAKE_SOURCE_DIR}/${CONF_FILE_NAME}")
+set(CONF_DEFAULT_FILE "${SPR_SRC_DIR}/${CONF_FILE_NAME}.dist")
+include_file(CONF ${CONF_FILE} ${CONF_DEFAULT_FILE})
+
+# ------------------------------------------------------------------------------
+#  Find external packages if specified.
+#
+if(DEFINED CMAKE_PREFIX_PATH)
+    message(STATUS "CMAKE_PREFIX_PATH:")
+    foreach(path IN LISTS CMAKE_PREFIX_PATH)
+	message("       ${path}")
+    endforeach()
+    #
+    message("finding package: Boost")
+    cmake_policy(SET CMP0074 NEW)
+    find_package(Boost REQUIRED)
+    if(Boost_FOUND)
+	message(STATUS "Boost_INCLUDE_DIRS: ${Boost_INCLUDE_DIRS}")
+    else()
+	message("** Boost NOT FOUND")
+	return()
+    endif()
+    #
+    message("finding package: GLEW")
+    cmake_policy(SET CMP0074 NEW)
+    if(DEFINED GLEW_LIB32_DIR AND "${CMAKE_GENERATOR_PLATFORM}" STREQUAL "x86")
+	list(APPEND CMAKE_PREFIX_PATH ${GLEW_LIB32_DIR})
+    endif()
+    if(DEFINED GLEW_LIB64_DIR AND "${CMAKE_GENERATOR_PLATFORM}" STREQUAL "x64")
+	list(APPEND CMAKE_PREFIX_PATH ${GLEW_LIB64_DIR})
+    endif()
+    find_package(GLEW)
+    if(GLEW_FOUND)
+	message(STATUS "GLEW_INCLUDE_DIRS: ${GLEW_INCLUDE_DIRS}")
+    else()
+	message("** GLEW NOT FOUND")
+	return()
+    endif()
+    #
+    message("finding package: GLUT")
+    cmake_policy(SET CMP0074 NEW)
+    find_package(GLUT REQUIRED)
+    if(GLUT_FOUND)
+	message(STATUS "GLUT_INCLUDE_DIR: ${GLUT_INCLUDE_DIR}")
+    else()
+	message("** GLUT NOT FOUND")
+	return()
+    endif()
+endif()
+
+# ------------------------------------------------------------------------------
+#  Some other definitions.
+#
+if(Windows)
+    set(RunSwigDir ${SPR_SRC_DIR}/RunSwig)
+    set(Python ${RunSwigDir}/python_adapter.bat)
+    file(TO_NATIVE_PATH "${RunSwigDir}" RunSwigDir)
+    file(TO_NATIVE_PATH "${Python}" Python)
+    message(STATUS "Visual Studio Version: ${VS_VERSION}")
+    set(LIB_SUFFIX_DEBUG   D)
+    set(LIB_SUFFIX_RELEASE  )
+    set(LIB_SUFFIX_TRACE   T)
+elseif(unix)
+    set(Python python)
+endif()
+
+# ------------------------------------------------------------------------------
+#  Define depending projects.
+#
+set(SPR_PROJS Base Collision Creature FileIO Foundation Framework Graphics
+	      HumanInterface Physics)
+#
+set(DEP_Base)
+set(DEP_Collision Foundation)
+set(DEP_Creature Foundation Framework Physics)
+set(DEP_FileIO Foundation)
+set(DEP_Foundation Base)
+set(DEP_Framework FileIO Foundation Graphics Physics)
+set(DEP_Graphics Foundation)
+set(DEP_HumanInterface Foundation)
+set(DEP_Physics Collision Foundation)
+add_subdirectory(${SPR_SRC_DIR}/RunSwig ${SPR_BLD_DIR}/RunSwig)
+foreach(proj IN ITEMS ${SPR_PROJS})
+    add_subdirectory(${SPR_SRC_DIR}/${proj} ${SPR_BLD_DIR}/${proj})
+    set(DEP_LIST RunSwig)
+    foreach(dep IN ITEMS ${DEP_${proj}})
+	list(APPEND DEP_LIST ${dep})
+    endforeach()
+    add_dependencies(${proj} ${DEP_LIST})
+    #message("   dependencies: ${proj} => ${DEP_LIST}")
+endforeach()
+
+# ------------------------------------------------------------------------------
+#  Main target.
+#
+set(Target ${ProjectName})
+if(Windows)
+    set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT ${ProjectName})
+endif()
+set(OUTDIR_BASE ${SPR_TOP_DIR}/generated/lib)
+if(Windows)
+    set(_platform ${CMAKE_GENERATOR_PLATFORM})
+    set(LIB_SUFFIX lib)
+    foreach(_tmp ${CMAKE_CONFIGURATION_TYPES})
+	string(TOUPPER ${_tmp} _conf)
+	set(LIBBASE_${_conf} ${VS_VERSION}${LIB_SUFFIX_${_conf}}${_platform})
+	set(LIBCMND_${_conf} SpringheadLib.bat ${_platform} ${LIBBASE_${_conf}})
+	set(LIBNAME_${_conf} ${Target}${LIBBASE_${_conf}}.${LIB_SUFFIX})
+    endforeach() 
+elseif(unix)
+    if("${LIBTYPE}" STREQUAL "STATIC")
+	set(LIB_SUFFIX a)
+    else()
+	set(LIB_SUFFIX so)
+    endif()
+    set(LIBNAME lib${Target}.${LIB_SUFFIX})
+endif()
+
+# ------------------------------------------------------------------------------
+#  Generate Springhead Library.
+#
+if(Windows)
+    if ("${CMAKE_GENERATOR_PLATFORM}" STREQUAL "x64")
+	set(LIBDIR ${SPR_TOP_DIR}/generated/lib/win64)
+    else ()
+	set(LIBDIR ${SPR_TOP_DIR}/generated/lib/win32)
+    endif()
+elseif(unix)
+    set(LIBDIR ${SPR_TOP_DIR}/generated/lib)
+endif()
+
+if(Windows)
+    add_custom_target(${ProjectName} ALL
+	COMMAND if "'$(Configuration)'" equ "'Debug'"   ${LIBCMND_DEBUG}
+	COMMAND if "'$(Configuration)'" equ "'Release'" ${LIBCMND_RELEASE}
+	COMMAND if "'$(Configuration)'" equ "'Trace'"   ${LIBCMND_TRACE}
+	WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+	DEPENDS ${SPR_PROJS}
+	COMMENT [[  generating Springhead Library... ]]
+    )
+elseif(unix)
+    list(JOIN SPR_PROJS " " _members)
+    set(_cmnd ./SpringheadLib.sh)
+    if("${LIBTYPE}" STREQUAL "STATIC")
+	set(_outdir ${SPR_SRC_DIR})
+	set(_gendir ${SPR_TOP_DIR}/generated/lib)
+	add_custom_target(${ProjectName} ALL
+	    COMMAND mkdir -p ${_outdir}
+	    COMMAND ${_cmnd} STATIC ${_outdir}/${LIBNAME} ${_members}
+	    COMMAND ranlib ${_outdir}/${LIBNAME}
+	    COMMAND mkdir -p ${_gendir}
+	    COMMAND cp ${_outdir}/${LIBNAME} ${_gendir}
+	    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+	    DEPENDS ${SPR_PROJS}
+	    COMMENT [[  generating Springhead Library... ]]
+	)
+    else()
+	set(_outdir ${SPR_TOP_DIR}/generated/lib)
+	add_custom_target(${ProjectName} ALL
+	    COMMAND mkdir -p ${_outdir}
+	    COMMAND ${_cmnd} SHARED ${_outdir} ${_members}
+	    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+	    DEPENDS ${SPR_PROJS}
+	    COMMENT [[  generating Springhead Library... ]]
+	)
+    endif()
+endif()
+
+# ------------------------------------------------------------------------------
+#  Install.
+#
+if(DEFINED SPRINGHEAD_INCLUDE_PREFIX)
+    message("** INSTALL: Headers: ${SPRINGHEAD_INCLUDE_PREFIX} **")
+    install(DIRECTORY ${SPR_INC_DIR}
+	DESTINATION ${SPRINGHEAD_INCLUDE_PREFIX}
+    )
+endif()
+if(Windows)
+    set(_libdir ${SPRINGHEAD_LIBRARY_DIR}})
+    foreach(_tmp Debug Release)
+	string(TOUPPER ${_tmp} _conf)
+	if(DEFINED SPRINGHEAD_LIBRARY_DIR_${_conf})
+	    set(_libpath ${LIBDIR}/${LIBNAME_${_conf}})
+	    message("** INSTALL: ${LIBNAME_${_conf}}: ${_libdir}_${_conf} **")
+	    install(FILES ${_libpath}
+		DESTINATION ${SPRINGHEAD_LIBRARY_DIR_${_conf}}
+		PERMISSIONS OWNER_READ GROUP_READ WORLD_READ
+		CONFIGURATIONS ${_tmp}
+	    )
+	endif()
+    endforeach()
+elseif(unix)
+    if(DEFINED SPRINGHEAD_LIBRARY_DIR)
+	set(_libpath ${LIBDIR}/${LIBNAME})
+	message("** INSTALL: ${LIBNAME}: ${SPRINGHEAD_LIBRARY_DIR} **")
+	install(FILES ${_libpath}
+	    DESTINATION ${SPRINGHEAD_LIBRARY_DIR}
+	    PERMISSIONS OWNER_READ GROUP_READ WORLD_READ
+	    CONFIGURATIONS Release
+	)
+    endif()
+endif()
+
+# end: CMakeLists.txt
