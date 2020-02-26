@@ -175,6 +175,15 @@ struct PHIKEngineDesc{
 	size_t	numIter;
 	double  maxVel, maxAngVel, maxActVel;
 	double  regularizeParam;
+	double  regularizeParam2;
+	int     regularizeMode;
+	int     iterGaussSeidel = 100;
+	enum    Mode {
+		SVD,
+		QR,
+		LM,
+	};
+	Mode   solverMode = Mode::SVD;
 
 	PHIKEngineDesc();
 };
@@ -205,6 +214,9 @@ public:
 	*/
 	void SetIterCutOffAngVel(double epsilon);
 	double GetIterCutOffAngVel();
+
+	void SetIntpRate();
+	int GetIntpRate();
 
 	/** @brief 一時変数の関節角度・剛体姿勢を現実のものに合わせる
 	*/
