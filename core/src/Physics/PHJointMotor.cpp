@@ -29,6 +29,9 @@ double JointFunctions::resistCalc(double d, double k_1, double k_2, double k_3, 
 
 // PH1DJointNonLinearMotorのFuncDatabase
 
+// <!!> マクローリン展開での近似にして係数を渡す？より広範囲だとテイラー
+// <!!>データ点と傾きを与えて、スプライン近似？ 
+
 Vec2d JointFunctions::ResistanceTorque(PH1DJointIf* jo, void* param){
 	double k_1 = ((double*)param)[0];
 	double k_2 = ((double*)param)[1];

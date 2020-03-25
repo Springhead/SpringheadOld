@@ -1,87 +1,26 @@
-# CMakeLists.txt for Springhead
-#
-#   Change parametes in "Customization section" below to customize compile
-#   and/or link condition.
+# CMakeLists.txt for Springhead Application
 
 cmake_minimum_required(VERSION 3.1)
 
 # ------------------------------------------------------------------------------
+#  Read project name.
+#
+if(EXISTS "${CMAKE_SOURCE_DIR}/CMakeSettings.txt")
+    set(SETTING_FILE "CMakeSettings.txt")
+else()
+    set(SETTING_FILE "CMakeSettings.txt.App.dist")
+endif()
+include("${CMAKE_SOURCE_DIR}/${SETTING_FILE}")
+message(STATUS "Host System: ${CMAKE_HOST_SYSTEM_NAME}")
+
+# ------------------------------------------------------------------------------
 #  Definition of project.
 #
-set(ProjectName "Timer")
 message(STATUS "Project: ${ProjectName}")
 project(${ProjectName} CXX)
+set(Target ${ProjectName})
 set(CMAKE_SUPPRESS_REGENERATION true)
 set(CMAKE_USE_RELATIVE_PATHS true)
-#
-set(Target ${ProjectName})
-
-# ******************************************************************************
-#  Customization section.
-# ******************************************************************************
-set(EMPTY)
-
-#  Binary(working) directory name used when you cmake Springhead library.
-#	In order to optimize build process between Springhead projects and
-#	your application program, you should adopt take "out-of-source"
-#	build method.
-#
-set(OOS_BLD_DIR "build")
-
-#  Configuration type(s).
-#	Remove unneccessary configuration type(s).
-set(CMAKE_CONFIGURATION_TYPES Debug Release Trace)
-
-#  Source/include file names to incorporate to the application program.
-#
-file(GLOB SRCS RELATIVE ${CMAKE_SOURCE_DIR} *.cpp *.h)
-
-#  Source/include file name(s) to EXCLUDE from compilation.
-#	Replace '${EMPTY}' with file name(s).
-#	Wild card is NOT available here.
-#	We recomend to use absolute path if file exists outside of
-#	current source directory (${CMAKE_SOURCE_DIR}).
-set(EXCLUDE_SRCS ${EMPTY})
-
-#  Springhead projects to incorporate in the application program.
-#	Remove unneccessary project name(s).
-#	Do not include 'RunSwig' in the list.
-set(SPR_PROJS Base Collision Foundation Physics)
-#set(SPR_PROJS ${SPR_PROJS} EmbPython)
-
-#  Additional include path(s).
-#	Replace '${EMPTY}' with absolute path(s).
-#	Current directory can be refered as '${CMAKE_SOURCE_DIR}'.
-set(ADDITIONAL_INCDIR ${EMPTY})
-#set(ADDITIONAL_INCDIR "F:/Project/ExternalPackage/glui-2.37/include")
-
-#  Additional library path(s).
-#	Replace '${EMPTY}' with absolute path(s).
-set(ADDITIONAL_LIBDIR ${EMPTY})
-#set(ADDITIONAL_LIBDIR
-#	"F:/Project/ExternalPackage/freeglut/lib/x64"
-#	"F:/Project/Springhead/dependency/lib/win64")
-
-#  Additional library name(s) required.
-#	Replace '${EMPTY}' with file name(s).
-set(ADDITIONAL_LIBS ${EMPTY})
-
-#  Default library name(s) to EXCLUDE from linking.
-#	Replace '${EMPTY}' with file name(s).
-set(EXCLUDE_LIBS ${EMPTY})
-
-#  Visual Studio Debugger settings.
-#	DEBUGGER_WORKING_DIRECTORY:
-#		Debugger working directory. Default is ${CMAKE_SOURCE_DIR},
-#		i.e. the directory where this file (CMakeLists.txt) is.
-#	DEBUGGER_COMMAND_ARGUMENTS:
-#		Debugger command line arguments.
-set(DEBUGGER_WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
-set(DEBUGGER_COMMAND_ARGUMENTS ${EMPTY})
-
-# ******************************************************************************
-#  End of customization section.
-# ******************************************************************************
 
 # ------------------------------------------------------------------------------
 #  Determine top directory of Springhead tree.
@@ -92,7 +31,7 @@ set(DEBUGGER_COMMAND_ARGUMENTS ${EMPTY})
 #	    set(TOPDIR "<absolute-dir-path>")
 #	For DailyBuild:
 #	    Cmake option "-D TOPDIR_FILE=<absolute-file-path>" specifies
-#	    the definition file instead of default one.
+#	    the definition file instead of directory name itself.
 #
 if(DEFINED TOPDIR)
     # ok
@@ -153,52 +92,16 @@ set(OPTS_DEFAULT_FILE "${SPR_SRC_DIR}/${OPTS_FILE_NAME}.dist")
 include_file(OPTS ${OPTS_FILE} ${OPTS_DEFAULT_FILE})
 
 # ------------------------------------------------------------------------------
-#  Set compiler/linker options.
+#  Merge setting parameters.
+#	Additional parameters are already read at the top of this file.
+#	We need merge process here.
 #
-if(${Windows})
-    message(STATUS "Host System: Windows")
-    set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT ${ProjectName})
-    set(CMAKE_CXX_FLAGS		"${WIN_COPT_COMMON}")
-    set(CMAKE_CXX_FLAGS_DEBUG	"${WIN_COPT_DEBUG}")
-    set(CMAKE_CXX_FLAGS_RELEASE	"${WIN_COPT_RELEASE}")
-    set(CMAKE_CXX_FLAGS_TRACE	"${WIN_COPT_TRACE}")
-    foreach(macros IN ITEMS ${WIN_COPT_MACROS})
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /D ${macros}")
-    endforeach()
-    set(CMAKE_EXE_LINKER_FLAGS		"${WIN_LINK_COMMON}")
-    set(CMAKE_EXE_LINKER_FLAGS_DEBUG	"${WIN_LINK_DEBUG}")
-    set(CMAKE_EXE_LINKER_FLAGS_RELEASE	"${WIN_LINK_RELEASE}")
-    set(CMAKE_EXE_LINKER_FLAGS_TRACE	"${WIN_LINK_TRACE}")
-elseif(${Linux})
-    message(STATUS "Host System: Linux")
-    set(LIB_DIR	"${SPR_CORE_DIR}/lib")
-    set(CMAKE_CXX_FLAGS		"${LINUX_COPT_COMMON}")
-    set(CMAKE_CXX_FLAGS_DEBUG	"${LINUX_COPT_DEBUG}")
-    set(CMAKE_CXX_FLAGS_RELEASE	"${LINUX_COPT_RELEASE}")
-    foreach(macros IN ITEMS ${WIN_COPT_MACROS})
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D ${macros}")
-    endforeach()
-    set(LDFLAGS.EXTRA	"-L${LIB_DIR}/linux/ -L/usr/lib \
-			 -L/usr/X11R6/lib -L/usr/lib/X11")
-    set(LDFLAGS.GL	"-lX11 -lXi -lXmu -lglui -lglut -lGLEW -lGLU -lGL -lm \
-			 -ldl -lboost_regex")
-    set(INCLUDES	"-I/usr/X11R6/include/ -I/usr/X11/include")
-    set(ARFLAGS		"r")
-    set(LDFLAGS "-L${SRC_DIR}/Base/ \
-		 -L${SRC_DIR}/Collision/ \
-		 -L${SRC_DIR}/Creature/ \
-		 -L${SRC_DIR}/FileIO/ \
-		 -L${SRC_DIR}/Foundation/ \
-		 -L${SRC_DIR}/Framework/ \
-		 -L${SRC_DIR}/Graphics/ \
-		 -L${SRC_DIR}/HumanInterface/ \
-		 -L${SRC_DIR}/Physics/ \
-		 -lBase -lCollision -lCreature -lFileIO -lFoundation -lFramework \
-		 -lGraphics -lHumanInterface -lPhysics
-		 ${LDFLAGS.EXTRA} \
-		 ${LDFLAGS.GL}")
-    set(INCLUDES "${INCLUDES} -I${INC_DIR} -I${SRC_DIR} -I.")
-endif()
+set(DEFINE_MACROS               ${DEFINE_MACROS} ${DEFINE_MACROS_ADD})
+set(INCLUDE_PATHS               ${INCLUDE_PATHS_ADD} ${INCLUDE_PATHS})
+set(COMP_FLAGS                  ${COMP_FLAGS_ADD} ${COMP_FLAGS})
+set(LINK_FLAGS                  ${LINK_FLAGS_ADD} ${LINK_FLAGS})
+set(LIBRARY_PATHS               ${LIBRARY_PATHS} ${LIBRARY_PATHS_ADD})
+set(LIBRARY_NAMES               ${LIBRARY_NAMES} ${LIBRARY_NAMES_ADD})
 
 # ------------------------------------------------------------------------------
 #  Read definition of external packages. (try to find in following order).
@@ -260,13 +163,16 @@ endif()
 # ------------------------------------------------------------------------------
 #  Some other definitions.
 #
-if(${Windows})
+if(Windows)
     set(RunSwigDir ${SPR_SRC_DIR}/RunSwig)
     set(Python ${RunSwigDir}/python_adapter.bat)
     file(TO_NATIVE_PATH "${RunSwigDir}" RunSwigDir)
     file(TO_NATIVE_PATH "${Python}" Python)
     message(STATUS "Visual Studio Version: ${VS_VERSION}")
-elseif(${Linux})
+    set(LIB_SUFFIX_DEBUG   D)
+    set(LIB_SUFFIX_RELEASE  )
+    set(LIB_SUFFIX_TRACE   T)
+elseif(unix)
     set(Python python)
 endif()
 
@@ -277,130 +183,167 @@ if(EXCLUDE_SRCS)
     message("++ exclude: ${EXCLUDE_SRCS}")
     list(REMOVE_ITEM SRCS ${EXCLUDE_SRCS})
 endif()
-if(${Windows})
+if(Windows)
     if("${ARCHITECTURE}" STREQUAL "x64")
 	add_executable(${Target} ${SRCS})
     else()
 	add_executable(${Target} WIN32 ${SRCS})
     endif()
+elseif(unix)
+    add_executable(${Target} ${SRCS})
 endif()
-set(OUTDIR_BASE ${SPR_TOP_DIR}/generated/bin)
 
 # ------------------------------------------------------------------------------
-#  Add target to synchronize configuration with ${SRR_SRC_DIR}.
+#  Compiler options.
 #
-set(SYNC "sync")
-set(_tmp_args "-v"
-	"-a" "\"$(Platform)\""
-	"-c" "\"$(Configuration)\""
-	"${SPR_SRC_DIR}/${OOS_BLD_DIR}" "${CMAKE_BINARY_DIR}"
-	"${Target}" "${SPR_PROJS}")
-file(TO_NATIVE_PATH "${_tmp_args}" _tmp_args)
-add_custom_target(${SYNC}
-    COMMAND python ${SPR_SRC_DIR}/cmake_sync.py ${_tmp_args}
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-    COMMENT "sync configuration with ${SPR_SRC_DIR}"
-)
-
-# ------------------------------------------------------------------------------
-#  Define depending projects.
-#
-set(DEP_Base)
-set(DEP_Collision Foundation)
-set(DEP_Creature Foundation Framework Physics)
-set(DEP_EmbPython)
-set(DEP_FileIO Foundation)
-set(DEP_Foundation Base)
-set(DEP_Framework FileIO Foundation Graphics Physics)
-set(DEP_Graphics Foundation)
-set(DEP_HumanInterface Foundation)
-set(DEP_Physics Collision Foundation)
-add_subdirectory(${SPR_SRC_DIR}/RunSwig ${SPR_BLD_DIR}/RunSwig)
-foreach(proj IN ITEMS ${SPR_PROJS})
-    add_subdirectory(${SPR_SRC_DIR}/${proj} ${SPR_BLD_DIR}/${proj})
-    set(DEP_LIST RunSwig)
-    foreach(dep IN ITEMS ${DEP_${proj}})
-	list(APPEND DEP_LIST ${dep})
+if(Windows)
+    set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT ${ProjectName})
+    set(CMAKE_CXX_FLAGS		"${COMP_FLAGS}")
+    set(CMAKE_CXX_FLAGS_DEBUG	"${COMP_FLAGS_DEBUG}")
+    set(CMAKE_CXX_FLAGS_RELEASE	"${COMP_FLAGS_RELEASE}")
+    set(CMAKE_CXX_FLAGS_TRACE	"${COMP_FLAGS_TRACE}")
+elseif(unix)
+    foreach(_flag ${COMP_FLAGS})
+	target_compile_options(${Target} PRIVATE ${_flag})
     endforeach()
-    add_dependencies(${proj} ${DEP_LIST})
-    #message("   dependencies: ${proj} => ${DEP_LIST}")
+    set(CMAKE_CXX_COMPILER "/usr/bin/g++")
+endif()
+foreach(_macro ${DEFINE_MACROS})
+	target_compile_definitions(${Target} PRIVATE ${_macro})
 endforeach()
-add_dependencies(RunSwig ${SYNC})
-add_dependencies(${Target} ${SPR_PROJS} ${SYNC})
 
 # ------------------------------------------------------------------------------
 #  Include directories.
 #
-include_directories(${Target}
-    PRIVATE ${CMAKE_SOURCE_DIR}
-    PRIVATE ${SPR_INC_DIR}
-    PRIVATE ${SPR_SRC_DIR}
-    PRIVATE ${Boost_INCLUDE_DIRS}
-    PRIVATE ${GLEW_INCLUDE_DIRS}
-    PRIVATE ${GLUT_INCLUDE_DIR}
-    PRIVATE ${ADDITIONAL_INCDIR}
-    PRIVATE ${SPR_TOP_DIR}/dependency/src
-)
+set(CMAKE_USE_RELATIVE_PATHS TRUE)
+target_include_directories(${Target} BEFORE PRIVATE ${INCLUDE_PATHS})
+if(DEFINED Boost_INCLUDE_DIRS)
+    target_include_directories(${Target} BEFORE PRIVATE ${Boost_INCLUDE_DIRS})
+endif()
+if(DEFINED GLEW_INCLUDE_DIRS)
+    target_include_directories(${Target} BEFORE PRIVATE ${GLEW_INCLUDE_DIRS})
+endif()
+if(DEFINED GLUT_INCLUDE_DIR)
+    target_include_directories(${Target} BEFORE PRIVATE ${GLUT_INCLUDE_DIR})
+endif()
+
+# ------------------------------------------------------------------------------
+#  Linker options.
+#
+if(Windows)
+    set(CMAKE_EXE_LINKER_FLAGS		"${LINK_FLAGS}")
+    set(CMAKE_EXE_LINKER_FLAGS_DEBUG	"${LINK_FLAGS_DEBUG}")
+    set(CMAKE_EXE_LINKER_FLAGS_RELEASE	"${LINK_FLAGS_RELEASE}")
+    set(CMAKE_EXE_LINKER_FLAGS_TRACE	"${LINK_FLAGS_TRACE}")
+else()
+    target_link_options(${Target} BEFORE PRIVATE ${LINK_FLAGS})
+endif()
+
+# ------------------------------------------------------------------------------
+#  Add target to synchronize configuration with ${SRR_SRC_DIR}.
+#
+if(SPR_PROJS AND Windows)
+    set(SYNC "sync")
+    set(_tmp_args "-v"
+		  "-a" "\"$(Platform)\""
+		  "-c" "\"$(Configuration)\""
+		  "${SPR_SRC_DIR}/${OOS_BLD_DIR}" "${CMAKE_BINARY_DIR}"
+		  "${Target}" "${SPR_PROJS}")
+    file(TO_NATIVE_PATH "${_tmp_args}" _tmp_args)
+    add_custom_target(${SYNC}
+	COMMAND python ${SPR_SRC_DIR}/cmake_sync.py ${_tmp_args}
+	WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+	COMMENT "sync configuration with ${SPR_SRC_DIR}"
+    )
+endif()
+
+# ------------------------------------------------------------------------------
+#  Define depending projects.
+#
+if(SPR_PROJS AND Windows)
+    set(DEP_Base)
+    set(DEP_Collision Foundation)
+    set(DEP_Creature Foundation Framework Physics)
+    set(DEP_EmbPython)
+    set(DEP_FileIO Foundation)
+    set(DEP_Foundation Base)
+    set(DEP_Framework FileIO Foundation Graphics Physics)
+    set(DEP_Graphics Foundation)
+    set(DEP_HumanInterface Foundation)
+    set(DEP_Physics Collision Foundation)
+    add_subdirectory(${SPR_SRC_DIR}/RunSwig ${SPR_BLD_DIR}/RunSwig)
+    foreach(proj IN ITEMS ${SPR_PROJS})
+	add_subdirectory(${SPR_SRC_DIR}/${proj} ${SPR_BLD_DIR}/${proj})
+	set(DEP_LIST RunSwig)
+	foreach(dep IN ITEMS ${DEP_${proj}})
+	    list(APPEND DEP_LIST ${dep})
+	endforeach()
+	add_dependencies(${proj} ${DEP_LIST})
+	#message("   dependencies: ${proj} => ${DEP_LIST}")
+    endforeach()
+    add_dependencies(RunSwig ${SYNC})
+    add_dependencies(${Target} ${SPR_PROJS} ${SYNC})
+endif()
 
 # ------------------------------------------------------------------------------
 #  Library directories.
 #
-if("${ARCHITECTURE}" STREQUAL "x64")
-    set(DEPENDENCY_LIBDIR ${SPR_TOP_DIR}/dependency/lib/win64)
+if(Windows)
+    if("${ARCHITECTURE}" STREQUAL "x64")
+	set(DEPENDENCY_LIBDIR ${SPR_TOP_DIR}/dependency/lib/win64)
+    else()
+	set(DEPENDENCY_LIBDIR ${SPR_TOP_DIR}/dependency/lib/win32)
+    endif()
+    target_link_directories(${Target} BEFORE
+	PRIVATE ${LIBRARY_PATHS}
+	PRIVATE ${DEPENDENCY_LIBDIR}
+    )
 else()
-    set(DEPENDENCY_LIBDIR ${SPR_TOP_DIR}/dependency/lib/win32)
+    set(CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS)
+    foreach(_path ${LIBRARY_PATHS})
+	target_link_directories(${Target} PRIVATE ${_path})
+    endforeach()
+    foreach(_path ${DEPENDENCY_LIBDIR})
+	target_link_directories(${Target} PRIVATE ${_path})
+    endforeach()
 endif()
-target_link_directories(${Target}
-    PRIVATE ${ADDITIONAL_LIBDIR}
-    PRIVATE ${DEPENDENCY_LIBDIR}
-)
 
 # ------------------------------------------------------------------------------
 #  Additional libraries.
 #
-target_link_libraries(${Target}
-    ${SPR_PROJS}
-    ${ADDITIONAL_LIBS}
-)
+if(Windows)
+    target_link_libraries(${Target}
+	${SPR_PROJS}
+	${LIBRARY_NAMES}
+    )
+    foreach(_tmp ${CMAKE_CONFIGURATION_TYPES})
+	string(TOUPPER ${_tmp} _conf)
+	set(_lib ${LIBRARY_NAMES_${_conf}})
+	target_link_libraries(${Target} $<$<CONFIG:${_conf}>:${_lib}>)
+    endforeach()
+else()
+    foreach(_name ${LIBRARY_NAMES})
+	target_link_libraries(${Target} ${_name})
+    endforeach()
+endif()
+
 # ------------------------------------------------------------------------------
-#  Exclude default libraries.
+#  Exclude default libraries (Windows only).
 #
-if(DEFINED EXCLUDE_LIBS)
+if(Windows AND DEFINED EXCLUDE_LIBRARY_NAMES)
     set(CMAKE_EXE_LINKER_FLAGS
-	"${CMAKE_EXE_LINKER_FLAGS} /NODEFAULTLIB:\"${EXCLUDE_LIBS}\"")
+	"${CMAKE_EXE_LINKER_FLAGS} /NODEFAULTLIB:\"${EXCLUDE_LIBRARY_NAMES}\"")
 endif()
 
 # ------------------------------------------------------------------------------
 #  Set working directory to VS debugger.
 #
-foreach(_prop DEBUGGER_WORKING_DIRECTORY DEBUGGER_COMMAND_ARGUMENTS)
-    if(DEFINED ${_prop})
-	set_target_properties(${Target} PROPERTIES VS_${_prop} ${${_prop}})
-    endif()
-endforeach()
-
-# ------------------------------------------------------------------------------
-#  Install.
-#
-if(DEFINED SPRINGHEAD_INCLUDE_PREFIX	  AND
-   DEFINED SPRINGHEAD_LIBRARY_DIR_DEBUG	  AND
-   DEFINED SPRINGHEAD_LIBRARY_DIR_RELEASE)
-    message("** INSTALL: Debug:   ${SPRINGHEAD_LIBRARY_DIR_DEBUG} **")
-    message("** INSTALL: Release: ${SPRINGHEAD_LIBRARY_DIR_RELEASE} **")
-    install(FILES ${LIBPATH_DEBUG}
-	DESTINATION ${SPRINGHEAD_LIBRARY_DIR_DEBUG}
-	PERMISSIONS OWNER_READ GROUP_READ WORLD_READ
-	CONFIGURATIONS Debug
-    )
-    install(FILES ${LIBPATH_RELEASE}
-	DESTINATION ${SPRINGHEAD_LIBRARY_DIR_RELEASE}
-	PERMISSIONS OWNER_READ GROUP_READ WORLD_READ
-	CONFIGURATIONS Release
-    )
-    message("** INSTALL: Headers: ${SPRINGHEAD_INCLUDE_PREFIX} **")
-    install(DIRECTORY ${SPR_INC_DIR}
-	DESTINATION ${SPRINGHEAD_INCLUDE_PREFIX}
-    )
+if(Windows)
+    foreach(_prop DEBUGGER_WORKING_DIRECTORY DEBUGGER_COMMAND_ARGUMENTS)
+	if(DEFINED ${_prop})
+	    set_target_properties(${Target} PROPERTIES VS_${_prop} ${${_prop}})
+	endif()
+    endforeach()
 endif()
 
 # end: CMakeLists.txt

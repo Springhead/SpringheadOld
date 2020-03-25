@@ -14,8 +14,14 @@
 #include <conio.h>
 #include <Springhead.h>
 #include <HumanInterface/SprHIDRUsb.h>
+#include <HumanInterface/SprHIKeyMouse.h>
+#include <Foundation/SprUTQPTimer.h>
 #include <iomanip>
 using namespace Spr;
+
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
 int __cdecl main(){
 	// 力覚インタフェースとの接続設定
@@ -35,45 +41,62 @@ int __cdecl main(){
 		cyDesc.channel = i;
 		hiSdk->AddRealDevice(DRCyUsb20Sh4If::GetIfInfoStatic(), &cyDesc);
 	}
+	//	UART Motor Driver
+	DRUARTMotorDriverDesc umDesc;
+	hiSdk->AddRealDevice(DRUARTMotorDriverIf::GetIfInfoStatic(), &umDesc);
 	hiSdk->AddRealDevice(DRKeyMouseWin32If::GetIfInfoStatic());
 	hiSdk->Print(DSTR);
 	hiSdk->Print(std::cout);
 
-	UTRef<HISpidarGIf> spg = hiSdk->CreateHumanInterface(HISpidarGIf::GetIfInfoStatic())->Cast();
-	spg->Init(&HISpidarGDesc("SpidarG6X3R"));
+	//	UTRef<HISpidarGIf> spg = hiSdk->CreateHumanInterface(HISpidarGIf::GetIfInfoStatic())->Cast();
+	UTRef<HISpidar4If> spg = hiSdk->CreateHumanInterface(HISpidar4If::GetIfInfoStatic())->Cast();
+//	spg->Init(&HISpidarGDesc("SpidarG6X3R"));
+	spg->Init(&HISpidar4DDesc());
 	spg->Calibration();
 
 	int t = 0;
+	int lastTime;
+#ifdef _WIN32
+	lastTime = timeGetTime();
+#endif
 	while(!_kbhit()){
 		t += 1;
+		if (t >= 1000) {
+			t = 0;
+#ifdef _WIN32
+			int time = timeGetTime();
+#endif
+			int diff = time - lastTime;
+			DPF("Duration: %d,  Freq: %f\n", diff, 1000.0 / diff * 1000);
+			lastTime = time;
+		}
 		spg->Update(0.001f);
-#if 0
+#if 0	//	Virtual floor
 		Vec3f spgpos = spg->GetPosition();
-		std::cout << std::setprecision(2) << spgpos << std::endl;
+		//std::cout << std::setprecision(2) << spgpos << std::endl;
 		Vec3f f(0.0, 0.0, 0.0);
 		if(spgpos.y < -0.015){
-			f[1] = (float) (-(spgpos.y -  -0.015) * 1000);
+			f.y = (float) (-(spgpos.y -  -0.015) * 1000);
 		}
 		spg->SetForce(f, Vec3f());
-#else if
+#else	//	print the position and the orientation of the grip
 		for(size_t i=0; i<spg->NMotor(); ++i){
 			std::cout << " " << std::setprecision(2) << spg->GetMotor(i)->GetLength();
 		}
 		std::cout << std::endl;
 #endif
 	}
-	_getch();
-/*
-	DRKeyMouseWin32If* wif = DCAST(DRKeyMouseWin32If, sdk->FindRealDevice("KeyMouseWin32"));
+#if 0	//	test for KeyMouseWin32
+	DRKeyMouseWin32If* wif = hiSdk->FindRealDevice("KeyMouseWin32")->Cast();
 	wif->Update();	
-	UTRef<HIMouse6DIf> mouse6D = DCAST(HIMouse6DIf, sdk->CreateHumanInterface("HIMouse6D", NULL));
+	DVKeyMouseIf* keyMouse = wif->Rent(DVKeyMouseIf::GetIfInfoStatic(), NULL, 0)->Cast();
 	while(1){
-		if (mouse6D->GetKeyMouse()->GetKeyState('Q') & DVKeyMouseIf::PRESS) return 0;
+		if (keyMouse->GetKeyState('Q') & DVKeySt::PRESSED) return 0;
 		for(int i=0; i<200; ++i){
-			if (mouse6D->GetKeyMouse()->GetKeyState(i) & DVKeyMouseIf::PRESS){
+			if (keyMouse->GetKeyState(i) & DVKeySt::PRESSED){
 				std::cout << i << " '"<< (char)i << "' " << std::endl;
 			}
 		}
 	}
-*/
+#endif
 }

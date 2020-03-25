@@ -18,16 +18,22 @@ PDFFILE	= $(TOPFILE:.tex=.pdf)
 INSFILE	= $(INSPATH)/$(PDFNAME)
 
 SRCS	=\
-	main.tex			\
-	macro.tex			\
-	1.0.WhatCMakeWillDo		\
-	1.1.ConventionalMethod		\
-	1.2.WhenUsedCMake		\
-	1.3.Problems			\
-	1.4.Solution			\
-	2.0.ForNonDevelopper		\
-	2.1.HowToBuildLibrary		\
-	3.0.ForDevelopper		\
+	main.tex		\
+	macro.tex		\
+	1.0.Install		\
+	1.1.Download		\
+	1.2.Preparation		\
+	1.3.Cmake		\
+	1.4.Build		\
+	2.0.Application		\
+	2.1.PreparationForApp	\
+	2.2.QandA		\
+	2.3.0.Background	\
+	2.3.1.OldMethod		\
+	2.3.2.CmakeMethod	\
+	2.3.3.Problems		\
+	2.3.4.Solutions		\
+	2.3.5.Implementation	\
 	LastUpdate.tex
 
 TIMESTAMPFILE	= timestamp.tex

@@ -1,16 +1,16 @@
 # ==============================================================================
 #  CMakeConf.txt
-#    ** ‚±‚Ìƒtƒ@ƒCƒ‹‚ğ’¼Ú•ÒW‚µ‚ÄƒRƒ~ƒbƒg‚µ‚È‚¢‚æ‚¤‚É‚¨Šè‚¢‚µ‚Ü‚· **
+#    ** ã“ã®ãƒ•ã‚¡ã‚¤ãƒ«ã‚’ç›´æ¥ç·¨é›†ã—ã¦ã‚³ãƒŸãƒƒãƒˆã—ãªã„ã‚ˆã†ã«ãŠé¡˜ã„ã—ã¾ã™ **
 #    ** DO NOT edit and commit this file. **
 #
-#    ‚±‚Ìƒtƒ@ƒCƒ‹‚Å‚ÍAŸ‚Ì–€‚ğİ’è‚µ‚Ü‚·B
-#	ŠO•”ƒpƒbƒP[ƒW‚Ì—˜—p
-#		•Ï” CMAKE_PREFIX_PATH ‚ğ’è‹`‚·‚ê‚ÎAdependency ‚Ì‘ã‚í‚è‚É
-#		‚»‚ê‚ç‚ÌƒpƒbƒP[ƒW‚ğQÆ‚·‚é‚æ‚¤‚É‚È‚è‚Ü‚·B
-#	ƒCƒ“ƒXƒg[ƒ‹ƒfƒBƒŒƒNƒgƒŠ‚Ìİ’è
-#		‰º‹L‚Ì•Ï”‚ğ’è‹`‚·‚ê‚ÎA¶¬‚µ‚½ƒtƒ@ƒCƒ‹‹y‚ÑƒRƒ“ƒpƒCƒ‹‚É•K—v
-#		‚Æ‚È‚éƒwƒbƒ_ƒtƒ@ƒCƒ‹‚ğƒCƒ“ƒXƒg[ƒ‹‚·‚éƒ^[ƒQƒbƒg‚ğ¶¬‚Å‚«‚Ü‚·B
-#    ‰º‹L‚ğQÆ‚Ì‚±‚ÆB
+#    ã“ã®ãƒ•ã‚¡ã‚¤ãƒ«ã§ã¯ã€æ¬¡ã®äº‹é …ã‚’è¨­å®šã—ã¾ã™ã€‚
+#	å¤–éƒ¨ãƒ‘ãƒƒã‚±ãƒ¼ã‚¸ã®åˆ©ç”¨
+#		å¤‰æ•° CMAKE_PREFIX_PATH ã‚’å®šç¾©ã™ã‚Œã°ã€dependency ã®ä»£ã‚ã‚Šã«
+#		ãã‚Œã‚‰ã®ãƒ‘ãƒƒã‚±ãƒ¼ã‚¸ã‚’å‚ç…§ã™ã‚‹ã‚ˆã†ã«ãªã‚Šã¾ã™ã€‚
+#	ã‚¤ãƒ³ã‚¹ãƒˆãƒ¼ãƒ«ãƒ‡ã‚£ãƒ¬ã‚¯ãƒˆãƒªã®è¨­å®š
+#		ä¸‹è¨˜ã®å¤‰æ•°ã‚’å®šç¾©ã™ã‚Œã°ã€ç”Ÿæˆã—ãŸãƒ•ã‚¡ã‚¤ãƒ«åŠã³ã‚³ãƒ³ãƒ‘ã‚¤ãƒ«æ™‚ã«å¿…è¦
+#		ã¨ãªã‚‹ãƒ˜ãƒƒãƒ€ãƒ•ã‚¡ã‚¤ãƒ«ã‚’ã‚¤ãƒ³ã‚¹ãƒˆãƒ¼ãƒ«ã™ã‚‹ã‚¿ãƒ¼ã‚²ãƒƒãƒˆã‚’ç”Ÿæˆã§ãã¾ã™ã€‚
+#    ä¸‹è¨˜ã‚’å‚ç…§ã®ã“ã¨ã€‚
 #
 #    This file defines following matters.
 #	External package usage
@@ -26,28 +26,36 @@
 # ------------------------------------------------------------------------------
 #  External packages (boost, glew and freeglut).
 #
-#    •Ê“rƒCƒ“ƒXƒg[ƒ‹‚µ‚½ƒpƒbƒP[ƒW‚ğg—p‚·‚é‚Æ‚«‚ÍAƒpƒbƒP[ƒW‚ğƒCƒ“ƒXƒg[ƒ‹
-#    ‚µ‚½ƒfƒBƒŒƒNƒgƒŠ‚ÌƒpƒX(â‘ÎƒpƒX)‚ğ CMAKE_PREFIX_PATH ‚Éİ’è‚µ‚Ä‚­‚¾‚³‚¢B
-#    •¡”‚ÌƒpƒX‚ğİ’è‚·‚é‚Æ‚«‚ÍAŠeƒpƒX‚ğ‹ó”’‚Å‹æØ‚Á‚Ä•À‚×‚Ü‚·B
+#    åˆ¥é€”ã‚¤ãƒ³ã‚¹ãƒˆãƒ¼ãƒ«ã—ãŸãƒ‘ãƒƒã‚±ãƒ¼ã‚¸ã‚’ä½¿ç”¨ã™ã‚‹ã¨ãã¯ã€ãƒ‘ãƒƒã‚±ãƒ¼ã‚¸ã‚’ã‚¤ãƒ³ã‚¹ãƒˆãƒ¼ãƒ«
+#    ã—ãŸãƒ‡ã‚£ãƒ¬ã‚¯ãƒˆãƒªã®ãƒ‘ã‚¹(çµ¶å¯¾ãƒ‘ã‚¹)ã‚’ CMAKE_PREFIX_PATH ã«è¨­å®šã—ã¦ãã ã•ã„ã€‚
+#    è¤‡æ•°ã®ãƒ‘ã‚¹ã‚’è¨­å®šã™ã‚‹ã¨ãã¯ã€å„ãƒ‘ã‚¹ã‚’ç©ºç™½ã€æ”¹è¡Œã¾ãŸã¯ã‚»ãƒŸã‚³ãƒ­ãƒ³ã§åŒºåˆ‡ã£ã¦
+#    ä¸¦ã¹ã¾ã™ã€‚
 #
-#    If you installed above packages and intended to use them, uncomment and
-#    define installed directory list to CMAKE_PREFIX_PATH (USE ABSOLUTE PATH).
+#    If you installed above packages and intend to use them, uncomment and
+#    define installed directory list to CMAKE_PREFIX_PATH.
+#    NOTE:	
+#	Use ABSOLUTE PATH.
+#	Multiple pathes must be separated by 'space', "newline' or 'semicolon'.
 #
-#set(CMAKE_PREFIX_PATH
+if(Windows)
+#    set(CMAKE_PREFIX_PATH
 #	"F:/Project/ExternalPackage/boost_1_70_0/include/boost-1_70"
 #	"F:/Project/ExternalPackage/glew-2.1.0"
 #	"F:/Project/ExternalPackage/glew-2.1.0/lib/Release/x64"
 #	"F:/Project/ExternalPackage/freeglut"
-#	"F:/Project/ExternalPackage/glui-2.37/include"
-#)
+#    )
+#    set(ADDITIONAL_INCDIR "F:/Project/ExternalPackage/glui-2.37/include")
+elseif(unix)
+#    set(CMAKE_PREFIX_PATH "/usr")
+endif()
 
 # ------------------------------------------------------------------------------
 #  Install directories (library and headers).
 #
-#    ì¬‚µ‚½ƒ‰ƒCƒuƒ‰ƒŠ‹y‚ÑƒRƒ“ƒpƒCƒ‹‚É•K—v‚Èƒwƒbƒ_ƒtƒ@ƒCƒ‹‚ğƒ†[ƒU‚ªw’è‚·‚é
-#    ƒfƒBƒŒƒNƒgƒŠ‚ÉƒCƒ“ƒXƒg[ƒ‹‚É‚ÍAŸ‚Ì•Ï”‚Ì’l‚ğ“KØ‚ÈƒpƒX(â‘ÎƒpƒX)‚Å’è‹`
-#    ‚µ’¼‚µ‚Ä‚­‚¾‚³‚¢ (ƒ^[ƒQƒbƒg "INSTALL" ‚ª¶¬‚³‚ê‚Ü‚·)B
-#    ƒRƒ“ƒpƒCƒ‹‚ªÏ‚ñ‚¾‚ ‚Æ‚Å "INSTALL" ‚ğÀs‚·‚ê‚ÎƒCƒ“ƒXƒg[ƒ‹‚ªs‚í‚ê‚Ü‚·B
+#    ä½œæˆã—ãŸãƒ©ã‚¤ãƒ–ãƒ©ãƒªåŠã³ã‚³ãƒ³ãƒ‘ã‚¤ãƒ«ã«å¿…è¦ãªãƒ˜ãƒƒãƒ€ãƒ•ã‚¡ã‚¤ãƒ«ã‚’ãƒ¦ãƒ¼ã‚¶ãŒæŒ‡å®šã™ã‚‹
+#    ãƒ‡ã‚£ãƒ¬ã‚¯ãƒˆãƒªã«ã‚¤ãƒ³ã‚¹ãƒˆãƒ¼ãƒ«ã«ã¯ã€æ¬¡ã®å¤‰æ•°ã®å€¤ã‚’é©åˆ‡ãªãƒ‘ã‚¹(çµ¶å¯¾ãƒ‘ã‚¹)ã§å®šç¾©
+#    ã—ç›´ã—ã¦ãã ã•ã„ (ã‚¿ãƒ¼ã‚²ãƒƒãƒˆ "INSTALL" ãŒç”Ÿæˆã•ã‚Œã¾ã™)ã€‚
+#    ã‚³ãƒ³ãƒ‘ã‚¤ãƒ«ãŒæ¸ˆã‚“ã ã‚ã¨ã§ "INSTALL" ã‚’å®Ÿè¡Œã™ã‚Œã°ã‚¤ãƒ³ã‚¹ãƒˆãƒ¼ãƒ«ãŒè¡Œã‚ã‚Œã¾ã™ã€‚
 #
 #    To install library file and header files where you want, uncomment and
 #    redefine following parameters appropreately (use absolute path).
@@ -60,8 +68,13 @@
 #    SPRINGHEAD_LIBRARY_RELEASE:
 #	Destination directory path (absolute path).
 #
-#set(SPRINGHEAD_INCLUDE_PREFIX      "C:/usr/local")
-#set(SPRINGHEAD_LIBRARY_DIR_DEBUG   "C:/usr/local/lib")
-#set(SPRINGHEAD_LIBRARY_DIR_RELEASE "C:/usr/local/lib")
+if(Windows)
+#    set(SPRINGHEAD_INCLUDE_PREFIX      "C:/usr/local")
+#    set(SPRINGHEAD_LIBRARY_DIR_DEBUG   "C:/usr/local/lib")
+#    set(SPRINGHEAD_LIBRARY_DIR_RELEASE "C:/usr/local/lib")
+elseif(unix)
+#    set(SPRINGHEAD_INCLUDE_PREFIX      "/home/user/install")
+#    set(SPRINGHEAD_LIBRARY_DIR		"/home/user/install/lib")
+endif()
 
 # end: CMakeConf.txt

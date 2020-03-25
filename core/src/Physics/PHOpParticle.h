@@ -27,14 +27,6 @@ namespace Spr{;
 //	when simulation : build currCenter ,CurrOrien
 //
 */
-
-//friction
-enum FrictionState {
-	FREE,
-	STATIC,
-	DYNAMIC,
-};
-
 class PHOpParticle :public SceneObject, public PHOpParticleDesc
 {
 	
@@ -67,12 +59,6 @@ public :
 		
 		initialWArr = false;
 		initialPvarr = false;
-
-		//friction
-		pfrictionState = FREE;
-		fricCount = 0;
-		isColliedBound = false;
-
 	}
 	
 private:
@@ -134,12 +120,6 @@ public :
 	
 	//粒子の到達位置（未使用）
 	std::vector<Vec3f> pGoalCtr;
-
-
-	//friction
-	FrictionState pfrictionState;
-	unsigned fricCount;
-	bool isColliedBound;
 	
 	int getVertexGlbIndex(int vindex)
 	{
@@ -215,6 +195,4 @@ struct DisCmpPoint
 		};
 
 }//namespace
-
-
 #endif
