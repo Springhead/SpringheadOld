@@ -9,14 +9,22 @@
 思われますので、ここでは Windows 上で Visual Studio を使う場合について説明します。
 
 ----
-** ソリューションファイルに新しいターゲットがある **
+** Q. プログラムの実行時に“リソースファイルが見つからない”というエラーが起きる **
+
+プログラムは作業ディレクトリ *build* の下に作成されます。
+プログラムが相対パス指定でリソースを参照している場合には、
+CMakeLists.txt があるディレクトリ (C:/Develop/Application) から
+プログラムを起動してください。
+
+----
+** Q. ソリューションファイルに新しいターゲットがある **
 
 ** ALL_BUILD **
 
 これは CMake が自動的に作成するターゲットで、make all に相当するものとされています。
 ただし Visual Studio 上では ALL_BUILD の依存関係の設定が不正確で、
 このターゲットをビルドしても正しい結果は得られないようです。
-**このターゲットは無視してください**
+** このターゲットは無視してください。 **
 
 ** sync **
 
@@ -27,7 +35,7 @@
  参照。
 
 ----
-** ソリューションまたはプロジェクトが環境外で変更された旨のメッセージが出る **
+** Q. ソリューションまたはプロジェクトが環境外で変更された旨のメッセージが出る **
 
 これはアプリケーション側と Springhead Library 側との整合性を保つために
 上記の sync ターゲットが実行されることで、
@@ -40,9 +48,11 @@
 メッセージがすべてクリアされてしまいます。
 これを防ぐには、一旦「無視」を指定し、
 その後にソリューションを開き直せば同じ結果が得られます。
+なお、変更されるのはソリューションファイル / プロジェクトファイルだけなので、
+「無視」のまま作業を続けても問題はないと思われます。
 
 ----
-** ディレクトリが作成できないエラーが発生する **
+** Q. ディレクトリが作成できないエラーが発生する **
 
 Springehad Library をビルドすると、ソースツリー上に
  "C:/Springhead/core/src/Base/*x64*/*15.0*/Base.dir"
@@ -63,7 +73,7 @@ Springehad Library をビルドすると、ソースツリー上に
 
 ----
 <a id="CrumbleBuildOptimization"></a>
-** ビルドの最適性が崩れる **
+** Q. ビルドの最適性が崩れる **
 
 アプリケーション側で "C:/Develop/Application/*build*/Base.Base.dir" などを削除すると、
 ビルド時に Visual Studio が *build* 下に "Base.dir" を自動的に作成してしまうために
@@ -77,7 +87,7 @@ Springehad Library をビルドすると、ソースツリー上に
 再度 cmake を実行する必要があります。**
 
 ----
-** sync configuration でファイルオープンエラーが発生する **
+** Q. sync configuration でファイルオープンエラーが発生する **
 
 Springhead Library 側で "*build*/Base" 下にあるプロジェクトファイル "Base.vcxproj" を
 削除すると、sync ターゲット実行で link 先のファイルが見つからずに
@@ -100,7 +110,7 @@ Springhead Library 側で "*build*/Base" 下にあるプロジェクトファイ
 **新しい配布ファイルから "CMakeLists.txt" を再作成すれば、
 以下の問題は解消します。**
 
-上記以前のバージョンで配布した "CMakeLists.\*.dist" を元に
+上記以前のバージョンで配布した "CMakeLists.txt.\*.dist" を元に
  "CMakeLists.txt" を作成して使用している場合は、
 RunSwig で clean/rebuild の対応ができていなかったため、
 clean と同等の機能を実現するためのターゲット RunSwig\_Clean が
@@ -131,19 +141,11 @@ set(LIBPATH_TRACE   ${LIBDIR}/Springhead${LIBNAME_TRACE}.lib)
 set(CLEAN ${Python} ${CMAKE_SOURCE_DIR}/RunSwig/Clean.py ${CMAKE_SOURCE_DIR})
 
 if(${Windows})
-    add_custom_target(${ProjectName} ALL
-	COMMAND if "'$(Configuration)'" equ "'Debug'"   ${LIBCMND_DEBUG}
-	COMMAND if "'$(Configuration)'" equ "'Release'" ${LIBCMND_RELEASE}
-	COMMAND if "'$(Configuration)'" equ "'Trace'"   ${LIBCMND_TRACE}
-	WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-	DEPENDS Base Collision Creature FileIO Foundation Framework Graphics HumanInterface Physics
-	COMMENT [[  generating Springhead Library... ]]
-    )
     add_custom_target(RunSwig_Clean
-	COMMAND if "'$(Configuration)'" equ "'Debug'"   ${CLEAN} ${LIBPATH_DEBUG}
-	COMMAND if "'$(Configuration)'" equ "'Release'" ${CLEAN} ${LIBPATH_RELEASE}
-	COMMAND if "'$(Configuration)'" equ "'Trace'"   ${CLEAN} ${LIBPATH_TRACE}
-	COMMENT [[  clearing RunSwig generated files and Springhead Library... ]]
+        COMMAND if "'$(Configuration)'" equ "'Debug'"   ${CLEAN} ${LIBPATH_DEBUG}
+        COMMAND if "'$(Configuration)'" equ "'Release'" ${CLEAN} ${LIBPATH_RELEASE}
+        COMMAND if "'$(Configuration)'" equ "'Trace'"   ${CLEAN} ${LIBPATH_TRACE}
+        COMMENT [[  clearing RunSwig generated files and Springhead Library... ]]
     )
 elseif(${Linux})
 endif()
