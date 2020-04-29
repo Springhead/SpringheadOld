@@ -549,7 +549,7 @@ void PHIKEngine::LagrangeMultiplierIK(bool nopullback) {
 			}
 		}
 	}
-finGS:
+//finGS:	// 2020-0420 fk: suppress warning (unused label)
 	for (int i = 0; i < x.size(); i++) {
 		W[i] = x[i];
 	}
