@@ -29,8 +29,9 @@
 #	Ver 1.7  2018/07/03 F.Kanehori	空白を含むユーザ名に対応.
 #	Ver 1.8  2019/02/26 F.Kanehori	Cmake環境に対応.
 #	Ver 1.9  2019/04/01 F.Kanehori	Python library path 検索方法変更.
+#	Ver 1.10 2020/04/30 F.Kanehori	unix: gmake をデフォルトにする.
 # ==============================================================================
-version = 1.9
+version = 1.10
 debug = False
 trace = False
 
@@ -146,7 +147,7 @@ if options.python:
 	python = options.python
 nkf = 'nkf'
 swig = 'swig'
-make = 'make' if unix else 'nmake'
+make = 'gmake' if unix else 'nmake'
 runswig_foundation = '%s %s/RunSwig.py -P %s' % (python, foundation_dir, python)
 addpath = spr_path.abspath('buildtool')
 
@@ -242,7 +243,6 @@ output(interfacefile, lines)
 #
 srcimpdep_rel = os.path.relpath(srcimpdep)
 swigdir_rel = Util.upath(os.path.relpath('%s/core/bin/swig' % sprtop))
-#
 swigargs = '-I%s/Lib' % swigdir_rel
 swigargs += ' -spr -w312,325,401,402 -DSWIG_OLDNODEHANDLER -c++'
 cp = 'cp' if unix else 'copy'

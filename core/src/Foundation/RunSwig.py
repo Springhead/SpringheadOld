@@ -23,6 +23,7 @@
 #	Ver 1.6  2018/07/03 F.Kanehori	空白を含むユーザ名に対応.
 #	Ver 1.7  2019/02/26 F.Kanehori	Cmake環境に対応.
 #	Ver 1.8  2019/04/01 F.Kanehori	Python library path 検索方法変更.
+#	Ver 1.9  2020/04/30 F.Kanehori	unix: gmake をデフォルトに.
 # ==============================================================================
 version = 1.8
 trace = False
@@ -124,7 +125,7 @@ dry_run	= options.dry_run
 #
 if options.python:
 	python = options.python
-make = 'make' if unix else 'nmake'
+make = 'gmake' if unix else 'nmake'
 swig = 'swig'
 
 # ----------------------------------------------------------------------
