@@ -26,7 +26,7 @@
 /** Springhead2/closed のソースを使用するかどうか
 	開発者以外は未定義としてください
  */
-#include "UseClosedSrcOrNot.h"
+#include "SprUseClosedSrcOrNot.h"
 
 /** use this definition to use functions that use boost::numeric::bindings::lapack.
     see Foundation/UTClapack.h
