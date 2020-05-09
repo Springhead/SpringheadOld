@@ -21,20 +21,30 @@ setlocal enabledelayedexpansion
 ::  VERSION
 ::	Ver 1.0  2019/10/10 F.Kanehori	RunSwig から移動. -SprTop は廃止.
 ::	Ver 1.1  2020/04/16 F.Kanehori	_SPRTOP_ のデフォルトを変更
+::	Ver 2.0  2020/05/09 F.Kanehori	_SPRTOP_ は廃止.
 :: ============================================================================
 set verbose=0
 
 ::----------------------------------------------
 ::  buildtool の相対パス
-::	"%1"=="-src"なら、"_SPRTOP_=..\..\"とする
+::	現在の位置から上へたどって最初に見つけた"core"ディレクトリの
+::	一段上位のディレクトリをSpringheadのトップディレクトリとする
 ::
-if "%_SPRTOP_%" equ "" (
-	set _SPRTOP_=..\..
-	rem echo Need environment variable "_SPRTOP_" be set".
-	rem endlocal
-	rem exit /b
+set CWD=%CD%
+:loop
+	call :leaf %CD%
+	if "%_ret_%" equ "" goto :exec
+	if "%_ret_%" equ "core" goto :found
+	cd ..
+	goto :loop
+:found
+cd ..
+if exist buildtool\ (
+	set TOOLPATH=%CD%\buildtool\win32
+	echo buildtool found at "%CD%\buildtool"
 )
-set TOOLPATH=%_SPRTOP_%\buildtool\win32
+:exec
+cd %CWD%
 
 :: 引数はそのまま渡す
 set ARGS=%*
@@ -82,3 +92,9 @@ python %ARGS%
 
 endlocal
 exit /b
+
+::----------------------------------------------
+:leaf
+	set _ret_=%~nx1
+	exit /b
+
