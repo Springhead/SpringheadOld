@@ -43,7 +43,7 @@ void TreeNodeTest::BuildScene(){
 	soFloor->SetName("solidFloor");
 
 	//	リンクの作成
-	const int nLink = 6;
+	const int nLink = 2;
 	PHSolidDesc sd;
 	CDBoxDesc bd;
 	bd.boxsize = Vec3d(1, 0.2, 0.2);
@@ -56,22 +56,32 @@ void TreeNodeTest::BuildScene(){
 			links[tid][i]->SetPose(Posed::Trn((-rootDist/2 + rootDist*tid) + i , 6, 0));
 			CDBoxIf* box = phsdk->CreateShape(i ? bd : bdTop)->Cast();
 			links[tid][i]->AddShape(box);
+			if (i > 0) {
+				CDBoxIf* box = phsdk->CreateShape(bdTop)->Cast();
+				links[tid][i]->AddShape(box);
+				links[tid][i]->SetShapePose(1, Posed::Trn(0,0.2,0));
+			}
 		}
 		links[tid][0]->SetDynamical(false);
 		for (int i = 1; i < links[tid].size(); ++i) {
 			PHBallJointDesc djoint;
 			djoint.poseSocket.Pos() = i == 1 ? Vec3d(0,0,0) : Vec3d(0.5, 0, 0);
 			djoint.posePlug.Pos() = Vec3d(-0.5, 0, 0);
+			djoint.posePlug.Ori() = Quaterniond::Rot(Rad(90), 'x');
 			if (tid == 0) {
 				djoint.spring = 100;
 				djoint.damper = 100;
 			}
+			else {
+				djoint.spring = 0;
+				djoint.damper = 0;
+			}
 			joints[tid].push_back(phscene->CreateJoint(links[tid][i - 1], links[tid][i], djoint)->Cast());
 		}
-		//	次をコメントアウトすると、TreeNode=フェザーストーンを使わない、全自由度の関節になる。
-		//phscene->CreateTreeNodes(links[tid][0]);
 	}
-	phscene->CreateTreeNodes(links[1][0]);
+	//	次をコメントアウトすると、TreeNode=フェザーストーンを使わない、全自由度の関節になる。
+	//phscene->CreateTreeNodes(links[0][0]);	//	トルク計測用 PD強
+	//phscene->CreateTreeNodes(links[1][0]);	//	トルク適用用 PD弱
 	phscene->SetContactMode(PHSceneDesc::MODE_NONE);
 	//phscene->Print(DSTR);
 }
@@ -119,11 +129,11 @@ void TreeNodeTest::UserFunc() {
 			}
 		}
 	}
-	if (stopCount > 10 / dt) {
-		exit(0);
+	if (stopCount > 30 / dt) {
+//		exit(0);
 	}
 	//	1分で終了する。
-	if (count > 60 / dt) exit(-1);
+//	if (count > 60 / dt) exit(-1);
 }
 void TreeNodeTest::Keyboard(int key, int x, int y){
 	PHSceneIf* phscene = GetSdk()->GetScene()->GetPHScene();
