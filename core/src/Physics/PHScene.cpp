@@ -269,6 +269,38 @@ PHRayIf* PHScene::GetRay(int i){
 	return rays[i]->Cast();
 }
 
+bool PHScene::SetPosesOfJointedSolidsRecurs(PHSolidIf* base, PHSolids& solids) {
+	bool rv = true;
+	for (int i = 0; i != NJoints(); ++i) {
+		PHJointIf* joint = GetJoint(i);
+		PHSolidIf* soSocket = joint->GetSocketSolid();
+		if (soSocket == base) {
+			PHSolidIf* soPlug = joint->GetPlugSolid();
+			if (!soPlug) {
+				rv = false;
+				continue;
+			}
+			if (std::find(solids.begin(), solids.end(), soPlug->Cast()) != solids.end()) continue;
+			Posed posePlug, poseSocket;
+			joint->GetPlugPose(posePlug);
+			joint->GetSocketPose(poseSocket);
+			//	soSocket * poseSocket = sp * posePlug
+			//	→ soPlug.pose = soSocket.pose * poseSocket * posePlug.Inv()
+			soPlug->SetPose(soSocket->GetPose() * poseSocket * posePlug.Inv());
+			solids.push_back(soPlug->Cast());
+			SetPosesOfJointedSolidsRecurs(soPlug, solids);
+		}
+	}
+	return rv;
+}
+bool PHScene::SetPosesOfJointedSolids(const PHSolidIf* root) {
+	PHSolids solids;
+	solids.push_back(root->Cast());
+	PHSolidIf* base = (PHSolidIf*)root;
+	return SetPosesOfJointedSolidsRecurs(base, solids);
+}
+
+
 PHIKActuatorIf* PHScene::CreateIKActuator(const IfInfo* ii, const PHIKActuatorDesc& desc){
 	PHIKActuator* actuator = ikEngine->CreateIKActuator(ii, desc)->Cast();
 	AddChildObject(actuator->Cast());

@@ -345,6 +345,10 @@ public:
 	 */
 	PHRayIf* GetRay(int i);
 
+	/** @brief 関節で接続された剛体の姿勢を、関節にあわせて設定する。
+	 */
+	bool					SetPosesOfJointedSolids(const PHSolidIf* base);
+
 	/** @brief IKのノード（IKに用いることのできる可動物(=関節など)）を作成する．
 	 */
 	PHIKActuatorIf* CreateIKActuator(const IfInfo* ii, const PHIKActuatorDesc& desc = PHIKActuatorDesc());
